@@ -3,7 +3,7 @@ name: Java CI with Maven
 on:
   push:
     branches:
-      - feat/setup-workflow
+      - main
   pull_request:
     branches:
       - main
