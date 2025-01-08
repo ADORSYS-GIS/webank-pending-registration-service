@@ -11,7 +11,8 @@
 	<groupId>com.adorsys.webank</groupId>
 	<artifactId>pending-registration-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>pending-registration-service</name>
+    <packaging>pom</packaging>
+    <name>pending-registration-service</name>
 	<description>This is a pending registration service</description>
 	<url/>
 	<licenses>
@@ -20,6 +21,9 @@
 	<developers>
 		<developer/>
 	</developers>
+	<modules>
+		<module>prs</module>
+	</modules>
 	<scm>
 		<connection/>
 		<developerConnection/>
