@@ -7,7 +7,6 @@
         <groupId>com.adorsys.webank</groupId>
         <artifactId>pending-registration-service</artifactId>
         <version>0.0.1-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>prs</artifactId>
