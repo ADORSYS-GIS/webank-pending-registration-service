@@ -10,7 +10,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>prs-rest-api-1</artifactId>
+    <artifactId>prs-rest-api</artifactId>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -43,4 +43,3 @@
     </dependencies>
 
 </project>
-
