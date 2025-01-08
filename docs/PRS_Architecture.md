@@ -17,7 +17,7 @@
 
 The **Pending Registration Service (PRS)** is a critical backend service within the Webank system, tasked with managing user registrations and OTP verification. It ensures a secure and seamless process for new users signing up for bank accounts by integrating with the **OBS (Online Banking Service)**, an **SMS gateway service**, and other key modules.
 
-**NOTE**: This document will focus on the PRS and its role as a backend module in the architecture of webank. For the documentation rcovering the overall backend of webank see [here](https://github.com/ADORSYS-GIS/webank-OnlineBanking/blob/main/Docs/Architecture.md#obs-backend-architecture-documentation)
+**NOTE**: This document will focus on the PRS and its role as a backend module in the architecture of webank. For the documentation covering the overall backend of webank, see [here](https://github.com/ADORSYS-GIS/webank-OnlineBanking/blob/main/Docs/Architecture.md#obs-backend-architecture-documentation)
 
 **Key Responsibilities:**
 - Generate and manage OTPs during registration.
