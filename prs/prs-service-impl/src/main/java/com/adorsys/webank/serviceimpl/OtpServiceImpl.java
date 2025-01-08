@@ -2,6 +2,8 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.service.OtpServiceApi;
 import org.springframework.stereotype.Service;
+import com.adorsys.webank.exceptions.HashComputationException;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -92,7 +94,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             // Convert hash to Base64
             return Base64.getEncoder().encodeToString(hashBytes);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error computing hash", e);
+            throw new HashComputationException("Error computing hash");
         }
     }
 }
