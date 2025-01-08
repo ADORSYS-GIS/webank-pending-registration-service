@@ -3,7 +3,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.adorsys.webank.serviceimpl.OtpServiceImpl;
 import org.junit.jupiter.api.Test;
 
-public class OtpServiceIT {
+public class OtpServiceTest {
 
 
     OtpServiceImpl otpServiceImpl = new OtpServiceImpl();
