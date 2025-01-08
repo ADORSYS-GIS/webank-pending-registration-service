@@ -44,7 +44,6 @@ jobs:
       - name: Run Unit and Integration Tests
         run: mvn verify -s ~/.m2/settings.xml -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
 
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -75,3 +74,28 @@ jobs:
                 </settings>" > ~/.m2/settings.xml
       - name: Build with
         run: mvn clean install -s ~/.m2/settings.xml -DskipTests -DskipITs -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
+      
+  pmdCheck:
+    needs: build
+    name: Run code analyser PMD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone webank online banking repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          architecture: x64
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Check pmd
+        run: mvn -ntp pmd:check -Ddependency-check.skip=true

@@ -32,6 +32,8 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+        <maven-pmd-plugin.version>3.21.0</maven-pmd-plugin.version>
+		<ruleset.basedir>${project.basedir}</ruleset.basedir>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -65,6 +67,40 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+			<plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <configuration>
+                    <minimumTokens>100</minimumTokens>
+                    <targetJdk>${java.version}</targetJdk>
+                    <analysisCache>true</analysisCache>
+                    <linkXRef>false</linkXRef>
+                    <rulesets>
+                        <ruleset>${ruleset.basedir}/qa/pmd/pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <includeTests>true</includeTests>
+                    <failOnViolation>true</failOnViolation>
+                    <printFailingErrors>true</printFailingErrors>
+                    <excludes>
+                        <exclude>**/*MapperImpl.java</exclude>
+                    </excludes>
+                    <excludeRoots>
+                        <excludeRoot>../ledgers-deposit-account-service-impl/target/generated-sources/annotations/
+                        </excludeRoot>
+                        <excludeRoot>../ledgers-middleware-rest-server/target/generated-sources/annotations/
+                        </excludeRoot>
+                        <excludeRoot>../ledgers-middleware-service-impl/target/generated-sources/annotations/
+                        </excludeRoot>
+                        <excludeRoot>../ledgers-postings-service-impl/target/generated-sources/annotations/
+                        </excludeRoot>
+                        <excludeRoot>../ledgers-sca-service-impl/target/generated-sources/annotations/
+                        </excludeRoot>
+                        <excludeRoot>../ledgers-user-management-service-impl/target/generated-sources/annotations/
+                        </excludeRoot>
+                    </excludeRoots>
+                </configuration>
+            </plugin>
 <!--			<plugin>-->
 <!--				<groupId>org.springframework.boot</groupId>-->
 <!--				<artifactId>spring-boot-maven-plugin</artifactId>-->
