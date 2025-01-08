@@ -3,7 +3,6 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.OtpRequest;
 import com.adorsys.webank.dto.OtpValidationRequest;
 import com.adorsys.webank.service.OtpServiceApi;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
