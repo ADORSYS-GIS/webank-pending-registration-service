@@ -1,6 +1,6 @@
-package com.adorsys.webank.serviceImpl;
+package com.adorsys.webank.serviceimpl;
 import static org.junit.jupiter.api.Assertions.*;
-import com.adorsys.webank.serviceimpl.OtpServiceImpl;
+
 import org.junit.jupiter.api.Test;
 
 public class OtpServiceTest {
