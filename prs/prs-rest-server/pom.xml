@@ -26,19 +26,13 @@
         </dependency>
         <dependency>
             <groupId>com.adorsys.webank</groupId>
-            <artifactId>prs-rest-api-1</artifactId>
+            <artifactId>prs-rest-api</artifactId>
             <version>0.0.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.adorsys.webank</groupId>
             <artifactId>prs-service-impl</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.adorsys.webank</groupId>
-            <artifactId>prs-rest-api-1</artifactId>
             <version>0.0.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
