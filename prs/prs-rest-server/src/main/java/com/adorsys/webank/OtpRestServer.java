@@ -16,7 +16,7 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     public String sendOtp(OtpRequest request) {
-        return otpService.sendOtp(request.getPhoneNumber());
+        return otpService.sendOtp(request.getPhoneNumber(),request.getPublicKey());
     }
 
     @Override
