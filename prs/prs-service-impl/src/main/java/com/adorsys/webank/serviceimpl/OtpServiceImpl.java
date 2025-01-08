@@ -3,7 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.service.OtpServiceApi;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.exceptions.HashComputationException;
-
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -73,7 +73,7 @@ public class OtpServiceImpl implements OtpServiceApi {
 
         } catch (Exception e) {
             logger.error("Failed to send OTP: {}", e.getMessage());
-            throw new RuntimeException("Failed to send OTP");
+            throw new FailedToSendOTPException("Failed to send OTP");
         }
     }
 
