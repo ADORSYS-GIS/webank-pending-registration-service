@@ -3,14 +3,43 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.service.OtpServiceApi;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
+import com.twilio.type.PhoneNumber;
+
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
+    private static final Logger logger = LoggerFactory.getLogger(OtpServiceImpl.class);
+
+    // Twilio credentials
+    @Value("${twilio.account.sid}")
+    private String accountSid;
+
+    @Value("${twilio.auth.token}")
+    private String authToken;
+
+    @Value("${twilio.phone.number}")
+    private String fromPhoneNumber;
+
+    @Value("${otp.salt}")
+    private String salt;
+
+    @PostConstruct
+    public void initTwilio() {
+        Twilio.init(accountSid, authToken); // Initialize Twilio once
+    }
+
 
     @Override
     public String generateOtp() {
@@ -20,16 +49,33 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-     public String sendOtp(String phoneNumber, String publicKey) {
-        String otp = generateOtp();
+    public String sendOtp(String phoneNumber, String publicKey) {
+        if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
+            logger.error("Invalid phone number format.");
+            throw new IllegalArgumentException("Invalid phone number format");
+        }
 
-        String salt = "5";
+        try {
 
-        String otpHash = computeHash(otp, phoneNumber,publicKey, salt);
+            String otp = generateOtp();
+            String otpHash = computeHash(otp, phoneNumber,publicKey, salt);
 
-     return otpHash + ":" + otp;
+            // Send OTP via Twilio
+            Message message = Message.creator(
+                    new PhoneNumber(phoneNumber),
+                    new PhoneNumber(fromPhoneNumber),
+                    "Your OTP is: " + otp
+            ).create();
+
+            logger.info("OTP sent successfully to {}. SID: {}", phoneNumber, message.getSid());
+
+            return otpHash;
+
+        } catch (Exception e) {
+            logger.error("Failed to send OTP: {}", e.getMessage());
+            throw new FailedToSendOTPException("Failed to send OTP");
+        }
     }
-
 
     @Override
     public boolean validateOtp(String phoneNumber, String otp) {
