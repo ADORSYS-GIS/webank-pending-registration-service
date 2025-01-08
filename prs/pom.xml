@@ -13,7 +13,7 @@
 
     <packaging>pom</packaging>
     <modules>
-        <module>prs-rest-api-1</module>
+        <module>prs-rest-api</module>
         <module>prs-rest-server</module>
         <module>prs-service-api</module>
         <module>prs-service-impl</module>
