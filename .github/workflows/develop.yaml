@@ -13,7 +13,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -80,7 +80,7 @@ jobs:
     name: Run code analyser PMD
     runs-on: ubuntu-latest
     steps:
-      - name: Clone webank online banking repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
