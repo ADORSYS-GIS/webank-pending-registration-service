@@ -35,7 +35,9 @@ public class OtpServiceImpl implements OtpServiceApi {
     public boolean validateOtp(String phoneNumber, String otp) {
         return false;
     }
-    private String computeHash(String otp, String phoneNumber, String publicKey, String salt) {
+
+    @Override
+    public String computeHash(String otp, String phoneNumber, String publicKey, String salt) {
         try {
             String input = otp + phoneNumber + publicKey + salt;
 
