@@ -1,6 +1,9 @@
 package com.adorsys.webank.serviceimpl;
 import static org.junit.jupiter.api.Assertions.*;
+
 import  com.twilio.rest.api.v2010.account.MessageCreator;
+
+import com.adorsys.webank.exceptions.HashComputationException;
 import org.junit.jupiter.api.Test;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.twilio.Twilio;
@@ -16,6 +19,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+
 public class OtpServiceTest {
 
 
@@ -82,4 +91,34 @@ public class OtpServiceTest {
         // Update the assertion to check Base64 format
         assertTrue(otpHash.matches("[a-zA-Z0-9+/=]+"), "OTP hash should be a valid Base64 string");
     }
+}
+    @Test
+    void testComputeHashWithValidInputs() throws NoSuchAlgorithmException {
+        String otp = "1234";
+        String phoneNumber = "+237654066316";
+        String publicKey = "public-key-123";
+        String salt = "unique-salt";
+        // Expected hash computation
+        String input = otp + phoneNumber + publicKey + salt;
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+        String expectedHash = Base64.getEncoder().encodeToString(hashBytes);
+        // Compute hash using the method
+        String actualHash = otpServiceImpl.computeHash(otp, phoneNumber, publicKey, salt);
+        assertNotNull(actualHash, "Hash should not be null");
+        assertEquals(expectedHash, actualHash, "Hashes should match");
+    }
+
+    @Test
+    void testComputeHashWithEmptyInputs() {
+        String otp = "";
+        String phoneNumber = "";
+        String publicKey = "";
+        String salt = "";
+        String actualHash = otpServiceImpl.computeHash(otp, phoneNumber, publicKey, salt);
+        assertNotNull(actualHash, "Hash should not be null");
+        assertFalse(actualHash.isEmpty(), "Hash should not be empty");
+    }
+
+
 }
