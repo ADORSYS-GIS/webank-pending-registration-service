@@ -73,9 +73,6 @@ public class OtpServiceTest {
         // Call the method
         String otpHash = otpService.sendOtp(phoneNumber, publicKey);
 
-        // Debugging: print the actual OTP hash to understand its structure
-        System.out.println("Generated OTP hash: " + otpHash);
-
         // Assert the OTP hash is not null
         assertNotNull(otpHash, "OTP hash should not be null");
 
