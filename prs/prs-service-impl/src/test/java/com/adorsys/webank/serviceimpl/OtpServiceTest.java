@@ -1,32 +1,23 @@
 package com.adorsys.webank.serviceimpl;
+
+import com.twilio.*;
+import com.twilio.rest.api.v2010.account.*;
+import com.twilio.type.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.*;
+import org.mockito.*;
+import org.mockito.junit.jupiter.*;
+import org.springframework.test.util.*;
+
+import java.nio.charset.*;
+import java.security.*;
+import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
-
-import  com.twilio.rest.api.v2010.account.MessageCreator;
-
-import com.adorsys.webank.exceptions.HashComputationException;
-import org.junit.jupiter.api.Test;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-
 public class OtpServiceTest {
-
 
     OtpServiceImpl otpServiceImpl = new OtpServiceImpl();
 
@@ -61,7 +52,6 @@ public class OtpServiceTest {
         assertDoesNotThrow(() -> Twilio.init("testAccountSid", "testAuthToken"));
     }
 
-
     @Test
     void testSendOtpSuccessfully() {
         // Mock the MessageCreator and Message
@@ -91,20 +81,23 @@ public class OtpServiceTest {
         // Update the assertion to check Base64 format
         assertTrue(otpHash.matches("[a-zA-Z0-9+/=]+"), "OTP hash should be a valid Base64 string");
     }
-}
+
     @Test
     void testComputeHashWithValidInputs() throws NoSuchAlgorithmException {
         String otp = "1234";
         String phoneNumber = "+237654066316";
         String publicKey = "public-key-123";
         String salt = "unique-salt";
+
         // Expected hash computation
         String input = otp + phoneNumber + publicKey + salt;
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
         String expectedHash = Base64.getEncoder().encodeToString(hashBytes);
+
         // Compute hash using the method
         String actualHash = otpServiceImpl.computeHash(otp, phoneNumber, publicKey, salt);
+
         assertNotNull(actualHash, "Hash should not be null");
         assertEquals(expectedHash, actualHash, "Hashes should match");
     }
@@ -115,10 +108,10 @@ public class OtpServiceTest {
         String phoneNumber = "";
         String publicKey = "";
         String salt = "";
+
         String actualHash = otpServiceImpl.computeHash(otp, phoneNumber, publicKey, salt);
+
         assertNotNull(actualHash, "Hash should not be null");
         assertFalse(actualHash.isEmpty(), "Hash should not be empty");
     }
-
-
 }
