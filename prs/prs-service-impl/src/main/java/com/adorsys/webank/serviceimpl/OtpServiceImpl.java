@@ -11,8 +11,6 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import jakarta.annotation.PostConstruct;
 import com.twilio.type.PhoneNumber;
@@ -20,7 +18,6 @@ import com.twilio.type.PhoneNumber;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
-    private static final Logger logger = LoggerFactory.getLogger(OtpServiceImpl.class);
 
     // Twilio credentials
     @Value("${twilio.account.sid}")
@@ -40,7 +37,6 @@ public class OtpServiceImpl implements OtpServiceApi {
         Twilio.init(accountSid, authToken); // Initialize Twilio once
     }
 
-
     @Override
     public String generateOtp() {
         SecureRandom secureRandom = new SecureRandom();
@@ -51,35 +47,35 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Override
     public String sendOtp(String phoneNumber, String publicKey) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
-            logger.error("Invalid phone number format.");
             throw new IllegalArgumentException("Invalid phone number format");
         }
 
         try {
-
             String otp = generateOtp();
-            String otpHash = computeHash(otp, phoneNumber,publicKey, salt);
+            String otpHash = computeHash(otp, phoneNumber, publicKey, salt);
 
             // Send OTP via Twilio
-            Message message = Message.creator(
+             Message.creator(
                     new PhoneNumber(phoneNumber),
                     new PhoneNumber(fromPhoneNumber),
                     "Your OTP is: " + otp
             ).create();
 
-            logger.info("OTP sent successfully to {}. SID: {}", phoneNumber, message.getSid());
-
             return otpHash;
 
         } catch (Exception e) {
-            logger.error("Failed to send OTP: {}", e.getMessage());
             throw new FailedToSendOTPException("Failed to send OTP");
         }
     }
 
     @Override
-    public boolean validateOtp(String phoneNumber, String otp) {
-        return false;
+    public boolean validateOtp(String phoneNumber, String publicKey, String otpInput, String otpHash) {
+        try {
+            String newOtpHash = computeHash(otpInput, phoneNumber, publicKey, salt);
+            return newOtpHash.equals(otpHash);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
