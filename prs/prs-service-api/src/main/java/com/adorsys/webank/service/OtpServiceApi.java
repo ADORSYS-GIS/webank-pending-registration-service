@@ -6,5 +6,5 @@ public interface OtpServiceApi {
     String generateOtp();
     String sendOtp(String phoneNumber, String publicKey);
     String computeHash(String otp, String phoneNumber, String publicKey, String salt);
-    boolean validateOtp(String phoneNumber, String otp);
+    boolean validateOtp(String phoneNumber, String publicKey, String otpInput , String otpHash);
 }
