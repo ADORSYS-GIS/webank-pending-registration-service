@@ -754,9 +754,9 @@ The PRS must be able to handle a large number of users and transactions.
 
 | Version | Date       | Author      | Changes                                                                                                                                                      |
 | :------ | :--------- | :---------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.0     | 2025-01-12 | Francis        | Initial version of the PRS architecture document.                                                                                                           |
-| 1.1     | 2023-01-12 | Francis        | Incorporated feedback, added details on PoW, device key pair management, and account recovery.                                                            |
-| 2.0     | 2023-01-16 | Francis       | Major updates based on user prompts: Reorganized content, added diagrams, elaborated sections, improved clarity, removed section 5 as requested |
+| 1.0     | 2025-01-11 | Koufan        | Initial version of the PRS architecture document.                                                                                                           |
+| 1.1     | 2025-01-13 | Francis        | Incorporated feedback, added details on PoW, device key pair management, and account recovery.                                                            |
+| 2.0     | 2025-01-16 | Francis       | Major updates based on user prompts: Reorganized content, added diagrams, elaborated sections, improved clarity, removed section 5 as requested |
 
 ## **11. Conclusion**
 
