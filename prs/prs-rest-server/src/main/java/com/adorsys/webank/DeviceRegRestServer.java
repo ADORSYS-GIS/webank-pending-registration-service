@@ -16,6 +16,6 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
 
     @Override
     public String initiateDeviceRegistration(String jwtToken) {
-        return null;
+        return deviceRegServiceApi.initiateDeviceRegistration(jwtToken);
     }
 }

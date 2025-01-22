@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
-
     @Override
     public String initiateDeviceRegistration(String jwtToken) {
 
