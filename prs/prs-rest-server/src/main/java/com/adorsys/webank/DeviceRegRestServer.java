@@ -1,5 +1,6 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,8 +15,9 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
    }
 
 
+
     @Override
-    public String initiateDeviceRegistration(String jwtToken) {
-        return deviceRegServiceApi.initiateDeviceRegistration(jwtToken);
+    public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
+        return deviceRegServiceApi.initiateDeviceRegistration(jwtToken, regInitRequest);
     }
 }

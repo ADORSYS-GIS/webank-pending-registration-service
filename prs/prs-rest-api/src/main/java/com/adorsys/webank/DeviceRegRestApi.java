@@ -1,11 +1,13 @@
 package com.adorsys.webank;
 
 
+import com.adorsys.webank.dto.DeviceRegInitRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -19,6 +21,6 @@ public interface DeviceRegRestApi {
             @ApiResponse(responseCode = "400", description = "failure to process request")
     })
     @PostMapping(value = "/init", consumes = "application/json", produces = "application/json")
-    String initiateDeviceRegistration(@RequestHeader  ("Authorization") String jwtToken );
+    String initiateDeviceRegistration(@RequestHeader  ("Authorization") String jwtToken , @RequestBody DeviceRegInitRequest regInitRequest);
 
 }
