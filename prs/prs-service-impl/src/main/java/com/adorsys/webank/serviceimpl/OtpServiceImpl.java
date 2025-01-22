@@ -14,10 +14,14 @@ import com.twilio.rest.api.v2010.account.Message;
 import org.springframework.beans.factory.annotation.Value;
 import jakarta.annotation.PostConstruct;
 import com.twilio.type.PhoneNumber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
+
+    private static final Logger log = LoggerFactory.getLogger(OtpServiceImpl.class);
 
     // Twilio credentials
     @Value("${twilio.account.sid}")
@@ -52,14 +56,21 @@ public class OtpServiceImpl implements OtpServiceApi {
 
         try {
             String otp = generateOtp();
+
+            log.info("OTP send to phone number:{}", otp);
+
             String otpHash = computeHash(otp, phoneNumber, publicKey, salt);
 
+            log.info("OTP hash:{}", otpHash);
+
             // Send OTP via Twilio
-             Message.creator(
+             Message message = Message.creator(
                     new PhoneNumber(phoneNumber),
                     new PhoneNumber(fromPhoneNumber),
                     "Your OTP is: " + otp
             ).create();
+
+            log.info("message:{}", message);
 
             return otpHash;
 
