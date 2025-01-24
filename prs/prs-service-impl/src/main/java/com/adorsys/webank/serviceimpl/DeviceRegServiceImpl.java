@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
+import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,12 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         return generateNonce(flattenedTimestamp, salt);
     }
+
+    @Override
+    public String validateDeviceRegistration(String jwtToken, DeviceValidateRequest deviceValidateRequest) {
+        return "Successfull validation";
+    }
+
 
     public static String generateNonce(LocalDateTime flattenedTimestamp, String salt) {
         try {
