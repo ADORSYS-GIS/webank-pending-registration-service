@@ -5,6 +5,7 @@ import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -19,7 +20,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private String salt;
 
     @Override
-    public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
+    public ResponseEntity<String> initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
         LocalDateTime timestamp = LocalDateTime.now();
 
         // Flatten the timestamp to the nearest previous 15-minute interval
@@ -27,12 +28,12 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         LocalDateTime flattenedTimestamp = timestamp.withMinute(flattenedMinute).withSecond(0).withNano(0);
 
-        return generateNonce(flattenedTimestamp, salt);
+        return ResponseEntity.ok(generateNonce(flattenedTimestamp, salt));
     }
 
     @Override
-    public String validateDeviceRegistration(String jwtToken, DeviceValidateRequest deviceValidateRequest) {
-        return "Successfull validation";
+    public ResponseEntity<String> validateDeviceRegistration(String jwtToken, DeviceValidateRequest deviceValidateRequest) {
+        return ResponseEntity.ok("Successful validation");
     }
 
 

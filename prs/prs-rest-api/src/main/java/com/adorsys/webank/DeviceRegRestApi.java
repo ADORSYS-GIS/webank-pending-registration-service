@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -23,7 +25,8 @@ public interface DeviceRegRestApi {
             @ApiResponse(responseCode = "400", description = "failure to process request")
     })
     @PostMapping(value = "/init", consumes = "application/json", produces = "application/json")
-    String initiateDeviceRegistration(@RequestHeader  ("Authorization") String jwtToken , @RequestBody DeviceRegInitRequest regInitRequest);
+    ResponseEntity<String> initiateDeviceRegistration(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody DeviceRegInitRequest regInitRequest);
+
 
     @Operation(summary = "Validate PoW ", description = "Validates the POW computed by the FE")
     @ApiResponses(value = {
@@ -31,6 +34,6 @@ public interface DeviceRegRestApi {
             @ApiResponse(responseCode = "400", description = "Failed to validate device")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    String validateDeviceRegistration(@RequestHeader  ("Authorization") String jwtToken , @RequestBody DeviceValidateRequest deviceValidateRequest);
+    ResponseEntity<String> validateDeviceRegistration(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody DeviceValidateRequest deviceValidateRequest);
 
 }

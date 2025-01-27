@@ -6,9 +6,11 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.proc.BadJWTException;
+import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 
+@Service
 public class JwtValidator {
 
     public static void validateAndExtract(String jwtToken) throws ParseException, JOSEException, BadJOSEException {
