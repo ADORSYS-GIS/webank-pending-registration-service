@@ -42,9 +42,11 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
 
-            // Validate the JWT token
-            String timeStamp = "hello";
-            JwtValidator.validateAndExtract(jwtToken, timeStamp);
+            String initiationNonce = deviceValidateRequest.getInitiationNonce();
+            String powHash = deviceValidateRequest.getPowHash();
+            String powNonce = deviceValidateRequest.getPowNonce();
+
+            JwtValidator.validateAndExtract(jwtToken, initiationNonce, powHash, powNonce);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid JWT: " + e.getMessage());
         }

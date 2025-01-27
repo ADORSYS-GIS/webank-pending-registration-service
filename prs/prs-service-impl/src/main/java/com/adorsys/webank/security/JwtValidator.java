@@ -23,8 +23,8 @@ public class JwtValidator {
 
         // Concatenate all payloads into a single string
         StringBuilder concatenatedPayload = new StringBuilder();
-        for (String payload : params) {
-            concatenatedPayload.append(payload);
+        for (String param : params) {
+            concatenatedPayload.append(param);
         }
         String concatenatedPayloadString = concatenatedPayload.toString();
 
