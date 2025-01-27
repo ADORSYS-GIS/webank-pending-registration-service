@@ -1,9 +1,10 @@
 package com.adorsys.webank.dto;
 
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 public class DeviceRegInitRequest {
 
     private String timeStamp;
+
 }
