@@ -1,5 +1,6 @@
 package com.adorsys.webank.security;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -7,19 +8,21 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jwt.proc.BadJWTException;
+import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.stereotype.Service;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 
 import static com.adorsys.webank.security.JwtExtractor.extractPayloadHash;
+import static com.nimbusds.jose.Payload.Origin.JSON;
 
 @Service
 public class JwtValidator {
 
-    public static void validateAndExtract(String jwtToken, String... params) throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException {
+    public static JWK validateAndExtract(String jwtToken, String... params) throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException, JsonProcessingException {
 
         // Concatenate all payloads into a single string
         StringBuilder concatenatedPayload = new StringBuilder();
@@ -28,13 +31,31 @@ public class JwtValidator {
         }
         String concatenatedPayloadString = concatenatedPayload.toString();
 
+        System.out.println("Timestamp: " + concatenatedPayloadString);
+
         // Parse the JWS object
         JWSObject jwsObject = JWSObject.parse(jwtToken);
 
         // Extract the JWK from the header
-        String jwkString = jwsObject.getHeader().toJSONObject().get("jwk").toString();
+        System.out.println("JwsObject: " + jwsObject);
+        if (!jwsObject.getHeader().toJSONObject().containsKey("jwk")) {
+            throw new BadJOSEException("Missing JWK in JWT header.");
+        }
+        Object jwkObject = jwsObject.getHeader().toJSONObject().get("jwk");
+        System.out.println("JwkObject (JSON): " + jwkObject);
+        if (jwkObject == null) {
+            throw new BadJOSEException("Missing 'jwk' in JWT header");
+        }
+
+// Convert to JSON string
+        ObjectMapper objectMapper = new ObjectMapper();
+        String jwkString = objectMapper.writeValueAsString(jwkObject);
+
+
+// Parse the JWK
         JWK jwk = JWK.parse(jwkString);
 
+        System.out.println("Timestamp: " + jwk);
         // Ensure it is an EC key (since your frontend uses ES256)
         if (!(jwk instanceof ECKey ecKey)) {
             throw new BadJOSEException("Invalid key type, expected ECKey.");
@@ -51,20 +72,14 @@ public class JwtValidator {
         // Extract the payload
         String payload = jwsObject.getPayload().toString();
 
-        // Print header and payload for demonstration
-        System.out.println("Header: " + jwsObject.getHeader().toJSONObject());
-        System.out.println("Payload: " + payload);
-        System.out.println("Timestamp: " + concatenatedPayloadString);
-
         String payloadHash = extractPayloadHash(payload);
-        System.out.println("Payload Hash: " + payloadHash);
-
-        System.out.println("Hashed body: " + hashPayload(concatenatedPayloadString));
 
         if (!payloadHash.equals(hashPayload(concatenatedPayloadString))) {
             throw new BadJWTException("Invalid payload hash");
         }
+        return jwk;
     }
+
     public static String hashPayload(String input) throws NoSuchAlgorithmException {
 
         // Get a MessageDigest instance for SHA-256
