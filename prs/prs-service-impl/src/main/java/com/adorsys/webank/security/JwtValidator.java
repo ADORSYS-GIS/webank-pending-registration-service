@@ -1,6 +1,5 @@
 package com.adorsys.webank.security;
 
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -14,14 +13,21 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
-import java.util.Base64;
 
 import static com.adorsys.webank.security.JwtExtractor.extractPayloadHash;
 
 @Service
 public class JwtValidator {
 
-    public static void validateAndExtract(String jwtToken, String timeStamp) throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException {
+    public static void validateAndExtract(String jwtToken, String... params) throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException {
+
+        // Concatenate all payloads into a single string
+        StringBuilder concatenatedPayload = new StringBuilder();
+        for (String payload : params) {
+            concatenatedPayload.append(payload);
+        }
+        String concatenatedPayloadString = concatenatedPayload.toString();
+
         // Parse the JWS object
         JWSObject jwsObject = JWSObject.parse(jwtToken);
 
@@ -48,23 +54,24 @@ public class JwtValidator {
         // Print header and payload for demonstration
         System.out.println("Header: " + jwsObject.getHeader().toJSONObject());
         System.out.println("Payload: " + payload);
-        System.out.println("Timestamp: " + timeStamp);
+        System.out.println("Timestamp: " + concatenatedPayloadString);
 
         String payloadHash = extractPayloadHash(payload);
         System.out.println("Payload Hash: " + payloadHash);
 
-        System.out.println("Hashed body: " + hashPayload(timeStamp));
+        System.out.println("Hashed body: " + hashPayload(concatenatedPayloadString));
 
-        if (!payloadHash.equals(hashPayload(timeStamp))) {
+        if (!payloadHash.equals(hashPayload(concatenatedPayloadString))) {
             throw new BadJWTException("Invalid payload hash");
         }
     }
-    public static String hashPayload(String payload) throws NoSuchAlgorithmException {
+    public static String hashPayload(String input) throws NoSuchAlgorithmException {
+
         // Get a MessageDigest instance for SHA-256
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-        // Compute the hash for the payload string
-        byte[] hashBytes = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+        // Compute the hash for the concatenated payload string
+        byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
 
         // Convert the hash bytes to a hex string
         StringBuilder hexString = new StringBuilder();
