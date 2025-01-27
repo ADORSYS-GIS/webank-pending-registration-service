@@ -1,6 +1,5 @@
 package com.adorsys.webank.serviceimpl;
 
-import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
@@ -50,7 +49,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         return "Successfull validation";
     }
-    private String calculateSHA256(String input) throws NoSuchAlgorithmException {
+    String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
 
@@ -69,6 +68,9 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
 
     public static String generateNonce(String salt) {
+        if (salt == null) {
+            throw new HashComputationException("Salt cannot be null");
+        }
         LocalDateTime timestamp = LocalDateTime.now();
 
         // Flatten the timestamp to the nearest previous 15-minute interval
