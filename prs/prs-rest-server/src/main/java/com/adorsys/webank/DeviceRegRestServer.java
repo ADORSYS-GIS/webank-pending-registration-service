@@ -32,7 +32,7 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid JWT: " + e.getMessage());
         }
-        return deviceRegServiceApi.initiateDeviceRegistration(jwtToken, regInitRequest);
+        return ResponseEntity.ok(deviceRegServiceApi.initiateDeviceRegistration(jwtToken, regInitRequest));
     }
 
     @Override
@@ -48,7 +48,7 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid JWT: " + e.getMessage());
         }
-        return deviceRegServiceApi.validateDeviceRegistration(jwtToken, deviceValidateRequest);
+        return ResponseEntity.ok(deviceRegServiceApi.validateDeviceRegistration(jwtToken, deviceValidateRequest));
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
