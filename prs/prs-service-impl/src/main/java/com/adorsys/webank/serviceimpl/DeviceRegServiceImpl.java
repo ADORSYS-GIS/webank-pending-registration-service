@@ -4,6 +4,10 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +21,12 @@ import java.util.Base64;
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${otp.salt}")
     private String salt;
+
+    @Value("${server.private.key.json}")
+    private String SERVER_PRIVATE_KEY_JSON;
+
+    @Value("${server.public.key.json}")
+    private String SERVER_PUBLIC_KEY_JSON;
 
     @Override
     public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
@@ -34,6 +44,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String powHash;
         try {
             String hashInput = newNonce + ":" + pubKey + ":" + powNonce;
+            System.out.println(hashInput);
             powHash = calculateSHA256(hashInput);
 
             if (!newNonce.equals(nonce)) {
@@ -47,7 +58,9 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         }
 
-        return "Successfull validation";
+        String devicePublicKey = "deviceValidateRequest.getDevicePublicKey()"; // we put a string for now, waiting to extract the pub key from the header
+        String certificate = generateDeviceCertificate(devicePublicKey);
+        return "Device successfully verified, this is your certificate: " + certificate;
     }
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -90,6 +103,58 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             return Base64.getEncoder().encodeToString(hashBytes);
         } catch (NoSuchAlgorithmException e) {
             throw new HashComputationException("Error computing hash");
+        }
+    }
+
+    String generateDeviceCertificate(String devicePublicKey) {
+        try {
+            // Parse the server's private key from the JWK JSON string
+            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
+
+            // Print the private key for debugging
+            System.out.println("Server Private Key: " + serverPrivateKey.toString());
+
+            // Check that the private key contains the 'd' (private) parameter for signing
+            if (serverPrivateKey.getD() == null) {
+                throw new RuntimeException("Private key 'd' (private) parameter is missing.");
+            }
+
+            JWSSigner signer = new ECDSASigner(serverPrivateKey);
+
+            // Compute hash of the device's public key
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashedDevicePubKey = digest.digest(devicePublicKey.getBytes(StandardCharsets.UTF_8));
+            String devicePubKeyHash = Base64.getEncoder().encodeToString(hashedDevicePubKey);
+
+            // Create JWT payload
+            Payload payload = new Payload("{\"devicePubKeyHash\": \"" + devicePubKeyHash + "\"}");
+
+            // Parse the server's public key from the JWK JSON string
+            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
+
+            // Print the public key for debugging
+            System.out.println("Server Public Key: " + serverPublicKey.toString());
+
+            // Check that the public key contains the required parameters (for JWK header)
+            if (serverPublicKey.getX() == null || serverPublicKey.getY() == null) {
+                throw new RuntimeException("Public key 'x' or 'y' parameters are missing.");
+            }
+
+            // Create the JWT header with the JWK object (the server public key)
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                    .type(JOSEObjectType.JWT)
+                    .jwk(serverPublicKey.toPublicJWK()) // Add JWK to the header
+                    .build();
+
+            // Build the JWS object
+            JWSObject jwsObject = new JWSObject(header, payload);
+            jwsObject.sign(signer);
+
+            return jwsObject.serialize();
+        } catch (Exception e) {
+            // Log the exception for debugging
+            e.printStackTrace();
+            throw new RuntimeException("Error generating device certificate", e);
         }
     }
 }
