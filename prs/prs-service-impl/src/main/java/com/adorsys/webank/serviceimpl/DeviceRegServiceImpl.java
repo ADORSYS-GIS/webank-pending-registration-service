@@ -10,6 +10,9 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -19,6 +22,8 @@ import java.util.Base64;
 
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
+    private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
+
     @Value("${otp.salt}")
     private String salt;
 
@@ -30,7 +35,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Override
     public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
-
         return generateNonce(salt);
     }
 
@@ -42,9 +46,9 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String newPowHash = deviceValidateRequest.getPowHash();
         String pubKey = "publickey";
         String powHash;
+
         try {
             String hashInput = newNonce + ":" + pubKey + ":" + powNonce;
-            System.out.println(hashInput);
             powHash = calculateSHA256(hashInput);
 
             if (!newNonce.equals(nonce)) {
@@ -54,14 +58,15 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             }
 
         } catch (NoSuchAlgorithmException e) {
+            logger.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to hash the parameters";
-
         }
 
         String devicePublicKey = "deviceValidateRequest.getDevicePublicKey()"; // we put a string for now, waiting to extract the pub key from the header
         String certificate = generateDeviceCertificate(devicePublicKey);
         return "Device successfully verified, this is your certificate: " + certificate;
     }
+
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
@@ -77,8 +82,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         }
         return hexString.toString();
     }
-
-
 
     public static String generateNonce(String salt) {
         if (salt == null) {
@@ -111,12 +114,9 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             // Parse the server's private key from the JWK JSON string
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
 
-            // Print the private key for debugging
-            System.out.println("Server Private Key: " + serverPrivateKey.toString());
-
             // Check that the private key contains the 'd' (private) parameter for signing
             if (serverPrivateKey.getD() == null) {
-                throw new RuntimeException("Private key 'd' (private) parameter is missing.");
+                throw new HashComputationException("Private key 'd' (private) parameter is missing.");
             }
 
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
@@ -132,14 +132,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             // Parse the server's public key from the JWK JSON string
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Print the public key for debugging
-            System.out.println("Server Public Key: " + serverPublicKey.toString());
-
-            // Check that the public key contains the required parameters (for JWK header)
-            if (serverPublicKey.getX() == null || serverPublicKey.getY() == null) {
-                throw new RuntimeException("Public key 'x' or 'y' parameters are missing.");
-            }
-
             // Create the JWT header with the JWK object (the server public key)
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                     .type(JOSEObjectType.JWT)
@@ -153,8 +145,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             return jwsObject.serialize();
         } catch (Exception e) {
             // Log the exception for debugging
-            e.printStackTrace();
-            throw new RuntimeException("Error generating device certificate", e);
+            logger.error("Error generating device certificate", e);
+            throw new HashComputationException("Error generating device certificate");
         }
     }
 }

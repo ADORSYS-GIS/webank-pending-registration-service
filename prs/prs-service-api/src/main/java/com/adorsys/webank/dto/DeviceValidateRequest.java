@@ -5,6 +5,8 @@ public class DeviceValidateRequest {
 
     private String initiationNonce;
     private String powHash;
+    private String powNonce;
+
 
     public String getInitiationNonce() {
         return initiationNonce;
@@ -30,7 +32,6 @@ public class DeviceValidateRequest {
         this.powNonce = powNonce;
     }
 
-    private String powNonce;
 
 
 }
