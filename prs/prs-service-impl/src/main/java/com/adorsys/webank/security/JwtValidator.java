@@ -33,7 +33,10 @@ public class JwtValidator {
 
         // Extract the JWK from the header
         String jwkString = jwsObject.getHeader().toJSONObject().get("jwk").toString();
+        System.out.println("JWK String: " + jwkString);
+
         JWK jwk = JWK.parse(jwkString);
+        System.out.println("JWK: " + jwk);
 
         // Ensure it is an EC key (since your frontend uses ES256)
         if (!(jwk instanceof ECKey ecKey)) {
