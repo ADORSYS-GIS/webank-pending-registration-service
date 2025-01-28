@@ -4,12 +4,16 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.nimbusds.jose.jwk.JWK;
+import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,24 +38,25 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private String SERVER_PUBLIC_KEY_JSON;
 
     @Override
-    public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
+    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
         return generateNonce(salt);
     }
 
     @Override
-    public String validateDeviceRegistration(String jwtToken, DeviceValidateRequest deviceValidateRequest) {
-        String newNonce = deviceValidateRequest.getInitiationNonce();
+    public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
+        String initiationNonce = deviceValidateRequest.getInitiationNonce();
         String nonce = generateNonce(salt);
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
-        String pubKey = "publickey";
         String powHash;
-
         try {
-            String hashInput = newNonce + ":" + pubKey + ":" + powNonce;
+            // Make a JSON object out of initiationNonce, devicePub, powNonce
+            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
+            JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
+            String hashInput = jc.getEncodedString();
             powHash = calculateSHA256(hashInput);
 
-            if (!newNonce.equals(nonce)) {
+            if (!initiationNonce.equals(nonce)) {
                 return "Error: Registration time elapsed, please try again";
             } else if (!powHash.equals(newPowHash)) {
                 return "Error: Verification of PoW failed";
@@ -61,12 +66,11 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             logger.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to hash the parameters";
         }
-
-        String devicePublicKey = "deviceValidateRequest.getDevicePublicKey()"; // we put a string for now, waiting to extract the pub key from the header
-        String certificate = generateDeviceCertificate(devicePublicKey);
-        return "Device successfully verified, this is your certificate: " + certificate;
+        JsonCanonicalizer jc = new JsonCanonicalizer(devicePub.toJSONString());
+        String devicePublicKey = jc.getEncodedString();
+        logger.warn(devicePublicKey);
+        return generateDeviceCertificate(devicePublicKey);
     }
-
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
