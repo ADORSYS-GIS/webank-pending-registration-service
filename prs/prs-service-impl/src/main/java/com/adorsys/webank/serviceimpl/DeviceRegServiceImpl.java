@@ -6,10 +6,17 @@ import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import org.erdtman.jcs.JsonCanonicalizer;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -19,8 +26,16 @@ import java.util.Base64;
 
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
+    private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
+
     @Value("${otp.salt}")
     private String salt;
+
+    @Value("${server.private.key.json}")
+    private String SERVER_PRIVATE_KEY_JSON;
+
+    @Value("${server.public.key.json}")
+    private String SERVER_PUBLIC_KEY_JSON;
 
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
@@ -48,11 +63,13 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             }
 
         } catch (NoSuchAlgorithmException e) {
+            logger.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to hash the parameters";
-
         }
-
-        return "Successful validation";
+        JsonCanonicalizer jc = new JsonCanonicalizer(devicePub.toJSONString());
+        String devicePublicKey = jc.getEncodedString();
+        logger.warn(devicePublicKey);
+        return generateDeviceCertificate(devicePublicKey);
     }
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -69,8 +86,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         }
         return hexString.toString();
     }
-
-
 
     public static String generateNonce(String salt) {
         if (salt == null) {
@@ -95,6 +110,47 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             return Base64.getEncoder().encodeToString(hashBytes);
         } catch (NoSuchAlgorithmException e) {
             throw new HashComputationException("Error computing hash");
+        }
+    }
+
+    String generateDeviceCertificate(String devicePublicKey) {
+        try {
+            // Parse the server's private key from the JWK JSON string
+            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
+
+            // Check that the private key contains the 'd' (private) parameter for signing
+            if (serverPrivateKey.getD() == null) {
+                throw new HashComputationException("Private key 'd' (private) parameter is missing.");
+            }
+
+            JWSSigner signer = new ECDSASigner(serverPrivateKey);
+
+            // Compute hash of the device's public key
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashedDevicePubKey = digest.digest(devicePublicKey.getBytes(StandardCharsets.UTF_8));
+            String devicePubKeyHash = Base64.getEncoder().encodeToString(hashedDevicePubKey);
+
+            // Create JWT payload
+            Payload payload = new Payload("{\"devicePubKeyHash\": \"" + devicePubKeyHash + "\"}");
+
+            // Parse the server's public key from the JWK JSON string
+            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
+
+            // Create the JWT header with the JWK object (the server public key)
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                    .type(JOSEObjectType.JWT)
+                    .jwk(serverPublicKey.toPublicJWK()) // Add JWK to the header
+                    .build();
+
+            // Build the JWS object
+            JWSObject jwsObject = new JWSObject(header, payload);
+            jwsObject.sign(signer);
+
+            return jwsObject.serialize();
+        } catch (Exception e) {
+            // Log the exception for debugging
+            logger.error("Error generating device certificate", e);
+            throw new HashComputationException("Error generating device certificate");
         }
     }
 }
