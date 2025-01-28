@@ -4,8 +4,12 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.nimbusds.jose.jwk.JWK;
+import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -19,24 +23,25 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private String salt;
 
     @Override
-    public String initiateDeviceRegistration(String jwtToken, DeviceRegInitRequest regInitRequest) {
-
+    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
         return generateNonce(salt);
     }
 
     @Override
-    public String validateDeviceRegistration(String jwtToken, DeviceValidateRequest deviceValidateRequest) {
-        String newNonce = deviceValidateRequest.getInitiationNonce();
+    public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
+        String initiationNonce = deviceValidateRequest.getInitiationNonce();
         String nonce = generateNonce(salt);
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
-        String pubKey = "publickey";
         String powHash;
         try {
-            String hashInput = newNonce + ":" + pubKey + ":" + powNonce;
+            // Make a JSON object out of initiationNonce, devicePub, powNonce
+            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
+            JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
+            String hashInput = jc.getEncodedString();
             powHash = calculateSHA256(hashInput);
 
-            if (!newNonce.equals(nonce)) {
+            if (!initiationNonce.equals(nonce)) {
                 return "Error: Registration time elapsed, please try again";
             } else if (!powHash.equals(newPowHash)) {
                 return "Error: Verification of PoW failed";
@@ -47,7 +52,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         }
 
-        return "Successfull validation";
+        return "Successful validation";
     }
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
