@@ -640,13 +640,139 @@ PoW is used to deter spam and denial-of-service attacks.
     *   The PRS should be able to dynamically adjust the difficulty of the PoW algorithm. This allows the system to adapt to changes in computing power and maintain an appropriate level of resistance to attacks.
 *   **JWT for PoW Transport**: Using JWTs signed with the device private key for transporting PoW data adds a layer of security and simplifies authentication.
 
-### **5.5. General Security Practices**
+Here is the updated markdown for sections 5.5 and 5.6 based on the review and improvements:
 
-*   **HTTPS Encryption:** All communication between the UserApp, PRS, OBS, DAS, SMS Gateway, and any other backend services must be encrypted using HTTPS (TLS/SSL). This protects sensitive data in transit.
-*   **Input Validation:** The PRS must rigorously validate all inputs received from external sources (UserApp, OBS) to prevent injection attacks and other vulnerabilities.
-*   **Secure Coding Practices:** Developers must adhere to secure coding practices to minimize the risk of vulnerabilities in the PRS codebase. Regular security audits and code reviews are essential.
-*   **Least Privilege:** The PRS should operate with the principle of least privilege. This means that each component of the system should only have access to the resources and data that it absolutely needs to perform its function.
-*   **Auditing and Logging:** Comprehensive audit logs should be maintained to track all security-relevant events, such as successful and failed login attempts, OTP generation and verification, account creation, and recovery attempts. These logs are crucial for security monitoring, incident response, and forensic analysis.
+### **5.5. Authentication Using DeviceKeyPair and requestAuthToken**
+
+To ensure robust authentication and maintain secure interaction between client devices and the PRS, each client device is required to manage a unique key pair called the **deviceKeyPair**. This key pair is pivotal in guaranteeing the authenticity of every request sent to the server landscape. This key pair is authenticated using a **deviceCertificate** issued by the PRS.
+
+#### **5.5.1. DeviceKeyPair Overview**
+
+The **deviceKeyPair** consists of an asymmetric key pair (public and private). The private key is securely stored on the device and is inaccessible to unauthorized entities. The public key is registered with the PRS using a proof-of-work (PoW) mechanism during the device registration process to prevent spam. Upon successful registration, the PRS issues a **deviceCertificate** for the public key.
+
+#### **5.5.2. DeviceCertificate Structure**
+
+The **deviceCertificate** is a compact, signed JWT issued by the PRS upon successful device registration. It certifies the device's public key and is included in every request for authentication purposes.
+
+**JWT Header**:
+```json
+{
+    "alg": "ES256",
+    "kid": "sha256 of the canonical server public key jwk as present in the issuer jwks"
+}
+```
+
+**JWT Body**:
+```json
+{
+    "iss": "https://webank.com - key can be retrieved here /.well-known/jwks.json",
+    "aud": "the identifier of the target device - id of the public key",
+    "cnf": {
+        "jwk": {"...":"device jwk being certified"}
+    },
+    "iat": 1695692700,
+    "exp": 1695892700
+}
+```
+
+**JWT Tail**:
+- The certificate is signed using the PRS's private key, ensuring its validity and authenticity.
+
+#### **5.5.3. Request Authentication Workflow**
+
+The **deviceKeyPair** is utilized to authenticate all client requests, including requests modifying server state (e.g., `POST`, `PUT`, `PATCH`, `DELETE`) and requests reading (e.g., `GET`, `OPTIONS`).
+
+##### **a. Preparing the Authentication Token**
+
+To generate the **requestAuthToken**, the following steps are performed:
+
+1. **Canonicalization of the Request Body**:
+   - The raw `requestBody` is transformed into a standardized, canonical format called the **canonicalRequestBody**. This ensures consistency and avoids discrepancies caused by variations in formatting. 
+   - For requests without a body, the **canonicalRequestBody** is an empty JSON object (```{}```).
+
+   **Example**:
+   ```plaintext
+   Raw requestBody:
+   {
+       "key": "value",
+       "array": [1, 2, 3]
+   }
+
+   CanonicalRequestBody:
+   {"array":[1,2,3],"key":"value"}
+   ```
+
+   - For paths of `GET` requests requiring authentication, convert the request to a `POST` with the path included in the `requestBody`.
+
+2. **Hashing the Canonical Request Body**:
+   - The **canonicalRequestBody** is hashed using a secure cryptographic hash function like SHA-256 to produce the **canonicalRequestHash**. This hash serves as a unique identifier for the request content.
+
+3. **Generating the Bearer Token**:
+   - A JSON Web Token (JWT) is created as the **requestAuthToken**, which includes the following components:
+
+   **JWT Header**:
+   ```json
+   {
+       "alg": "ES256",
+       "kid": "deviceCertificate jwt also containing the jwk of the key used to sign this document in the cnf claim"
+   }
+   ```
+
+   **JWT Body**:
+   ```json
+   {
+       "iss": "the identifier of this device public key - sha256 of canonical jwk as present in the device certificate",
+       "aud": "the target consumer of this token. The server to which the request is addressed",
+       "msg_hash": "canonicalRequestHash",
+       "msg_hash_alg": "sha-256",
+       "iat": 1695692700
+   }
+   ```
+
+   **JWT Tail**:
+   - The JWT is signed using the private key of the **deviceKeyPair**, ensuring the authenticity and integrity of the token.
+
+##### **b. Authentication Validation**
+
+When the server receives a request with a bearer token called **requestAuthToken**:
+
+1. The server extracts the **deviceCertificate** from the `kid` claim in the header of the **requestAuthToken**.
+2. The server verifies that the issuer of the certificate (`iss`) is authentic and retrieves the PRS public key using the URL in the `iss` claim.
+3. The server validates the **deviceCertificate** signature using the retrieved PRS public key.
+4. The server extracts the public key of the device from the **deviceCertificate**.
+5. The server validates the **requestAuthToken** signature using the extracted device public key.
+6. The server ensures the **message_hash** in the token matches the **canonicalRequestHash** derived from the `requestBody`.
+7. The `iat` field is checked to ensure the token was issued recently, mitigating replay attacks.
+8. If all validations pass, the request is authenticated; otherwise, it is rejected.
+
+#### **5.5.4. Security Implications**
+
+- **End-to-End Trust**: The use of the **deviceKeyPair** ensures that only registered devices with access to the private key can send authenticated requests.
+- **Tamper Resistance**: The inclusion of the **canonicalRequestHash** in the **requestAuthToken** prevents tampering with the request body.
+- **Replay Attack Mitigation**: The `iat` field ensures tokens are valid only for a short period after issuance, mitigating replay attacks.
+- **Compact DeviceCertificate**: The compact structure of the **deviceCertificate** minimizes payload size while maintaining essential security information.
+- **Stateless Validation**: The design allows servers to validate requests statelessly, relying only on the information in the **deviceCertificate** and the **requestAuthToken**.
+
+---
+
+### **5.6. General Security Practices**
+
+* **HTTPS Encryption:** All communication between the UserApp, PRS, OBS, DAS, SMS Gateway, and any other backend services must be encrypted using HTTPS (TLS/SSL). This protects sensitive data in transit.
+* **Input Validation:** The PRS must rigorously validate all inputs received from external sources (UserApp, OBS) to prevent injection attacks and other vulnerabilities. Use libraries or tools for sanitizing inputs.
+* **Secure Coding Practices:** Developers must adhere to secure coding practices to minimize the risk of vulnerabilities in the PRS codebase. Regular security audits and code reviews are essential.
+* **Least Privilege:** The PRS should operate with the principle of least privilege. This means that each component of the system should only have access to the resources and data that it absolutely needs to perform its function.
+* **Auditing and Logging:** Comprehensive audit logs should be maintained to track all security-relevant events, such as:
+  - Successful and failed login attempts
+  - OTP generation and verification
+  - Account creation and recovery attempts
+  - JWT validation errors
+* **Incident Response:** 
+  - Revoke compromised `deviceCertificates` immediately and notify the affected user.
+  - Implement rate-limiting mechanisms to mitigate brute force attacks.
+  - Enable anomaly detection systems to flag unusual access patterns or authentication failures.
+  - Maintain structured logs (e.g., JSON format) for better compatibility with log analysis tools.
+
+---
 
 ## **6. Caching Mechanisms**
 
