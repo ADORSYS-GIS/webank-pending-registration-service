@@ -20,7 +20,7 @@ public class OtpRestServer implements OtpRestApi {
     }
 
     @Override
-    public boolean validateOtp(OtpValidationRequest request) {
+    public String validateOtp(OtpValidationRequest request) {
         return otpService.validateOtp(request.getPhoneNumber(),  request.getPublicKey() ,request.getOtpInput(), request.getOtpHash() );
     }
 }
