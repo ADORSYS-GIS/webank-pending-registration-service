@@ -26,5 +26,5 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid OTP")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    boolean validateOtp(@RequestBody OtpValidationRequest request);
+    String validateOtp(@RequestBody OtpValidationRequest request);
 }
