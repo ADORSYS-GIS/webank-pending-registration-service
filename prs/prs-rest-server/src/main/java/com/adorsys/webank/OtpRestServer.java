@@ -3,7 +3,9 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.OtpRequest;
 import com.adorsys.webank.dto.OtpValidationRequest;
 import com.adorsys.webank.security.CertValidator;
+import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.OtpServiceApi;
+import com.nimbusds.jose.jwk.JWK;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -19,9 +21,12 @@ public class OtpRestServer implements OtpRestApi {
     @Override
     public String sendOtp(String authorizationHeader, OtpRequest request) {
         String jwtToken;
+        JWK publicKey;
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
+            String phoneNumber = request.getPhoneNumber();
+            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber );
 
 
             // Validate the JWT token using CertValidator
@@ -33,7 +38,7 @@ public class OtpRestServer implements OtpRestApi {
         } catch (Exception e) {
             return ("Invalid JWT: " + e.getMessage());
         }
-        return otpService.sendOtp(request.getPhoneNumber(),request.getPublicKey());
+        return otpService.sendOtp(publicKey, request.getPhoneNumber());
     }
 
 
@@ -41,10 +46,13 @@ public class OtpRestServer implements OtpRestApi {
     public String validateOtp(String authorizationHeader, OtpValidationRequest request) {
 
         String jwtToken;
+        JWK publicKey;
+
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-
+            String phoneNumber = request.getPhoneNumber();
+            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber );
 
             // Validate the JWT token using CertValidator
             if (!CertValidator.validateJWT(jwtToken)) {
@@ -56,7 +64,7 @@ public class OtpRestServer implements OtpRestApi {
             return ("Invalid JWT: " + e.getMessage());
         }
 
-            return otpService.validateOtp(request.getPhoneNumber(),  request.getPublicKey() ,request.getOtpInput(), request.getOtpHash() );
+            return otpService.validateOtp(request.getPhoneNumber(),  publicKey ,request.getOtpInput(), request.getOtpHash() );
     }
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
