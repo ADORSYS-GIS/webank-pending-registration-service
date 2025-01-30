@@ -7,7 +7,7 @@ public class OtpValidationRequest {
 
     public OtpValidationRequest() {}
 
-    public OtpValidationRequest(String phoneNumber, String otpInput , String otpHash, String publicKey) {
+    public OtpValidationRequest(String phoneNumber, String otpInput , String otpHash) {
         this.phoneNumber = phoneNumber;
         this.otpInput = otpInput;
         this.otpHash = otpHash;

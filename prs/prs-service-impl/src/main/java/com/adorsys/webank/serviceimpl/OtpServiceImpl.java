@@ -57,7 +57,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Override
     public String generateOtp() {
         SecureRandom secureRandom = new SecureRandom();
-        int otp = 1000 + secureRandom.nextInt(9000);
+        int otp = 10000 + secureRandom.nextInt(90000);
         return String.valueOf(otp);
     }
 

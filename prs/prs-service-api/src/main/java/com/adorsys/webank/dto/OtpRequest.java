@@ -3,7 +3,7 @@ package com.adorsys.webank.dto;
 public class OtpRequest {
     private String phoneNumber;
 
-    public OtpRequest(String phoneNumber , String publicKey) {
+    public OtpRequest(String phoneNumber ) {
         this.phoneNumber = phoneNumber;
     }
 
