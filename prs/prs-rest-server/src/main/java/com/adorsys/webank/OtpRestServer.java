@@ -26,12 +26,12 @@ public class OtpRestServer implements OtpRestApi {
 
             // Validate the JWT token using CertValidator
             if (!CertValidator.validateJWT(jwtToken)) {
-                return ("Invalid or unauthorized JWT.");
+                return "Invalid or unauthorized JWT.";
             }
 
             // Validate the JWT token
         } catch (Exception e) {
-            return ("Invalid JWT: " + e.getMessage());
+            return "Invalid JWT: " + e.getMessage();
         }
         return otpService.sendOtp(request.getPhoneNumber(),request.getPublicKey());
     }
@@ -48,12 +48,12 @@ public class OtpRestServer implements OtpRestApi {
 
             // Validate the JWT token using CertValidator
             if (!CertValidator.validateJWT(jwtToken)) {
-                return ("Invalid or unauthorized JWT.");
+                return "Invalid or unauthorized JWT.";
             }
 
             // Validate the JWT token
         } catch (Exception e) {
-            return ("Invalid JWT: " + e.getMessage());
+            return "Invalid JWT: " + e.getMessage();
         }
 
             return otpService.validateOtp(request.getPhoneNumber(),  request.getPublicKey() ,request.getOtpInput(), request.getOtpHash() );
