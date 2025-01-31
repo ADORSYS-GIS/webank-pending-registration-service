@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "OTP", description = "Operations related to OTP processing")
@@ -18,7 +19,8 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid phone number")
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    String sendOtp(@RequestBody OtpRequest request);
+    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request);
+
 
     @Operation(summary = "Validate OTP", description = "Validates the received OTP against the stored value")
     @ApiResponses(value = {
@@ -26,5 +28,5 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid OTP")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    String validateOtp(@RequestBody OtpValidationRequest request);
+    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request);
 }

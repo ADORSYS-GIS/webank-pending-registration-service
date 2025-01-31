@@ -5,6 +5,8 @@ import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
@@ -23,6 +25,8 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.Date;
 
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
@@ -36,6 +40,12 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Value("${server.public.key.json}")
     private String SERVER_PUBLIC_KEY_JSON;
+
+    @Value("${jwt.issuer}")
+    private String issuer;
+
+    @Value("${jwt.expiration-time-ms}")
+    private long expirationTimeMs;
 
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
@@ -113,44 +123,56 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         }
     }
 
-    String generateDeviceCertificate(String devicePublicKey) {
+    String generateDeviceCertificate(String deviceJwkJson) {
         try {
             // Parse the server's private key from the JWK JSON string
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-
-            // Check that the private key contains the 'd' (private) parameter for signing
             if (serverPrivateKey.getD() == null) {
-                throw new HashComputationException("Private key 'd' (private) parameter is missing.");
+                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
             }
 
+            // Signer using server's private key
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
 
-            // Compute hash of the device's public key
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashedDevicePubKey = digest.digest(devicePublicKey.getBytes(StandardCharsets.UTF_8));
-            String devicePubKeyHash = Base64.getEncoder().encodeToString(hashedDevicePubKey);
-
-            // Create JWT payload
-            Payload payload = new Payload("{\"devicePubKeyHash\": \"" + devicePubKeyHash + "\"}");
-
-            // Parse the server's public key from the JWK JSON string
+            // Parse the server's public key
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Create the JWT header with the JWK object (the server public key)
+            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
+            String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+
+            // Create JWT Header
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                    .keyID(kid) // Set 'kid' as the SHA-256 of server public JWK
                     .type(JOSEObjectType.JWT)
-                    .jwk(serverPublicKey.toPublicJWK()) // Add JWK to the header
                     .build();
 
-            // Build the JWS object
-            JWSObject jwsObject = new JWSObject(header, payload);
-            jwsObject.sign(signer);
+            // Parse device's public JWK
+            JWK deviceJwk = JWK.parse(deviceJwkJson);
 
-            return jwsObject.serialize();
+            // Create JWT Payload
+            long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
+            logger.info(String.valueOf(issuedAt));
+            JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                    .issuer("https://webank.com")  // Fixed issuer format
+                    .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
+                    .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject())) // Fix JSON structure
+                    .issueTime(new Date(issuedAt * 1000))
+                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000)) // Convert to milliseconds
+                    .build();
+
+            // Create JWT token
+            SignedJWT signedJWT = new SignedJWT(header, claimsSet);
+            signedJWT.sign(signer);
+
+            String dev = signedJWT.serialize();
+            logger.info(dev);
+            return dev;
+
         } catch (Exception e) {
-            // Log the exception for debugging
-            logger.error("Error generating device certificate", e);
-            throw new HashComputationException("Error generating device certificate");
+            throw new IllegalStateException("Error generating device certificate", e);
         }
     }
+
 }

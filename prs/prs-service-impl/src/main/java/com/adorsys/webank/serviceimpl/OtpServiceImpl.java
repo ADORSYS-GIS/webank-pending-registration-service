@@ -11,6 +11,7 @@ import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 import jakarta.annotation.PostConstruct;
+import org.erdtman.jcs.JsonCanonicalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,12 +57,12 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Override
     public String generateOtp() {
         SecureRandom secureRandom = new SecureRandom();
-        int otp = 1000 + secureRandom.nextInt(9000);
+        int otp = 10000 + secureRandom.nextInt(90000);
         return String.valueOf(otp);
     }
 
     @Override
-    public String sendOtp(String phoneNumber, String publicKey) {
+    public String sendOtp(JWK devicePub, String phoneNumber) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
@@ -70,8 +71,16 @@ public class OtpServiceImpl implements OtpServiceApi {
             String otp = generateOtp();
 
             log.info("OTP send to phone number:{}", otp);
+            // Make a JSON object out of otp, devicePub, phoneNumber and salt
+            String otpJSON = "{\"otp\":\"" + otp + "\","
+                    + "\"devicePub\":" + devicePub.toJSONString() + ","
+                    + "\"phoneNumber\":\"" + phoneNumber + "\","
+                    + "\"salt\":\"" + salt + "\"}";
 
-            String otpHash = computeHash(otp, phoneNumber, publicKey, salt);
+            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
+            String Input = jc.getEncodedString();
+            log.info(Input);
+            String otpHash = computeHash(Input);
 
             log.info("OTP hash:{}", otpHash);
 
@@ -92,15 +101,26 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-    public String validateOtp(String phoneNumber, String publicKey, String otpInput, String otpHash) {
+    public String validateOtp( String phoneNumber,JWK devicePub, String otpInput, String otpHash) {
         try {
             // Compute a new hash for the input OTP and compare it with the provided hash
-            String newOtpHash = computeHash(otpInput, phoneNumber, publicKey, salt);
+            // Make a JSON object out of initiationNonce, devicePub, powNonce
+            String otpJSON = "{\"otp\":\"" + otpInput + "\","
+                    + "\"devicePub\":" + devicePub.toJSONString() + ","
+                    + "\"phoneNumber\":\"" + phoneNumber + "\","
+                    + "\"salt\":\"" + salt + "\"}";
+
+            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
+            String Input = jc.getEncodedString();
+            log.info(Input);
+            String newOtpHash = computeHash(Input);
+            log.info("OTP newOtpHash:{}", newOtpHash);
+
             boolean isValid = newOtpHash.equals(otpHash);
 
             if (isValid) {
                 // Generate the phone number certificate if the OTP is valid
-                String certificate = generatePhoneNumberCertificate(phoneNumber, publicKey);
+                String certificate = generatePhoneNumberCertificate(phoneNumber, String.valueOf(devicePub));
                 log.info("Certificate generated for phone number {}: {}", phoneNumber, certificate);
                 return "Certificate generated: "  +  certificate;
             } else {
@@ -115,10 +135,8 @@ public class OtpServiceImpl implements OtpServiceApi {
 
 
     @Override
-    public String computeHash(String otp, String phoneNumber, String publicKey, String salt) {
+    public String computeHash(String input) {
         try {
-            String input = otp + phoneNumber + publicKey + salt;
-
             // Compute SHA-256 hash
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
