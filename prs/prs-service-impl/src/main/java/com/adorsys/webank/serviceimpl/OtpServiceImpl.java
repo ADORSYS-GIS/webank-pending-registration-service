@@ -176,13 +176,9 @@ public class OtpServiceImpl implements OtpServiceApi {
             Payload payload = new Payload(payloadData);
 
 
-            // Parse the server's public key from the JWK JSON string
-            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
-
             // Create the JWT header with the JWK object (the server public key)
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                     .type(JOSEObjectType.JWT)
-                    .jwk(serverPublicKey.toPublicJWK()) // Add JWK to the header
                     .build();
 
             // Build the JWS object

@@ -47,7 +47,9 @@ public class OtpRestServer implements OtpRestApi {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String phoneNumber = request.getPhoneNumber();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber);
+            String otpInput = request.getOtpInput();
+            String otpHash = request.getOtpHash();
+            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber, otpInput, otpHash);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
