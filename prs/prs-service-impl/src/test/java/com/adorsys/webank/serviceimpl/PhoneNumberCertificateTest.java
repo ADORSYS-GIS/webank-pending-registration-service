@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,8 +23,8 @@ public class PhoneNumberCertificateTest {
 
     private OtpServiceImpl otpService;
     private ECKey serverKeyPair;
-    private final String phoneNumber = "+1234567890";
-    private final String devicePublicKey = "testPublicKey";
+    private static final String phoneNumber = "+1234567890";
+    private static final String devicePublicKey = "testPublicKey";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -37,14 +39,14 @@ public class PhoneNumberCertificateTest {
         injectField("SERVER_PUBLIC_KEY_JSON", serverKeyPair.toPublicJWK().toJSONString());
     }
 
-    private void injectField(String fieldName, String value) throws Exception {
+    private void injectField(String fieldName, String value) throws NoSuchFieldException, IllegalAccessException {
         Field field = OtpServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(otpService, value);
     }
 
     @Test
-    void generatePhoneNumberCertificate_ValidJwtStructure() throws Exception {
+    void generatePhoneNumberCertificate_ValidJwtStructure() throws JOSEException, ParseException {
         // When
         String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
 
@@ -63,7 +65,7 @@ public class PhoneNumberCertificateTest {
     }
 
     @Test
-    void generatePhoneNumberCertificate_ValidPayloadHashes() throws Exception {
+    void generatePhoneNumberCertificate_ValidPayloadHashes() throws ParseException, NoSuchAlgorithmException {
         // When
         String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
         JWSObject jwsObject = JWSObject.parse(certificate);
@@ -88,7 +90,7 @@ public class PhoneNumberCertificateTest {
     }
 
     @Test
-    void generatePhoneNumberCertificate_ValidSignature() throws Exception {
+    void generatePhoneNumberCertificate_ValidSignature() throws JOSEException, ParseException {
         // When
         String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
         JWSObject jwsObject = JWSObject.parse(certificate);
