@@ -4,9 +4,16 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.proc.BadJOSEException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 
 
 @RestController
@@ -21,40 +28,19 @@ public class DeviceRegRestServer  implements  DeviceRegRestApi{
 
     @Override
     public ResponseEntity<String> initiateDeviceRegistration(String authorizationHeader, DeviceRegInitRequest regInitRequest) {
-        String jwtToken;
-        JWK publicKey;
-        try {
-            // Extract the JWT token from the Authorization header
-            jwtToken = extractJwtFromHeader(authorizationHeader);
 
-            String timeStamp = regInitRequest.getTimeStamp();// Extract the timeStamp
-
-            // Validate the JWT token
-            publicKey = JwtValidator.validateAndExtract(jwtToken, timeStamp);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invalid JWT: " + e.getMessage());
-        }
-        return ResponseEntity.ok(deviceRegServiceApi.initiateDeviceRegistration(publicKey, regInitRequest));
+        return ResponseEntity.ok(deviceRegServiceApi.initiateDeviceRegistration( regInitRequest));
     }
 
     @Override
-    public ResponseEntity<String> validateDeviceRegistration(String authorizationHeader, DeviceValidateRequest deviceValidateRequest) {
+    public ResponseEntity<String> validateDeviceRegistration(String authorizationHeader, DeviceValidateRequest deviceValidateRequest) throws BadJOSEException, ParseException, NoSuchAlgorithmException, JOSEException, IOException {
         String jwtToken;
         JWK publicKey;
-        try {
-            // Extract the JWT token from the Authorization header
-            jwtToken = extractJwtFromHeader(authorizationHeader);
+        jwtToken = extractJwtFromHeader(authorizationHeader);
+        publicKey = JwtValidator.validateAndExtract(jwtToken);
 
-            String initiationNonce = deviceValidateRequest.getInitiationNonce();
-            String powHash = deviceValidateRequest.getPowHash();
-            String powNonce = deviceValidateRequest.getPowNonce();
+        return ResponseEntity.ok(deviceRegServiceApi.validateDeviceRegistration(publicKey, deviceValidateRequest));
 
-            publicKey = JwtValidator.validateAndExtract(jwtToken, initiationNonce, powHash, powNonce);
-            return ResponseEntity.ok(deviceRegServiceApi.validateDeviceRegistration(publicKey, deviceValidateRequest));
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invalid JWT: " + e.getMessage());
-        }
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {

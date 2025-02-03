@@ -10,7 +10,7 @@ import java.io.IOException;
 @Service
 public interface DeviceRegServiceApi {
 
-    String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest);
+    String initiateDeviceRegistration( DeviceRegInitRequest regInitRequest);
 
     String validateDeviceRegistration(JWK publicKey, DeviceValidateRequest deviceValidateRequest) throws IOException;
 

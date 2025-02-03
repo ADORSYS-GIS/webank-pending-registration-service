@@ -22,11 +22,11 @@ public class OtpRestServer implements OtpRestApi {
     public String sendOtp(String authorizationHeader, OtpRequest request) {
         String jwtToken;
         JWK publicKey;
+
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            String phoneNumber = request.getPhoneNumber();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber);
+            publicKey = JwtValidator.validateAndExtract(jwtToken);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
@@ -49,7 +49,7 @@ public class OtpRestServer implements OtpRestApi {
             String phoneNumber = request.getPhoneNumber();
             String otpInput = request.getOtpInput();
             String otpHash = request.getOtpHash();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber, otpInput, otpHash);
+            publicKey = JwtValidator.validateAndExtract(jwtToken);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {

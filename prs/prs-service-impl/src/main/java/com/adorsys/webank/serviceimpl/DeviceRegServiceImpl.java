@@ -11,7 +11,6 @@ import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -48,7 +47,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private long expirationTimeMs;
 
     @Override
-    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
+    public String initiateDeviceRegistration( DeviceRegInitRequest regInitRequest) {
         return generateNonce(salt);
     }
 
@@ -153,7 +152,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
             // Create JWT Payload
             long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
-            logger.info(String.valueOf(issuedAt));
+
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .issuer("https://webank.com")  // Fixed issuer format
                     .audience(deviceJwk.getKeyID()) // Use device public key ID as audience

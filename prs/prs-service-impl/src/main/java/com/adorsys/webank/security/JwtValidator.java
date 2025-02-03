@@ -25,7 +25,7 @@ public class JwtValidator {
      * Validates the JWT, verifies the signature, and checks the payload hash.
      *
      * @param jwtToken JWT token to validate.
-     * @param params   Payload parameters to validate against the hash.
+//     * @param params   Payload parameters to validate against the hash.
      * @return Validated JWK.
      * @throws ParseException         If the JWT token cannot be parsed.
      * @throws JOSEException          If there's an error in verifying the signature.
@@ -33,14 +33,14 @@ public class JwtValidator {
      * @throws NoSuchAlgorithmException If SHA-256 algorithm is unavailable.
      * @throws JsonProcessingException If there's an error in processing the JWK JSON.
      */
-    public static JWK validateAndExtract(String jwtToken, String... params)
+    public static JWK validateAndExtract(String jwtToken)
             throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException, JsonProcessingException {
 
-        String concatenatedPayload = concatenatePayloads(params);
+//        String concatenatedPayload = concatenatePayloads(params);
         JWSObject jwsObject = JWSObject.parse(jwtToken);
         JWK jwk = extractAndValidateJWK(jwsObject);
         verifySignature(jwsObject, (ECKey) jwk);
-        validatePayloadHash(jwsObject.getPayload().toString(), concatenatedPayload);
+//        validatePayloadHash(jwsObject.getPayload().toString(), concatenatedPayload);
         return jwk;
     }
 

@@ -3,6 +3,9 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.proc.BadJOSEException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +16,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 
 @Tag(name = "Device Registration", description = "Operations related to device registration processing")
 @RequestMapping("/api/dev")
@@ -33,6 +40,6 @@ public interface DeviceRegRestApi {
             @ApiResponse(responseCode = "400", description = "Failed to validate device")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<String> validateDeviceRegistration(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody DeviceValidateRequest deviceValidateRequest);
+    ResponseEntity<String> validateDeviceRegistration(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody DeviceValidateRequest deviceValidateRequest) throws BadJOSEException, ParseException, NoSuchAlgorithmException, JOSEException, IOException;
 
 }
