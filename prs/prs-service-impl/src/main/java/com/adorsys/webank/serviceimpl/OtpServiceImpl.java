@@ -153,7 +153,6 @@ public class OtpServiceImpl implements OtpServiceApi {
         try {
             // Parse the server's private key from the JWK JSON string
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
             // Check that the private key contains the 'd' (private) parameter for signing
             if (serverPrivateKey.getD() == null) {
@@ -176,7 +175,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             String payloadData = String.format("{\"phoneHash\": \"%s\", \"devicePubKeyHash\": \"%s\"}", phoneHash, devicePubKeyHash);
             Payload payload = new Payload(payloadData);
 
-
+            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
             // Create the JWT header with the JWK object (the server public key)
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                     .type(JOSEObjectType.JWT)
