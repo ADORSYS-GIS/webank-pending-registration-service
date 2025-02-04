@@ -14,7 +14,7 @@ public class CertValidator {
     private static final Logger logger = LoggerFactory.getLogger(CertValidator.class);
 
     @Value("${server.public.key.json}")
-    private String SERVER_PUBLIC_KEY_JSON; // Now accessible in non-static methods
+    private String SERVER_PUBLIC_KEY_JSON;
 
     /**
      * Validates the JWT by extracting the devCert from its header and verifying signatures.
@@ -52,13 +52,6 @@ public class CertValidator {
             JWSVerifier devCertVerifier = new ECDSAVerifier(publicKey);
             if (!devCertJwt.verify(devCertVerifier)) {
                 logger.error("devCert signature validation failed.");
-                return false;
-            }
-
-            // Validate the main JWT using the same public key
-            JWSVerifier jwtVerifier = new ECDSAVerifier(publicKey);
-            if (!signedJWT.verify(jwtVerifier)) {
-                logger.error("JWT signature validation failed.");
                 return false;
             }
 
