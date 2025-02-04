@@ -10,7 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "OTP", description = "Operations related to OTP processing")
-@RequestMapping("/api/otp")
+@RequestMapping("/api/prs/otp")
 public interface OtpRestApi {
 
     @Operation(summary = "Send OTP", description = "Sends an OTP to the user's phone number")
