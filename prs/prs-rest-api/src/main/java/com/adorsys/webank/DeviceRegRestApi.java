@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Tag(name = "Device Registration", description = "Operations related to device registration processing")
-@RequestMapping("/api/dev")
+@RequestMapping("/api/prs/dev")
 public interface DeviceRegRestApi {
 
     @Operation(summary = "send nonce", description = "Sends time base nonce  to the user's device for pow computaion")
