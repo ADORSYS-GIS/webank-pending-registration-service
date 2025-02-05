@@ -44,7 +44,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private String issuer;
 
     @Value("${jwt.expiration-time-ms}")
-    private long expirationTimeMs;
+    private Long expirationTimeMs;
 
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
