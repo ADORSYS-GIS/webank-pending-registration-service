@@ -1,6 +1,8 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
@@ -15,6 +17,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.*;
 import org.springframework.test.util.*;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.*;
 import java.security.*;
@@ -32,23 +35,14 @@ public class OtpServiceTest {
     @Spy
     private OtpServiceImpl otpService;
 
-    private static final String phoneNumber = "+1236567890";
-    private static final String devicePublicKey = "testPublicKey";
-    private ECKey serverKeyPair;
-    private ECKey deviceKeyPair;
-    private String otpInput;
-    private String salt;
+    ECKey deviceKeyPair;
+    ECKey serverKeyPair;
 
     @BeforeEach
-    void setup() throws Exception {
-        MockitoAnnotations.openMocks(this);
-        serverKeyPair = new ECKeyGenerator(Curve.P_256)
-                .keyID("123")
-                .generate();
-        deviceKeyPair = new ECKeyGenerator(Curve.P_256)
-                .keyID("device-key")
-                .generate();
-
+    void setup() throws HashComputationException, JOSEException, NoSuchFieldException, IllegalAccessException {
+//        MockitoAnnotations.openMocks(this);
+        serverKeyPair = new ECKeyGenerator(Curve.P_256).keyID("123").generate();
+        deviceKeyPair = new ECKeyGenerator(Curve.P_256).keyID("device-key").generate();
 
         // Initialize service and inject keys
         otpService = new OtpServiceImpl();
@@ -61,10 +55,7 @@ public class OtpServiceTest {
         ReflectionTestUtils.setField(otpService, "salt", "testSalt");
         Twilio.init("testAccountSid", "testAuthToken");
 
-        // Initialize test values
 
-        otpInput = "12345";
-        salt = "testSalt";
     }
 
     private void injectField(String fieldName, String value) throws NoSuchFieldException, IllegalAccessException {
@@ -129,6 +120,80 @@ public class OtpServiceTest {
 
         assertNotNull(actualHash, "Hash should not be null");
         assertFalse(actualHash.isEmpty(), "Hash should not be empty");
+    }
+    @Test
+    void validateOtp_ValidOtp_ReturnsCertificate() throws JOSEException, IOException {
+        // Arrange
+        String phoneNumber = "+123456789";
+        ECKey deviceKeyPair;
+        deviceKeyPair = new ECKeyGenerator(Curve.P_256).keyID("device-key").generate();
+        JWK devicePub = deviceKeyPair.toPublicJWK();
+        String otpInput = "12345";
+
+        // Construct JSON and compute hash
+        String otpJSON = String.format("{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
+                otpInput, devicePub.toJSONString(), phoneNumber, otpService.salt);
+        JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
+        String canonicalized = jc.getEncodedString();
+        String expectedOtpHash = otpService.computeHash(canonicalized);
+
+        // Act
+        String result = otpService.validateOtp(phoneNumber, devicePub, otpInput, expectedOtpHash);
+
+        // Assert
+        assertTrue(result.startsWith("Certificate generated: "));
+    }
+
+    @Test
+    void validateOtp_InvalidOtp_ReturnsFailure() throws IOException {
+        // Arrange
+        String phoneNumber = "+123456789";
+        JWK devicePub = deviceKeyPair.toPublicJWK();
+        String validOtp = "12345";
+        String invalidOtp = "67890";
+
+        // Compute hash for valid OTP
+        String validOtpJSON = String.format("{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
+                validOtp, devicePub.toJSONString(), phoneNumber, otpService.salt);
+        JsonCanonicalizer jcValid = new JsonCanonicalizer(validOtpJSON);
+        String canonicalizedValid = jcValid.getEncodedString();
+        String validHash = otpService.computeHash(canonicalizedValid);
+
+        // Act: Use invalid OTP with valid hash (hash won't match)
+        String result = otpService.validateOtp(phoneNumber, devicePub, invalidOtp, validHash);
+
+        // Assert
+        assertEquals("OTP validation failed", result);
+    }
+
+    @Test
+    void validateOtp_IncorrectHash_ReturnsFailure() {
+        // Arrange
+        String phoneNumber = "+123456789";
+        JWK devicePub = deviceKeyPair.toPublicJWK();
+        String otpInput = "12345";
+        String incorrectHash = "incorrectHash";
+
+        // Act
+        String result = otpService.validateOtp(phoneNumber, devicePub, otpInput, incorrectHash);
+
+        // Assert
+        assertEquals("OTP validation failed", result);
+    }
+
+    @Test
+    void validateOtp_InvalidDevicePub_ReturnsError() {
+        // Arrange
+        String phoneNumber = "+123456789";
+        JWK invalidDevicePub = null;
+        String otpInput = "12345";
+        String otpHash = "dummyHash";
+
+        // Act
+        String result = otpService.validateOtp(phoneNumber, invalidDevicePub, otpInput, otpHash);
+
+        // Assert
+        assertEquals("Error validating the OTP", result);
     }
 
 }
