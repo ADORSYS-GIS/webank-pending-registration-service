@@ -11,7 +11,6 @@ import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
