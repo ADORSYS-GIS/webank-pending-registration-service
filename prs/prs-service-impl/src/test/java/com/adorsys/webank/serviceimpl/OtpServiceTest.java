@@ -28,7 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class OtpServiceTest {
+class OtpServiceTest {
 
     OtpServiceImpl otpServiceImpl = new OtpServiceImpl();
 
@@ -40,7 +40,6 @@ public class OtpServiceTest {
 
     @BeforeEach
     void setup() throws HashComputationException, JOSEException, NoSuchFieldException, IllegalAccessException {
-//        MockitoAnnotations.openMocks(this);
         serverKeyPair = new ECKeyGenerator(Curve.P_256).keyID("123").generate();
         deviceKeyPair = new ECKeyGenerator(Curve.P_256).keyID("device-key").generate();
 
@@ -125,7 +124,6 @@ public class OtpServiceTest {
     void validateOtp_ValidOtp_ReturnsCertificate() throws JOSEException, IOException {
         // Arrange
         String phoneNumber = "+123456789";
-        ECKey deviceKeyPair;
         deviceKeyPair = new ECKeyGenerator(Curve.P_256).keyID("device-key").generate();
         JWK devicePub = deviceKeyPair.toPublicJWK();
         String otpInput = "12345";

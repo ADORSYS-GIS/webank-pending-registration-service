@@ -19,7 +19,7 @@ import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PhoneNumberCertificateTest {
+class PhoneNumberCertificateTest {
 
     private OtpServiceImpl otpService;
     private ECKey serverKeyPair;
@@ -46,7 +46,7 @@ public class PhoneNumberCertificateTest {
     }
 
     @Test
-    void generatePhoneNumberCertificate_ValidJwtStructure() throws JOSEException, ParseException {
+    void generatePhoneNumberCertificate_ValidJwtStructure() throws ParseException {
         // When
         String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
 
