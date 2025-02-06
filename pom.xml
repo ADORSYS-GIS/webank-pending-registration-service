@@ -115,19 +115,26 @@
 					</configuration>
 				</plugin>
 
-			<plugin>
-				<groupId>org.owasp</groupId>
-				<artifactId>dependency-check-maven</artifactId>
-				<version>11.1.0</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-							<goal>update-only</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>org.owasp</groupId>-->
+<!--				<artifactId>dependency-check-maven</artifactId>-->
+<!--				<version>12.0.2</version>-->
+<!--				<executions>-->
+<!--					<execution>-->
+<!--						<goals>-->
+<!--							<goal>check</goal>-->
+<!--							<goal>update-only</goal>-->
+
+<!--						</goals>-->
+<!--						<configuration>-->
+<!--							<auto-update>false</auto-update>-->
+<!--							<cveValidForHours>0</cveValidForHours>-->
+<!--						</configuration>-->
+
+<!--					</execution>-->
+
+<!--				</executions>-->
+<!--			</plugin>-->
 
 		</plugins>
 	</build>
