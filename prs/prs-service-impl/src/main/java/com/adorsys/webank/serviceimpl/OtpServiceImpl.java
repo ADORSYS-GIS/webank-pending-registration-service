@@ -78,9 +78,9 @@ public class OtpServiceImpl implements OtpServiceApi {
                     + "\"salt\":\"" + salt + "\"}";
 
             JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String Input = jc.getEncodedString();
-            log.info(Input);
-            String otpHash = computeHash(Input);
+            String input = jc.getEncodedString();
+            log.info(input);
+            String otpHash = computeHash(input);
 
             log.info("OTP hash:{}", otpHash);
 
@@ -111,9 +111,9 @@ public class OtpServiceImpl implements OtpServiceApi {
                     + "\"salt\":\"" + salt + "\"}";
 
             JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String Input = jc.getEncodedString();
-            log.info(Input);
-            String newOtpHash = computeHash(Input);
+            String input = jc.getEncodedString();
+            log.info(input);
+            String newOtpHash = computeHash(input);
             log.info("OTP newOtpHash:{}", newOtpHash);
 
             boolean isValid = newOtpHash.equals(otpHash);
