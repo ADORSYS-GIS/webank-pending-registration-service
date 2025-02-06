@@ -15,12 +15,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DeviceCertificateTest {
+class DeviceCertificateTest {
 
     private DeviceRegServiceImpl deviceRegService;
     private ECKey serverKeyPair;
@@ -36,7 +34,7 @@ public class DeviceCertificateTest {
         deviceRegService = new DeviceRegServiceImpl();
         injectField("SERVER_PRIVATE_KEY_JSON", serverKeyPair.toJSONString());
         injectField("SERVER_PUBLIC_KEY_JSON", serverKeyPair.toPublicJWK().toJSONString());
-        injectField("expirationTimeMs", 60000L); // Set expiration time to 60 seconds for test
+        injectField("expirationTimeMs", 60000L);
     }
 
     private void injectField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
@@ -46,7 +44,7 @@ public class DeviceCertificateTest {
     }
 
     @Test
-    void generateDeviceCertificate_ValidJwtStructure() throws JOSEException, ParseException {
+    void generateDeviceCertificate_ValidJwtStructure() throws ParseException {
         // When
         String certificate = deviceRegService.generateDeviceCertificate(deviceKeyPair.toJSONString());
         SignedJWT signedJWT = SignedJWT.parse(certificate);
