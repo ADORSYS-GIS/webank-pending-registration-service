@@ -40,7 +40,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     private String fromPhoneNumber;
 
     @Value("${otp.salt}")
-    private String salt;
+    String salt;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
