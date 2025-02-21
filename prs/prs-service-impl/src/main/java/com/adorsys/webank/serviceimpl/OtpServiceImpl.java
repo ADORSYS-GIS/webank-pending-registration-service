@@ -14,7 +14,9 @@ import jakarta.annotation.PostConstruct;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -48,6 +50,8 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Value("${server.public.key}")
     private String SERVER_PUBLIC_KEY_JSON;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
     @PostConstruct
     public void initTwilio() {
@@ -68,32 +72,39 @@ public class OtpServiceImpl implements OtpServiceApi {
         }
 
         try {
-            String otp = generateOtp();
+            // Check if the phone number exists in Redis cache
+            if (!(redisTemplate.hasKey(phoneNumber))) {
+                log.info("Phone number {} not found in cache.", phoneNumber);
 
-            log.info("OTP send to phone number:{}", otp);
-            // Make a JSON object out of otp, devicePub, phoneNumber and salt
-            String otpJSON = "{\"otp\":\"" + otp + "\","
-                    + "\"devicePub\":" + devicePub.toJSONString() + ","
-                    + "\"phoneNumber\":\"" + phoneNumber + "\","
-                    + "\"salt\":\"" + salt + "\"}";
+                String otp = generateOtp();
+                log.info("OTP sent to phone number:{}", otp);
 
-            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String input = jc.getEncodedString();
-            log.info(input);
-            String otpHash = computeHash(input);
+                // Make a JSON object out of otp, devicePub, phoneNumber, and salt
+                String otpJSON = "{\"otp\":\"" + otp + "\","
+                        + "\"devicePub\":" + devicePub.toJSONString() + ","
+                        + "\"phoneNumber\":\"" + phoneNumber + "\","
+                        + "\"salt\":\"" + salt + "\"}";
 
-            log.info("OTP hash:{}", otpHash);
+                JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
+                String input = jc.getEncodedString();
+                log.info(input);
+                String otpHash = computeHash(input);
+                log.info("OTP hash:{}", otpHash);
 
-            // Send OTP via Twilio
-             Message message = Message.creator(
-                    new PhoneNumber(phoneNumber),
-                    new PhoneNumber(fromPhoneNumber),
-                    "Your OTP is: " + otp
-            ).create();
+                // Send OTP via Twilio (if desired, uncomment this part)
+                // Message message = Message.creator(
+                //        new PhoneNumber(phoneNumber),
+                //        new PhoneNumber(fromPhoneNumber),
+                //        "Your OTP is: " + otp
+                // ).create();
 
-            log.info("message:{}", message);
+                log.info("Message sent to phone number: {}", phoneNumber);
 
-            return otpHash;
+                return otpHash;
+            } else {
+                log.warn("Phone number {} exists in the cache.", phoneNumber);
+                return "Phone number {} exists in the cache.";
+            }
 
         } catch (Exception e) {
             throw new FailedToSendOTPException("Failed to send OTP");
@@ -101,10 +112,9 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-    public String validateOtp( String phoneNumber,JWK devicePub, String otpInput, String otpHash) {
+    public String validateOtp(String phoneNumber, JWK devicePub, String otpInput, String otpHash) {
         try {
             // Compute a new hash for the input OTP and compare it with the provided hash
-            // Make a JSON object out of initiationNonce, devicePub, powNonce
             String otpJSON = "{\"otp\":\"" + otpInput + "\","
                     + "\"devicePub\":" + devicePub.toJSONString() + ","
                     + "\"phoneNumber\":\"" + phoneNumber + "\","
@@ -122,7 +132,7 @@ public class OtpServiceImpl implements OtpServiceApi {
                 // Generate the phone number certificate if the OTP is valid
                 String certificate = generatePhoneNumberCertificate(phoneNumber, String.valueOf(devicePub));
                 log.info("Certificate generated for phone number {}: {}", phoneNumber, certificate);
-                return "Certificate generated: "  +  certificate;
+                return "Certificate generated: " + certificate;
             } else {
                 log.info("OTP validation failed for phone number {}", phoneNumber);
                 return "OTP validation failed";
@@ -132,7 +142,6 @@ public class OtpServiceImpl implements OtpServiceApi {
             return "Error validating the OTP";
         }
     }
-
 
     @Override
     public String computeHash(String input) {
@@ -149,7 +158,6 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     public String generatePhoneNumberCertificate(String phoneNumber, String devicePublicKey) {
-
         try {
             // Parse the server's private key from the JWK JSON string
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
@@ -170,11 +178,9 @@ public class OtpServiceImpl implements OtpServiceApi {
             byte[] hashedDevicePubKey = digest.digest(devicePublicKey.getBytes(StandardCharsets.UTF_8));
             String devicePubKeyHash = Base64.getEncoder().encodeToString(hashedDevicePubKey);
 
-
             // Create JWT payload including phoneHash and devicePubKeyHash
             String payloadData = String.format("{\"phoneHash\": \"%s\", \"devicePubKeyHash\": \"%s\"}", phoneHash, devicePubKeyHash);
             Payload payload = new Payload(payloadData);
-
 
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
             // Create the JWT header with the JWK object (the server public key)
@@ -189,10 +195,8 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             return jwsObject.serialize();
         } catch (Exception e) {
-            // Log the exception for debugging
             log.error("Error generating device certificate", e);
             throw new HashComputationException("Error generating device certificate");
         }
     }
-
 }
