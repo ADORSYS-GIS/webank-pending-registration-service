@@ -73,7 +73,7 @@ public class OtpServiceImpl implements OtpServiceApi {
 
         try {
             // Check if the phone number exists in Redis cache
-            if (!(redisTemplate.hasKey(phoneNumber))) {
+            if (phoneNumber.length() != 11) {
                 log.info("Phone number {} not found in cache.", phoneNumber);
 
                 String otp = generateOtp();
