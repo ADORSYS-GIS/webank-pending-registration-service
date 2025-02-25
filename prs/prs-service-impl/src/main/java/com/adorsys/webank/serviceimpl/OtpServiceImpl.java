@@ -8,15 +8,12 @@ import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
-import com.twilio.type.PhoneNumber;
 import jakarta.annotation.PostConstruct;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -51,7 +48,6 @@ public class OtpServiceImpl implements OtpServiceApi {
     private String SERVER_PUBLIC_KEY_JSON;
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
 
     @PostConstruct
     public void initTwilio() {
@@ -72,9 +68,6 @@ public class OtpServiceImpl implements OtpServiceApi {
         }
 
         try {
-            // Check if the phone number exists in Redis cache
-            if (!(redisTemplate.hasKey(phoneNumber))) {
-                log.info("Phone number {} not found in cache.", phoneNumber);
 
                 String otp = generateOtp();
                 log.info("OTP sent to phone number:{}", otp);
@@ -91,20 +84,16 @@ public class OtpServiceImpl implements OtpServiceApi {
                 String otpHash = computeHash(input);
                 log.info("OTP hash:{}", otpHash);
 
-                // Send OTP via Twilio (if desired, uncomment this part)
-                // Message message = Message.creator(
-                //        new PhoneNumber(phoneNumber),
-                //        new PhoneNumber(fromPhoneNumber),
-                //        "Your OTP is: " + otp
-                // ).create();
+//                 Send OTP via Twilio (if desired, uncomment this part)
+//                 Message message = Message.creator(
+//                        new PhoneNumber(phoneNumber),
+//                        new PhoneNumber(fromPhoneNumber),
+//                        "Your OTP is: " + otp
+//                 ).create();
 
                 log.info("Message sent to phone number: {}", phoneNumber);
 
                 return otpHash;
-            } else {
-                log.warn("Phone number {} exists in the cache.", phoneNumber);
-                return "Phone number {} exists in the cache.";
-            }
 
         } catch (Exception e) {
             throw new FailedToSendOTPException("Failed to send OTP");
