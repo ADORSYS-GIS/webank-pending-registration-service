@@ -71,17 +71,15 @@ class OtpServiceTest {
         assertDoesNotThrow(() -> Twilio.init("testAccountSid", "testAuthToken"));
     }
 
-    /*
-     * NOSONAR
-     * @Test
-     * void testSendOtp_FailedToSend() {
-     *    JWK mockJwk = mock(JWK.class);
-     *    when(mockJwk.toJSONString()).thenReturn("{}");
-     *    mockStatic(Message.class);
-     *    when(Message.creator(any(PhoneNumber.class), any(PhoneNumber.class), (String) any())).thenThrow(new RuntimeException("Twilio error"));
-     *    assertThrows(FailedToSendOTPException.class, () -> otpService.sendOtp(mockJwk, "+1236567890"));
-     * }
-     */
+/*    @Test
+    void testSendOtp_FailedToSend() {
+       JWK mockJwk = mock(JWK.class);
+       when(mockJwk.toJSONString()).thenReturn("{}");
+       mockStatic(Message.class);
+       when(Message.creator(any(PhoneNumber.class), any(PhoneNumber.class), (String) any())).thenThrow(new RuntimeException("Twilio error"));
+       assertThrows(FailedToSendOTPException.class, () -> otpService.sendOtp(mockJwk, "+1236567890"));
+}
+*/
 
     @Test
     void testComputeHash_ValidInput() throws NoSuchAlgorithmException {
