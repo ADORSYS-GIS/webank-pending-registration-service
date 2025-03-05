@@ -1,6 +1,5 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.Curve;
@@ -8,8 +7,6 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 import com.twilio.*;
-import com.twilio.rest.api.v2010.account.*;
-import com.twilio.type.*;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.*;
@@ -24,8 +21,6 @@ import java.security.*;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OtpServiceTest {
@@ -53,8 +48,6 @@ class OtpServiceTest {
         ReflectionTestUtils.setField(otpService, "fromPhoneNumber", "+1236567890");
         ReflectionTestUtils.setField(otpService, "salt", "testSalt");
         Twilio.init("testAccountSid", "testAuthToken");
-
-
     }
 
     private void injectField(String fieldName, String value) throws NoSuchFieldException, IllegalAccessException {
@@ -78,16 +71,15 @@ class OtpServiceTest {
         assertDoesNotThrow(() -> Twilio.init("testAccountSid", "testAuthToken"));
     }
 
-//    @Test
-//    void testSendOtp_FailedToSend() {
-//        JWK mockJwk = mock(JWK.class);
-//        when(mockJwk.toJSONString()).thenReturn("{}");
-//
-//        mockStatic(Message.class);
-//        when(Message.creator(any(PhoneNumber.class), any(PhoneNumber.class), (String) any())).thenThrow(new RuntimeException("Twilio error"));
-//
-//        assertThrows(FailedToSendOTPException.class, () -> otpService.sendOtp(mockJwk, "+1236567890"));
-//    }
+/*    @Test
+    void testSendOtp_FailedToSend() {
+       JWK mockJwk = mock(JWK.class);
+       when(mockJwk.toJSONString()).thenReturn("{}");
+       mockStatic(Message.class);
+       when(Message.creator(any(PhoneNumber.class), any(PhoneNumber.class), (String) any())).thenThrow(new RuntimeException("Twilio error"));
+       assertThrows(FailedToSendOTPException.class, () -> otpService.sendOtp(mockJwk, "+1236567890"));
+}
+*/
 
     @Test
     void testComputeHash_ValidInput() throws NoSuchAlgorithmException {
