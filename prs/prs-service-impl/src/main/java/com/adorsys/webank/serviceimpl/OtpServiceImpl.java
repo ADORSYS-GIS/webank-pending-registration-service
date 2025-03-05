@@ -84,14 +84,6 @@ public class OtpServiceImpl implements OtpServiceApi {
                 String otpHash = computeHash(input);
                 log.info("OTP hash:{}", otpHash);
 
-            /*
-             * Send OTP via Twilio (if desired, uncomment this part)
-             * Message message = Message.creator(
-             *        new PhoneNumber(phoneNumber),
-             *        new PhoneNumber(fromPhoneNumber),
-             *        "Your OTP is: " + otp
-             * ).create();
-             */
 
                 log.info("Message sent to phone number: {}", otp);
 

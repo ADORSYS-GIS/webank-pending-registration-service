@@ -19,4 +19,22 @@ class JwtExtractorTest {
         String payload = "{\"noHash\":\"value\"}";
         assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
     }
+
+    @Test
+    void extractPayloadHash_emptyPayload_throwsException() {
+        String payload = "{}";
+        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+    }
+
+    @Test
+    void extractPayloadHash_nullPayload_throwsException() {
+        String payload = null;
+        assertThrows(NullPointerException.class, () -> JwtExtractor.extractPayloadHash(payload));
+    }
+
+    @Test
+    void extractPayloadHash_invalidJson_throwsException() {
+        String payload = "invalid json";
+        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+    }
 }
