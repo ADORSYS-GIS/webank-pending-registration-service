@@ -151,23 +151,24 @@
 					</configuration>
 				</plugin>
 			<!--
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>11.1.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                            <goal>update-only</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <nvdApiKey>${env.OWASP_NVD_API_KEY}</nvdApiKey>
-                </configuration>
-            </plugin>
-            -->
+ * NOSONAR
+ * <plugin>
+ *     <groupId>org.owasp</groupId>
+ *     <artifactId>dependency-check-maven</artifactId>
+ *     <version>11.1.0</version>
+ *     <executions>
+ *         <execution>
+ *             <goals>
+ *                 <goal>check</goal>
+ *                 <goal>update-only</goal>
+ *             </goals>
+ *         </execution>
+ *     </executions>
+ *     <configuration>
+ *         <nvdApiKey>${env.OWASP_NVD_API_KEY}</nvdApiKey>
+ *     </configuration>
+ * </plugin>
+-->
 
 		</plugins>
 	</build>
