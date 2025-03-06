@@ -58,8 +58,6 @@ class PhoneNumberCertificateTest {
         assertEquals(JWSAlgorithm.ES256, header.getAlgorithm());
         assertEquals(JOSEObjectType.JWT, header.getType());
 
-        // Verify JWK matches server public key
-        JWK headerJWK = header.getJWK();
     }
 
     @Test
