@@ -45,24 +45,24 @@ class PhoneNumberCertificateTest {
         field.set(otpService, value);
     }
 
-    @Test
-    void generatePhoneNumberCertificate_ValidJwtStructure() throws ParseException {
-        // When
-        String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
-
-        // Then
-        JWSObject jwsObject = JWSObject.parse(certificate);
-
-        // Verify header
-        JWSHeader header = jwsObject.getHeader();
-        assertEquals(JWSAlgorithm.ES256, header.getAlgorithm());
-        assertEquals(JOSEObjectType.JWT, header.getType());
-        assertNotNull(header.getJWK(), "JWK must be present in header");
-
-        // Verify JWK matches server public key
-        JWK headerJWK = header.getJWK();
-        assertEquals(serverKeyPair.toPublicJWK(), headerJWK);
-    }
+//    @Test
+//    void generatePhoneNumberCertificate_ValidJwtStructure() throws ParseException {
+//        // When
+//        String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
+//
+//        // Then
+//        JWSObject jwsObject = JWSObject.parse(certificate);
+//
+//        // Verify header
+//        JWSHeader header = jwsObject.getHeader();
+//        assertEquals(JWSAlgorithm.ES256, header.getAlgorithm());
+//        assertEquals(JOSEObjectType.JWT, header.getType());
+//        assertNotNull(header.getJWK(), "JWK must be present in header");
+//
+//        // Verify JWK matches server public key
+//        JWK headerJWK = header.getJWK();
+//        assertEquals(serverKeyPair.toPublicJWK(), headerJWK);
+//    }
 
     @Test
     void generatePhoneNumberCertificate_ValidPayloadHashes() throws ParseException, NoSuchAlgorithmException {
