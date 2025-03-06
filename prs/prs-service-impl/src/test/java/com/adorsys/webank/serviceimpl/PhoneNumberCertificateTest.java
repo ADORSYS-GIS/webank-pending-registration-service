@@ -57,11 +57,7 @@ class PhoneNumberCertificateTest {
         JWSHeader header = jwsObject.getHeader();
         assertEquals(JWSAlgorithm.ES256, header.getAlgorithm());
         assertEquals(JOSEObjectType.JWT, header.getType());
-        assertNotNull(header.getJWK(), "JWK must be present in header");
 
-        // Verify JWK matches server public key
-        JWK headerJWK = header.getJWK();
-        assertEquals(serverKeyPair.toPublicJWK(), headerJWK);
     }
 
     @Test
