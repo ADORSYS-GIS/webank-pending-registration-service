@@ -53,7 +53,7 @@ public class OtpRestServer implements OtpRestApi {
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
-              
+
                 return "Invalid or unauthorized JWT.";
             }
         } catch (Exception e) {

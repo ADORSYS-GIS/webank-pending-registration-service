@@ -15,12 +15,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
+import com.adorsys.webank.repository.OtpRequestRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import com.adorsys.webank.domain.OtpRequest;
+import com.adorsys.webank.domain.OtpStatus;
+import  java.util.Optional;
+import java.time.LocalDateTime;
 
 
 @Service
@@ -28,6 +32,10 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     private static final Logger log = LoggerFactory.getLogger(OtpServiceImpl.class);
 
+    private OtpRequestRepository otpRequestRepository;
+    public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
+        this.otpRequestRepository = otpRequestRepository;
+    }
     // Twilio credentials
     @Value("${twilio.account.sid}")
     private String accountSid;
@@ -69,25 +77,41 @@ public class OtpServiceImpl implements OtpServiceApi {
 
         try {
 
-                String otp = generateOtp();
-                log.info("OTP sent to phone number:{}", otp);
+            String otp = generateOtp();
+            log.info("OTP sent to phone number:{}", otp);
 
-                // Make a JSON object out of otp, devicePub, phoneNumber, and salt
-                String otpJSON = "{\"otp\":\"" + otp + "\","
-                        + "\"devicePub\":" + devicePub.toJSONString() + ","
-                        + "\"phoneNumber\":\"" + phoneNumber + "\","
-                        + "\"salt\":\"" + salt + "\"}";
+            // Extract raw public key string
+            String devicePublicKey = devicePub.toJSONString();
 
-                JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-                String input = jc.getEncodedString();
-                log.info(input);
-                String otpHash = computeHash(input);
-                log.info("OTP hash:{}", otpHash);
+            // Compute public key hash
+            String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
 
-                log.info("Message sent to phone number: {}", otp);
+            // Make a JSON object out of otp, devicePub, phoneNumber, and salt
+            String otpJSON = "{\"otp\":\"" + otp + "\","
+                    + "\"devicePub\":" + devicePub.toJSONString() + ","
+                    + "\"phoneNumber\":\"" + phoneNumber + "\","
+                    + "\"salt\":\"" + salt + "\"}";
 
-                return otpHash;
+            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
+            String input = jc.getEncodedString();
+            log.info(input);
+            String otpHash = computeHash(input);
+            log.info("OTP hash:{}", otpHash);
+
+            // save to database
+            OtpRequest otpRequest = OtpRequest.builder()
+                    .phoneNumber(phoneNumber)
+                    .publicKeyHash(publicKeyHash)
+                    .otpHash(otpHash)
+                    .otpcode(otp)
+                    .status(OtpStatus.PENDING)
+                    .build();
+            otpRequestRepository.save(otpRequest);
+
+            log.info("Message sent to phone number: {}", otp);
+
+            return otpHash;
 
         } catch (Exception e) {
             throw new FailedToSendOTPException("Failed to send OTP");
@@ -97,6 +121,30 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput, String otpHash) {
         try {
+
+
+            // Extract raw public key string (matches sendOtp logic)
+            String devicePublicKey = devicePub.toJSONString();
+            String publicKeyHash = computePublicKeyHash(devicePublicKey);
+
+
+            // Retrieve stored OTP request
+            Optional<OtpRequest> otpRequestOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+            if (otpRequestOpt.isEmpty()) {
+                return "No OTP request found for this public key";
+            }
+
+            OtpRequest otpRequest = otpRequestOpt.get();
+
+            // Check expiration (5 minutes)
+            LocalDateTime now = LocalDateTime.now();
+            if (otpRequest.getCreatedAt().isBefore(now.minusMinutes(5))) {
+                otpRequest.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpRequest);
+                return "OTP expired. Request a new one.";
+            }
+
+
             // Compute a new hash for the input OTP and compare it with the provided hash
             String otpJSON = "{\"otp\":\"" + otpInput + "\","
                     + "\"devicePub\":" + devicePub.toJSONString() + ","
@@ -109,17 +157,18 @@ public class OtpServiceImpl implements OtpServiceApi {
             String newOtpHash = computeHash(input);
             log.info("OTP newOtpHash:{}", newOtpHash);
 
-            boolean isValid = newOtpHash.equals(otpHash);
 
-            if (isValid) {
-                // Generate the phone number certificate if the OTP is valid
-                String certificate = generatePhoneNumberCertificate(phoneNumber, String.valueOf(devicePub));
-                log.info("Certificate generated for phone number {}: {}", phoneNumber, certificate);
-                return "Certificate generated: " + certificate;
+            // Compare with stored hash
+            if (newOtpHash.equals(otpRequest.getOtpHash())) {
+                otpRequest.setStatus(OtpStatus.COMPLETE);
+                otpRequestRepository.save(otpRequest);
+                return "Certificate generated: " + generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
             } else {
-                log.info("OTP validation failed for phone number {}", phoneNumber);
-                return "OTP validation failed";
+                otpRequest.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpRequest);
+                return "Invalid OTP";
             }
+
         } catch (Exception e) {
             log.error("Error validating OTP", e);
             return "Error validating the OTP";
@@ -138,6 +187,11 @@ public class OtpServiceImpl implements OtpServiceApi {
         } catch (NoSuchAlgorithmException e) {
             throw new HashComputationException("Error computing hash");
         }
+    }
+
+
+    private String computePublicKeyHash(String devicePublicKey) throws Exception {
+        return computeHash(devicePublicKey);
     }
 
     public String generatePhoneNumberCertificate(String phoneNumber, String devicePublicKey) {
