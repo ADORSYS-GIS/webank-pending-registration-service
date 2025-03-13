@@ -1,4 +1,4 @@
-package com.adorsys.webank.domain.enums;
+package com.adorsys.webank.domain;
 
 public enum OtpStatus {
     PENDING,

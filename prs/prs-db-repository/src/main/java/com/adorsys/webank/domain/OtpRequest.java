@@ -1,6 +1,5 @@
-package com.adorsys.webank.domain.model;
+package com.adorsys.webank.domain;
 
-import com.adorsys.webank.domain.enums.OtpStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 import lombok.*;
