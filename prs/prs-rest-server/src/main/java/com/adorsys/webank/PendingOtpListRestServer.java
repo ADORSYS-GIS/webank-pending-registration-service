@@ -22,7 +22,8 @@ public class PendingOtpListRestServer implements PendingOtpListRestApi {
     @Override
     public List<PendingOtpDto> getPendingOtps(String authorizationHeader) {
         // Validate the authorization header using the CertValidator.
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ") ||
+                !certValidator.validateJWT(authorizationHeader.substring(7))) {
             throw new IllegalArgumentException("Unauthorized or invalid JWT.");
         }
         // Delegate to the service to retrieve pending OTP records.

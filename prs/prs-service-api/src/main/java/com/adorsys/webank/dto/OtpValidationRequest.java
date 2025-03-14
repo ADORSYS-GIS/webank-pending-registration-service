@@ -3,14 +3,12 @@ package com.adorsys.webank.dto;
 public class OtpValidationRequest {
     private String phoneNumber;
     private String otpInput;
-    private String otpHash;
 
     public OtpValidationRequest() {}
 
-    public OtpValidationRequest(String phoneNumber, String otpInput , String otpHash) {
+    public OtpValidationRequest(String phoneNumber, String otpInput) {
         this.phoneNumber = phoneNumber;
         this.otpInput = otpInput;
-        this.otpHash = otpHash;
     }
 
 
@@ -18,9 +16,7 @@ public class OtpValidationRequest {
     public String getPhoneNumber() {
         return phoneNumber;
     }
-    public String getOtpHash() {
-        return otpHash;
-    }
+
     public String getOtpInput() {
         return otpInput;
     }
@@ -31,9 +27,7 @@ public class OtpValidationRequest {
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
-    public void setOtpHash(String otpHash) {
-        this.otpHash = otpHash;
-    }
+
     public void setOtpInput(String otpInput) {
         this.otpInput = otpInput;
     }

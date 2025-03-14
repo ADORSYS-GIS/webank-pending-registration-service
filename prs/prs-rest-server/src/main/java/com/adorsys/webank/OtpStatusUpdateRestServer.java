@@ -18,7 +18,8 @@ public class OtpStatusUpdateRestServer implements OtpStatusUpdateRestApi {
 
     @Override
     public String updateOtpStatus(String authorizationHeader, String phoneNumber, OtpStatusUpdateRequest request) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ") ||
+                !certValidator.validateJWT(authorizationHeader.substring(7))) {
             throw new IllegalArgumentException("Unauthorized or invalid JWT.");
         }
         return otpStatusUpdateServiceApi.updateOtpStatus(phoneNumber, request.getStatus());

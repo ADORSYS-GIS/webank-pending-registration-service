@@ -48,19 +48,18 @@ public class OtpRestServer implements OtpRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String phoneNumber = request.getPhoneNumber();
             String otpInput = request.getOtpInput();
-            String otpHash = request.getOtpHash();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber, otpInput, otpHash);
+            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber, otpInput);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
-              
+
                 return "Invalid or unauthorized JWT.";
             }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
 
-        return otpService.validateOtp(request.getPhoneNumber(), publicKey, request.getOtpInput(), request.getOtpHash());
+        return otpService.validateOtp(request.getPhoneNumber(), publicKey, request.getOtpInput());
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
