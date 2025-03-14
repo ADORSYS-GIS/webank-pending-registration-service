@@ -17,8 +17,9 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import java.time.LocalDateTime;
 
+import java.text.ParseException;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -82,17 +83,13 @@ public class OtpServiceImplTest {
         assertThrows(IllegalArgumentException.class, () -> otpService.sendOtp(devicePublicKey, "invalid"));
     }
 
-
-
-
-
     @Test
     void validateOtp_ExpiredOtp_ReturnsExpiredMessage() {
         OtpRequest expiredRequest = createTestOtpRequest("12345", 6); // Created 6 minutes ago
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(expiredRequest));
 
-        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345","12345");
+        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
         assertEquals("OTP expired. Request a new one.", result);
         assertEquals(OtpStatus.INCOMPLETE, expiredRequest.getStatus());
@@ -104,14 +101,15 @@ public class OtpServiceImplTest {
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(request));
 
-        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345","12345");
+        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
         assertEquals("Invalid OTP", result);
         assertEquals(OtpStatus.INCOMPLETE, request.getStatus());
     }
 
+    // Fixed SignatureDeclareThrowsException by changing Exception to JOSEException
     @Test
-    void generatePhoneNumberCertificate_ValidInput_ReturnsSignedJwt() throws Exception {
+    void generatePhoneNumberCertificate_ValidInput_ReturnsSignedJwt() throws JOSEException, ParseException {
         String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey.toJSONString());
 
         // Parse and verify JWT

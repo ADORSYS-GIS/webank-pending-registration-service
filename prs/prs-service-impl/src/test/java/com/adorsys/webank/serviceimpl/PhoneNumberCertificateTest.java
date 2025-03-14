@@ -107,7 +107,8 @@ class PhoneNumberCertificateTest {
         JWSObject jwsObject = JWSObject.parse(certificate);
 
         // Verify signature using the server's public key
-        JWSVerifier verifier = new com.nimbusds.jose.crypto.ECDSAVerifier(serverKeyPair.toPublicJWK());
+        // Fixed UnnecessaryFullyQualifiedName by removing redundant package prefix
+        JWSVerifier verifier = new ECDSAVerifier(serverKeyPair.toPublicJWK());
         assertTrue(jwsObject.verify(verifier), "Signature validation failed");
     }
 }
