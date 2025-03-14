@@ -1,8 +1,8 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.OtpStatusUpdateRequest;
-import com.adorsys.webank.service.OtpStatusUpdateServiceApi;
 import com.adorsys.webank.security.CertValidator;
+import com.adorsys.webank.service.OtpStatusUpdateServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController

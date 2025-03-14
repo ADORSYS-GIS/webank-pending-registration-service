@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.OtpRequest;
+import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.nimbusds.jose.*;
@@ -67,10 +67,10 @@ public class OtpServiceImplTest {
         String otpHash = otpService.sendOtp(devicePublicKey, phoneNumber);
 
         // Verify repository save
-        ArgumentCaptor<OtpRequest> captor = ArgumentCaptor.forClass(OtpRequest.class);
+        ArgumentCaptor<OtpEntity> captor = ArgumentCaptor.forClass(OtpEntity.class);
         verify(otpRequestRepository).save(captor.capture());
 
-        OtpRequest savedRequest = captor.getValue();
+        OtpEntity savedRequest = captor.getValue();
         assertEquals(phoneNumber, savedRequest.getPhoneNumber());
         assertEquals("12345", savedRequest.getOtpCode());
         assertEquals(OtpStatus.PENDING, savedRequest.getStatus());
@@ -85,7 +85,7 @@ public class OtpServiceImplTest {
 
     @Test
     void validateOtp_ExpiredOtp_ReturnsExpiredMessage() {
-        OtpRequest expiredRequest = createTestOtpRequest("12345", 6); // Created 6 minutes ago
+        OtpEntity expiredRequest = createTestOtpRequest("12345", 6); // Created 6 minutes ago
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(expiredRequest));
 
@@ -97,7 +97,7 @@ public class OtpServiceImplTest {
 
     @Test
     void validateOtp_InvalidOtp_ReturnsInvalidMessage() {
-        OtpRequest request = createTestOtpRequest("12345", 0);
+        OtpEntity request = createTestOtpRequest("12345", 0);
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(request));
 
@@ -123,8 +123,8 @@ public class OtpServiceImplTest {
         assertTrue(payload.contains("devicePubKeyHash"));
     }
 
-    private OtpRequest createTestOtpRequest(String otpCode, int minutesAgo) {
-        return OtpRequest.builder()
+    private OtpEntity createTestOtpRequest(String otpCode, int minutesAgo) {
+        return OtpEntity.builder()
                 .phoneNumber(phoneNumber)
                 .publicKeyHash("test-public-key-hash")
                 .otpHash("test-hash")

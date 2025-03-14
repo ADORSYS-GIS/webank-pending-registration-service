@@ -1,8 +1,8 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.PendingOtpDto;
-import com.adorsys.webank.service.PendingOtpServiceApi;
 import com.adorsys.webank.security.CertValidator;
+import com.adorsys.webank.service.PendingOtpServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;

@@ -1,8 +1,10 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.service.OtpServiceApi;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
@@ -15,15 +17,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.repository.OtpRequestRepository;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
-import com.adorsys.webank.domain.OtpStatus;
-import java.util.Optional;
 import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.Optional;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -118,16 +119,16 @@ public class OtpServiceImpl implements OtpServiceApi {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
-            Optional<OtpEntity> otpRequestOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
-            if (otpRequestOpt.isEmpty()) {
+            Optional<OtpEntity> otpEntityOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+            if (otpEntityOpt.isEmpty()) {
                 return "No OTP request found for this public key";
             }
 
-            OtpEntity otpRequest = otpRequestOpt.get();
+            OtpEntity otpEntity = otpEntityOpt.get();
             LocalDateTime now = LocalDateTime.now();
-            if (otpRequest.getCreatedAt().isBefore(now.minusMinutes(5))) {
-                otpRequest.setStatus(OtpStatus.INCOMPLETE);
-                otpRequestRepository.save(otpRequest);
+            if (otpEntity.getCreatedAt().isBefore(now.minusMinutes(5))) {
+                otpEntity.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpEntity);
                 return "OTP expired. Request a new one.";
             }
 
@@ -142,13 +143,13 @@ public class OtpServiceImpl implements OtpServiceApi {
             String newOtpHash = computeHash(input);
             log.info("OTP newOtpHash:{}", newOtpHash);
 
-            if (newOtpHash.equals(otpRequest.getOtpHash())) {
-                otpRequest.setStatus(OtpStatus.COMPLETE);
-                otpRequestRepository.save(otpRequest);
+            if (newOtpHash.equals(otpEntity.getOtpHash())) {
+                otpEntity.setStatus(OtpStatus.COMPLETE);
+                otpRequestRepository.save(otpEntity);
                 return "Certificate generated: " + generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
             } else {
-                otpRequest.setStatus(OtpStatus.INCOMPLETE);
-                otpRequestRepository.save(otpRequest);
+                otpEntity.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpEntity);
                 return "Invalid OTP";
             }
         } catch (Exception e) {

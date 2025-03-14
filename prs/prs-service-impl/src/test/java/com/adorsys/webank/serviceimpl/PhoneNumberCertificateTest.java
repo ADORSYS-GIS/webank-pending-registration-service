@@ -1,23 +1,14 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.OtpRequest;
-import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.repository.OtpRequestRepository;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JOSEObjectType;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jose.JWSVerifier;
-import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 import com.nimbusds.jose.util.JSONObjectUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -26,8 +17,9 @@ import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Base64;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class PhoneNumberCertificateTest {
 
