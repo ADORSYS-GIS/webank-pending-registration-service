@@ -18,6 +18,7 @@
         <module>prs-rest-server</module>
         <module>prs-service-api</module>
         <module>prs-service-impl</module>
+        <module>prs-db-repository</module>
     </modules>
 
     <properties>
