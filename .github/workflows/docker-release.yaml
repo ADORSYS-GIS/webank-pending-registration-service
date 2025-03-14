@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/database-connection-for-prs
 
 jobs:
   build:
