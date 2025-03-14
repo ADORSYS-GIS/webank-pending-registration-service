@@ -33,7 +33,7 @@ public class OtpRequest {
     private String otpHash;
 
     @Column(name = "otp", nullable = false, length = 20)
-    private String otpcode;
+    private String otpCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

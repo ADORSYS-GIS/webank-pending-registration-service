@@ -72,7 +72,7 @@ public class OtpServiceImplTest {
 
         OtpRequest savedRequest = captor.getValue();
         assertEquals(phoneNumber, savedRequest.getPhoneNumber());
-        assertEquals("12345", savedRequest.getOtpcode());
+        assertEquals("12345", savedRequest.getOtpCode());
         assertEquals(OtpStatus.PENDING, savedRequest.getStatus());
         assertNotNull(savedRequest.getPublicKeyHash());
         assertEquals(otpHash, savedRequest.getOtpHash());
@@ -128,7 +128,7 @@ public class OtpServiceImplTest {
                 .phoneNumber(phoneNumber)
                 .publicKeyHash("test-public-key-hash")
                 .otpHash("test-hash")
-                .otpcode(otpCode)
+                .otpCode(otpCode)
                 .status(OtpStatus.PENDING)
                 .createdAt(LocalDateTime.now().minusMinutes(minutesAgo))
                 .build();

@@ -99,7 +99,7 @@ public class OtpServiceImpl implements OtpServiceApi {
                     .phoneNumber(phoneNumber)
                     .publicKeyHash(publicKeyHash)
                     .otpHash(otpHash)
-                    .otpcode(otp)
+                    .otpCode(otp)
                     .status(OtpStatus.PENDING)
                     .build();
             otpRequestRepository.save(otpRequest);
