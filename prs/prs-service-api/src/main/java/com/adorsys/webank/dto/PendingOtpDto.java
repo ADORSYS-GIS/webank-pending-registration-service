@@ -7,16 +7,15 @@ import lombok.Setter;
 @Getter
 public class PendingOtpDto {
     private String phoneNumber;
-    private String maskedOtp;
+    private String otpCode;
     private String status; // e.g., "Pending", "Sent", "Completed"
 
     public PendingOtpDto() {
     }
 
-    public PendingOtpDto(String phoneNumber, String maskedOtp, String status) {
+    public PendingOtpDto(String phoneNumber, String otpCode, String status) {
         this.phoneNumber = phoneNumber;
-        this.maskedOtp = maskedOtp;
+        this.otpCode = otpCode;
         this.status = status;
     }
-
 }

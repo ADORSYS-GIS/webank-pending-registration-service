@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OtpRequest {
+public class OtpEntity {
 
     @Id
     @GeneratedValue
