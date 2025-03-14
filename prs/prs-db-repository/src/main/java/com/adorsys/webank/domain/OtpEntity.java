@@ -1,11 +1,11 @@
 package com.adorsys.webank.domain;
 
-import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OtpRequest {
+public class OtpEntity {
 
     @Id
     @GeneratedValue
