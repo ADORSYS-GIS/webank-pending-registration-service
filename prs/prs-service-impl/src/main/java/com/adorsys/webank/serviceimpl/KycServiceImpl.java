@@ -23,12 +23,6 @@ public class KycServiceImpl implements KycServiceApi {
 
     private static final Logger log = LoggerFactory.getLogger(KycServiceImpl.class);
 
-    private final OtpRequestRepository otpRequestRepository;
-
-    public KycServiceImpl(OtpRequestRepository otpRequestRepository) {
-        this.otpRequestRepository = otpRequestRepository;
-    }
-
 
     @Override
     public String sendKycDocument(JWK devicePub, KycDocumentRequest kycDocumentRequest) {
@@ -41,6 +35,7 @@ public class KycServiceImpl implements KycServiceApi {
 
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            log.info(publicKeyHash);
 
             return "KYC Document sent successfully.";
         } catch (Exception e) {
@@ -60,6 +55,7 @@ public class KycServiceImpl implements KycServiceApi {
 
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            log.info(publicKeyHash);
 
             return "KYC Info sent successfully.";
         } catch (Exception e) {
@@ -79,6 +75,7 @@ public class KycServiceImpl implements KycServiceApi {
 
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            log.info(publicKeyHash);
 
             return "KYC Location sent successfully.";
         } catch (Exception e) {
@@ -98,6 +95,7 @@ public class KycServiceImpl implements KycServiceApi {
 
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            log.info(publicKeyHash);
 
             return "KYC Email sent successfully.";
         } catch (Exception e) {
