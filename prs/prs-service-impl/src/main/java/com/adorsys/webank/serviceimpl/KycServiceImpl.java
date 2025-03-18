@@ -40,10 +40,6 @@ public class KycServiceImpl implements KycServiceApi {
 
     @Override
     public String sendKycDocument(JWK devicePub, KycDocumentRequest kycDocumentRequest) {
-        String frontID = kycDocumentRequest.getFrontId();
-        String backID = kycDocumentRequest.getBackId();
-        String selfieID = kycDocumentRequest.getSelfPic();
-        String taxID = kycDocumentRequest.getTaxId();
 
         if (kycDocumentRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Document Request");
@@ -57,10 +53,10 @@ public class KycServiceImpl implements KycServiceApi {
             log.info(publicKeyHash);
             UserDocumentsEntity userDocuments = new UserDocumentsEntity();
             userDocuments.setPublicKeyHash(publicKeyHash);
-            userDocuments.setFrontID(frontID.getBytes());
-            userDocuments.setBackID(backID.getBytes());
-            userDocuments.setSelfieID(selfieID.getBytes());
-            userDocuments.setTaxID(taxID.getBytes());
+            userDocuments.setFrontID(kycDocumentRequest.getFrontId().getBytes());
+            userDocuments.setBackID(kycDocumentRequest.getBackId().getBytes());
+            userDocuments.setSelfieID(kycDocumentRequest.getSelfPic().getBytes());
+            userDocuments.setTaxID(kycDocumentRequest.getTaxId().getBytes());
             repository.save(userDocuments);
 
             return "KYC Document sent successfully and saved";
