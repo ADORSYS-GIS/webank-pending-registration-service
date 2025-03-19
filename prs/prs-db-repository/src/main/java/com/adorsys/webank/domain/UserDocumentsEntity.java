@@ -16,18 +16,18 @@ public class UserDocumentsEntity {
 
     @Lob
     @Column(name = "front_id", nullable = false)
-    private byte[] frontID;
+    private String frontID;
 
     @Lob
     @Column(name = "back_id", nullable = false)
-    private byte[] backID;
+    private String backID;
 
     @Lob
     @Column(name = "selfie_id", nullable = false)
-    private byte[] selfieID;
+    private String selfieID;
 
     @Lob
     @Column(name = "tax_id", nullable = false)
-    private byte[] taxID;
+    private String taxID;
 }
 
