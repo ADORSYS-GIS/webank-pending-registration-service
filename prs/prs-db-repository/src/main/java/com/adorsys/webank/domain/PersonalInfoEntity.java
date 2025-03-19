@@ -34,9 +34,8 @@ public class PersonalInfoEntity {
     @Column(name = "region", nullable = false, length = 20)
     private String region;
 
-    @CreationTimestamp
     @Column(name = "expires_on", nullable = false, updatable = false)
-    private LocalDateTime expirationDate;
+    private String expirationDate;
 
     @Column(name = "location")
     private String location;
