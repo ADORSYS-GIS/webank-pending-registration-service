@@ -44,6 +44,12 @@ public class PersonalInfoEntity {
     @Column(name = "email", length = 20)
     private String email;
 
+    @Column(name = "email_otp_hash")
+    private String emailOtpHash;
+
+    @Column(name = "email_otp_code")
+    private String emailOtpCode;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private PersonalInfoStatus status;
