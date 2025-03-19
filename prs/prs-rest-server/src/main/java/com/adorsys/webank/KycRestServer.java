@@ -26,11 +26,11 @@ public class KycRestServer implements KycRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             publicKey = JwtValidator.validateAndExtract(jwtToken);
 
-            // Validate the JWT token using the injected CertValidator instance
-            if (!certValidator.validateJWT(jwtToken)) {
-
-                return "Invalid or unauthorized JWT.";
-            }
+//            // Validate the JWT token using the injected CertValidator instance
+//            if (!certValidator.validateJWT(jwtToken)) {
+//
+//                return "Invalid or unauthorized JWT.";
+//            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
@@ -46,11 +46,11 @@ public class KycRestServer implements KycRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             publicKey = JwtValidator.validateAndExtract(jwtToken);
 
-            // Validate the JWT token using the injected CertValidator instance
-            if (!certValidator.validateJWT(jwtToken)) {
-
-                return "Invalid or unauthorized JWT.";
-            }
+//            // Validate the JWT token using the injected CertValidator instance
+//            if (!certValidator.validateJWT(jwtToken)) {
+//
+//                return "Invalid or unauthorized JWT.";
+//            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }

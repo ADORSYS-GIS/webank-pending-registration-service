@@ -53,10 +53,10 @@ public class KycServiceImpl implements KycServiceApi {
             log.info(publicKeyHash);
             UserDocumentsEntity userDocuments = new UserDocumentsEntity();
             userDocuments.setPublicKeyHash(publicKeyHash);
-            userDocuments.setFrontID(kycDocumentRequest.getFrontId().getBytes());
-            userDocuments.setBackID(kycDocumentRequest.getBackId().getBytes());
-            userDocuments.setSelfieID(kycDocumentRequest.getSelfPic().getBytes());
-            userDocuments.setTaxID(kycDocumentRequest.getTaxId().getBytes());
+            userDocuments.setFrontID(kycDocumentRequest.getFrontId());
+            userDocuments.setBackID(kycDocumentRequest.getBackId());
+            userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
+            userDocuments.setTaxID(kycDocumentRequest.getTaxId());
             repository.save(userDocuments);
 
             return "KYC Document sent successfully and saved";
