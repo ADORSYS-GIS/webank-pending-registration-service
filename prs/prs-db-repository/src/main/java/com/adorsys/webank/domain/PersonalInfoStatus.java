@@ -4,4 +4,7 @@ public enum PersonalInfoStatus {
     PENDING,
     APPROVED,
     REJECTED,
+    FAILED,
+    EXPIRED,
+    VERIFIED,
 }

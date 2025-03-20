@@ -37,11 +37,21 @@ public class PersonalInfoEntity {
     @Column(name = "expires_on", nullable = false, updatable = false)
     private String expirationDate;
 
+    @Column(name = "otp_expires_at")
+    private LocalDateTime otpExpirationDateTime;
+
+
     @Column(name = "location")
     private String location;
 
     @Column(name = "email", length = 20)
     private String email;
+
+    @Column(name = "email_otp_hash")
+    private String emailOtpHash;
+
+    @Column(name = "email_otp_code")
+    private String emailOtpCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
