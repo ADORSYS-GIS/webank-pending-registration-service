@@ -11,12 +11,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class EmailOtpRestServer implements EmailOtpRestApi {
     private final EmailOtpServiceApi emailOtpService;
-    private final CertValidator certValidator;
+//    private final CertValidator certValidator;
 
-    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService,
-                              CertValidator certValidator) {
+    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService) {
         this.emailOtpService = emailOtpService;
-        this.certValidator = certValidator;
+
     }
 
     @Override
