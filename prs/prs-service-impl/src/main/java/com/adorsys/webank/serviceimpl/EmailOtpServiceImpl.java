@@ -8,27 +8,33 @@ import com.nimbusds.jose.jwk.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
-import org.springframework.mail.*;
+import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
-import org.springframework.stereotype.*;
-
+import org.springframework.stereotype.Service;
+import  jakarta.mail.internet.MimeMessage;
 import jakarta.annotation.Resource;
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import jakarta.mail.MessagingException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImpl.class);
     private final PersonalInfoRepository personalInfoRepository;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     @Resource
     private JavaMailSender mailSender;
 
     @Value("${otp.salt}")
     private String salt;
+
     @Value("${spring.mail.username}")
     private String fromEmail;
 
@@ -38,15 +44,16 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     @Override
     public String generateOtp() {
+        log.debug("Generating new OTP");
         SecureRandom secureRandom = new SecureRandom();
-        int otp = 100000 + secureRandom.nextInt(900000); // 6-digit OTP
+        int otp = 100000 + secureRandom.nextInt(900000);
         log.debug("Generated OTP: {}", otp);
         return String.valueOf(otp);
     }
 
     @Override
     public String sendEmailOtp(JWK devicePub, String email) {
-        log.debug("Initiating OTP sending process for email: {}", email);
+        log.info("Initiating OTP send process for email: {}", email);
         validateEmailFormat(email);
 
         try {
@@ -60,25 +67,27 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             PersonalInfoEntity personalInfo = personalInfoRepository.findByPublicKeyHash(publicKeyHash)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
-            personalInfo.setEmail(email);
+
+            LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(5);
+
             personalInfo.setEmailOtpCode(otp);
             personalInfo.setEmailOtpHash(computeOtpHash(otp, devicePublicKey));
-            personalInfo.setExpirationDate(LocalDateTime.now().plusMinutes(5));
+            personalInfo.setOtpExpirationDateTime(otpExpiration); // Set LocalDateTime
             personalInfo.setStatus(PersonalInfoStatus.PENDING);
             personalInfoRepository.save(personalInfo);
 
-            log.debug("OTP stored successfully for email: {}", email);
+            log.debug("OTP stored successfully for public key hash: {}", publicKeyHash);
             sendOtpEmail(email, otp);
-            return "OTP sent successfully";
+            return "OTP sent successfully to " + email;
         } catch (Exception e) {
-            log.error("Failed to send OTP", e);
-            throw new FailedToSendOTPException("Failed to send email OTP");
+            log.error("Failed to send OTP to {}", email, e);
+            throw new FailedToSendOTPException("Failed to send Webank email OTP");
         }
     }
 
     @Override
     public String validateEmailOtp(String email, JWK devicePub, String otpInput) {
-        log.debug("Validating OTP for email: {}", email);
+        log.info("Validating OTP for email: {}", email);
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
@@ -90,24 +99,45 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             validateOtpExpiration(personalInfo);
 
             if (validateOtpHash(otpInput, devicePublicKey, personalInfo)) {
+                personalInfo.setEmail(email); // Store email only after validation
                 personalInfo.setStatus(PersonalInfoStatus.VERIFIED);
                 personalInfoRepository.save(personalInfo);
-                log.debug("OTP verified successfully for email: {}", email);
-                return "Email verified successfully";
+                log.info("OTP verified successfully for email: {}", email);
+                return "Webank email verified successfully";
             }
 
             personalInfo.setStatus(PersonalInfoStatus.FAILED);
             personalInfoRepository.save(personalInfo);
-            log.debug("Invalid OTP entered for email: {}", email);
-            return "Invalid OTP";
+            log.warn("Invalid OTP entered for email: {}", email);
+            return "Invalid Webank OTP";
+        } catch (IllegalArgumentException e) {
+            log.error("Validation error: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Error validating OTP", e);
-            return "Error validating OTP";
+            return "Webank OTP validation error";
         }
     }
 
-    // Helper methods
+    private void validateOtpExpiration(PersonalInfoEntity personalInfo) {
+        LocalDateTime expiration = personalInfo.getOtpExpirationDateTime();
+
+        if (expiration == null) {
+            log.error("No OTP expiration date found");
+            throw new IllegalArgumentException("OTP expiration date missing");
+        }
+
+        if (LocalDateTime.now().isAfter(expiration)) {
+            personalInfo.setStatus(PersonalInfoStatus.EXPIRED);
+            personalInfoRepository.save(personalInfo);
+            log.warn("OTP expired for public key hash: {}", personalInfo.getPublicKeyHash());
+            throw new IllegalArgumentException("Webank OTP expired");
+        }
+    }
+
+
     private void validateEmailFormat(String email) {
+        log.debug("Validating email format for: {}", email);
         if (!email.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
             log.warn("Invalid email format: {}", email);
             throw new IllegalArgumentException("Invalid email format");
@@ -115,41 +145,45 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     private void sendOtpEmail(String toEmail, String otp) {
-        log.debug("Sending OTP email to: {}", toEmail);
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromEmail);
-        message.setTo(toEmail);
-        message.setSubject("Your Verification Code");
-        message.setText("Your OTP is: " + otp + " (valid for 5 minutes)");
-        mailSender.send(message);
-        log.debug("OTP email sent successfully to: {}", toEmail);
+        log.info("Sending OTP email from {} to {}", fromEmail, toEmail);
+        MimeMessage message = mailSender.createMimeMessage();
+
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Webank Verification Code");
+            helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
+
+            ByteArrayResource resource = new ByteArrayResource("This is a sample attachment".getBytes());
+            helper.addAttachment("webank_otp_info.txt", resource);
+
+            mailSender.send(message);
+            log.info("OTP email sent successfully to {}", toEmail);
+        } catch (MessagingException e) {
+            log.error("Failed to send email to {}", toEmail, e);
+            throw new FailedToSendOTPException("Failed to send Webank email with attachment");
+        }
     }
 
     private boolean validateOtpHash(String inputOtp, String devicePublicKey, PersonalInfoEntity personalInfo) {
+        log.debug("Validating OTP hash for input OTP");
         String currentHash = computeOtpHash(inputOtp, devicePublicKey);
         boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
         log.debug("OTP hash validation result: {}", isValid);
         return isValid;
     }
 
-    private void validateOtpExpiration(PersonalInfoEntity personalInfo) {
-        if (LocalDateTime.now().isAfter(personalInfo.getExpirationDate())) {
-            personalInfo.setStatus(PersonalInfoStatus.EXPIRED);
-            personalInfoRepository.save(personalInfo);
-            log.warn("OTP expired for email: {}", personalInfo.getEmail());
-            throw new IllegalArgumentException("OTP expired");
-        }
-    }
-
     private String computeOtpHash(String emailOtp, String devicePublicKey) {
+        log.debug("Computing OTP hash");
         String input = String.format("{\"emailOtp\":\"%s\", \"devicePub\":%s, \"salt\":\"%s\"}",
                 emailOtp, devicePublicKey, salt);
-        log.debug("Computing OTP hash with input: {}", input);
+        log.trace("Hash input: {}", input);
         return computeHash(canonicalizeJson(input));
     }
 
     private String computePublicKeyHash(String devicePublicKey) {
-        log.debug("Computing public key hash for: {}", devicePublicKey);
+        log.debug("Computing public key hash");
         return computeHash(devicePublicKey);
     }
 
@@ -158,23 +192,24 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             String hash = Base64.getEncoder().encodeToString(hashBytes);
-            log.debug("Computed hash: {}", hash);
+            log.trace("Computed hash: {}", hash);
             return hash;
         } catch (NoSuchAlgorithmException e) {
-            log.error("Error computing hash", e);
-            throw new HashComputationException("Error computing hash");
+            log.error("Hash computation failed", e);
+            throw new HashComputationException("Webank hash computation error");
         }
     }
 
     private String canonicalizeJson(String json) {
         try {
+            log.trace("Canonicalizing JSON: {}", json);
             JsonCanonicalizer jc = new JsonCanonicalizer(json);
             String canonicalJson = jc.getEncodedString();
-            log.debug("Canonicalized JSON: {}", canonicalJson);
+            log.trace("Canonicalized JSON: {}", canonicalJson);
             return canonicalJson;
         } catch (Exception e) {
-            log.error("Error canonicalizing JSON", e);
-            throw new HashComputationException("Error canonicalizing JSON");
+            log.error("JSON canonicalization failed", e);
+            throw new HashComputationException("Webank JSON canonicalization error");
         }
     }
 }

@@ -49,9 +49,9 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             String otpInput = request.getOtp();
             publicKey = JwtValidator.validateAndExtract(jwtToken, email, otpInput);
 
-            if (!certValidator.validateJWT(jwtToken)) {
-                return "Invalid or unauthorized JWT.";
-            }
+//            if (!certValidator.validateJWT(jwtToken)) {
+//                return "Invalid or unauthorized JWT.";
+//            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }

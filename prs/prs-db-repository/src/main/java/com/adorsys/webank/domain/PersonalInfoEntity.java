@@ -37,6 +37,10 @@ public class PersonalInfoEntity {
     @Column(name = "expires_on", nullable = false, updatable = false)
     private String expirationDate;
 
+    @Column(name = "otp_expires_at")
+    private LocalDateTime otpExpirationDateTime;
+
+
     @Column(name = "location")
     private String location;
 
