@@ -11,10 +11,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class EmailOtpRestServer implements EmailOtpRestApi {
     private final EmailOtpServiceApi emailOtpService;
-//    private final CertValidator certValidator;
+    private final CertValidator certValidator;
 
-    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService) {
+    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService , CertValidator certValidator) {
         this.emailOtpService = emailOtpService;
+        this.certValidator = certValidator;
 
     }
 
@@ -28,9 +29,9 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             String email = request.getEmail();
             publicKey = JwtValidator.validateAndExtract(jwtToken, email);
 
-//            if (!certValidator.validateJWT(jwtToken)) {
-//                return "Invalid or unauthorized JWT.";
-//            }
+            if (!certValidator.validateJWT(jwtToken)) {
+                return "Invalid or unauthorized JWT.";
+            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
@@ -48,9 +49,9 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             String otpInput = request.getOtp();
             publicKey = JwtValidator.validateAndExtract(jwtToken, email, otpInput);
 
-//            if (!certValidator.validateJWT(jwtToken)) {
-//                return "Invalid or unauthorized JWT.";
-//            }
+            if (!certValidator.validateJWT(jwtToken)) {
+                return "Invalid or unauthorized JWT.";
+            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
