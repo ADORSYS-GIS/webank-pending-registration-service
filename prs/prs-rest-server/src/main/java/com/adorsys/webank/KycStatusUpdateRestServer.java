@@ -1,6 +1,5 @@
 package com.adorsys.webank;
 
-import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.service.KycStatusUpdateServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -8,11 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
 
     private final KycStatusUpdateServiceApi kyctatusUpdateServiceApi;
-    private final CertValidator certValidator;
 
-    public KycStatusUpdateRestServer(KycStatusUpdateServiceApi kyctatusUpdateServiceApi, CertValidator certValidator) {
+    public KycStatusUpdateRestServer(KycStatusUpdateServiceApi kyctatusUpdateServiceApi) {
         this.kyctatusUpdateServiceApi = kyctatusUpdateServiceApi;
-        this.certValidator = certValidator;
     }
 
     @Override

@@ -39,23 +39,21 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKycDocument( KycDocumentRequest kycDocumentRequest) {
+    public String sendKycDocument( JWK devicePublicKey, KycDocumentRequest kycDocumentRequest) {
 
         if (kycDocumentRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Document Request");
         }
 
         try {
-            log.info("OTP sent to device for KYC Document: {}");
 
-            String devicePublicKey = "devicePub.toJSONString()";
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            String publicKeyHash = computePublicKeyHash(String.valueOf(devicePublicKey));
             log.info(publicKeyHash);
             UserDocumentsEntity userDocuments = new UserDocumentsEntity();
             userDocuments.setPublicKeyHash(publicKeyHash);
             userDocuments.setFrontID(kycDocumentRequest.getFrontId());
             userDocuments.setBackID(kycDocumentRequest.getBackId());
-            userDocuments.setSelfieID(kycDocumentRequest.getSelfPic());
+            userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
             userDocuments.setTaxID(kycDocumentRequest.getTaxId());
             repository.save(userDocuments);
 
@@ -67,7 +65,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
-    public String sendKycinfo( KycInfoRequest kycInfoRequest) {
+    public String sendKycinfo( JWK devicePub, KycInfoRequest kycInfoRequest) {
         if (kycInfoRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Info Request");
         }
@@ -76,7 +74,7 @@ public class KycServiceImpl implements KycServiceApi {
             log.info("Processing KYC Info for the device.");
 
             // Extract public key and compute hash
-            String devicePublicKey = "devicePub.toJSONString()";
+            String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
             log.info("Computed Public Key Hash: {}", publicKeyHash);
 

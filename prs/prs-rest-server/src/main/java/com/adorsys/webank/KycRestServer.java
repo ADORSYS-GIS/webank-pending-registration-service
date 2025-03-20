@@ -32,18 +32,20 @@ public class KycRestServer implements KycRestApi {
         JWK publicKey;
         try {
             // Extract the JWT token from the Authorization header
-//            jwtToken = extractJwtFromHeader(authorizationHeader);
-//            publicKey = JwtValidator.validateAndExtract(jwtToken);
-//
-//            // Validate the JWT token using the injected CertValidator instance
-//            if (!certValidator.validateJWT(jwtToken)) {
-//
-//                return "Invalid or unauthorized JWT.";
-//            }
+            jwtToken = extractJwtFromHeader(authorizationHeader);
+            publicKey = JwtValidator.validateAndExtract(jwtToken);
+            log.info("Successfully validated sendinfo");
+
+
+            // Validate the JWT token using the injected CertValidator instance
+            if (!certValidator.validateJWT(jwtToken)) {
+
+                return "Invalid or unauthorized JWT.";
+            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
-        return kycServiceApi.sendKycDocument( kycDocumentRequest);
+        return kycServiceApi.sendKycDocument( publicKey, kycDocumentRequest);
     }
 
     @Override
@@ -52,19 +54,20 @@ public class KycRestServer implements KycRestApi {
         JWK publicKey;
         try {
             // Extract the JWT token from the Authorization header
-//            jwtToken = extractJwtFromHeader(authorizationHeader);
-//            publicKey = JwtValidator.validateAndExtract(jwtToken);
-//
-//            // Validate the JWT token using the injected CertValidator instance
-//            if (!certValidator.validateJWT(jwtToken)) {
-//
-//                return "Invalid or unauthorized JWT.";
-//            }
+            jwtToken = extractJwtFromHeader(authorizationHeader);
+            publicKey = JwtValidator.validateAndExtract(jwtToken);
+            log.info("Successfully validated sendinfo");
+
+            // Validate the JWT token using the injected CertValidator instance
+            if (!certValidator.validateJWT(jwtToken)) {
+
+                return "Invalid or unauthorized JWT.";
+            }
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
 
-        return kycServiceApi.sendKycinfo(kycInfoRequest);
+        return kycServiceApi.sendKycinfo(publicKey, kycInfoRequest);
     }
 
     @Override
@@ -110,11 +113,14 @@ public class KycRestServer implements KycRestApi {
     }
 
     @Override
-    public Optional<UserDocumentsEntity> getDocuments(String authorizationHeader, String publicKeyHash) {
+    public Optional<UserDocumentsEntity> getDocuments(String authorizationHeader, KycGetDocRequest kycGetDocRequest) {
         String jwtToken;
+        String publicKeyHash = kycGetDocRequest.getPublicKeyHash();
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
+            JwtValidator.validateAndExtract(jwtToken, publicKeyHash);
+
             log.info("Fetching documents for public key hash: {}", publicKeyHash);
         } catch (Exception e) {
             log.error("Error extracting JWT token or fetching documents for public key hash: {}", publicKeyHash, e);
@@ -127,19 +133,16 @@ public class KycRestServer implements KycRestApi {
     @Override
     public List<PersonalInfoEntity>  getPersonalInfoByStatus(String authorizationHeader) {
         String jwtToken;
-        JWK publicKey;
-        String status = "PENDING";
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-//            publicKey = JwtValidator.validateAndExtract(jwtToken);
+            JwtValidator.validateAndExtract(jwtToken);
             log.info("Success");
 
         } catch (Exception e) {
             throw new IllegalArgumentException("An error occurred");
         }
-        // Delegate to the service to retrieve pending OTP records.
-        return kycServiceApi.getPersonalInfoByStatus(PersonalInfoStatus.valueOf(status));
+        return kycServiceApi.getPersonalInfoByStatus(PersonalInfoStatus.valueOf("PENDING"));
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {

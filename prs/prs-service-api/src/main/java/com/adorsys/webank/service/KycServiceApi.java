@@ -14,8 +14,8 @@ import java.util.Optional;
 
 @Service
 public interface KycServiceApi {
-    String sendKycDocument( KycDocumentRequest kycDocumentRequest);
-    String sendKycinfo( KycInfoRequest kycInfoRequest);
+    String sendKycDocument( JWK publicKey, KycDocumentRequest kycDocumentRequest);
+    String sendKycinfo( JWK publicKey, KycInfoRequest kycInfoRequest);
     String sendKyclocation(JWK devicePub, KycLocationRequest kycLocationRequest);
     String sendKycEmail(JWK devicePub, KycEmailRequest kycEmailRequest);
     Optional<UserDocumentsEntity> getDocuments(String publicKeyHash);

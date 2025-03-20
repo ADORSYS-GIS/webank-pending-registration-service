@@ -59,11 +59,9 @@ public interface KycRestApi {
             @ApiResponse(responseCode = "404", description = "User documents not found"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @GetMapping(value = "/record/{publicKeyHash}", produces = "application/json")
+    @PostMapping(value = "/record", consumes = "application/json", produces = "application/json")
     Optional<UserDocumentsEntity> getDocuments(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @PathVariable("publicKeyHash") String publicKeyHash
-    );
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycGetDocRequest kycGetDocRequest);
 
 
     @Operation(summary = "Get pending OTPs", description = "Fetches all pending OTPs where registration is not complete. The response includes the phone number, a masked version of the OTP, and the registration status.")
@@ -72,6 +70,6 @@ public interface KycRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @GetMapping(value = "/info", produces = "application/json")
+    @GetMapping(value = "/infos", produces = "application/json")
     List<PersonalInfoEntity> getPersonalInfoByStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
 }

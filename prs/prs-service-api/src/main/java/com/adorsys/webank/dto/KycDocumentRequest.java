@@ -1,47 +1,20 @@
 package com.adorsys.webank.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class KycDocumentRequest {
     private String frontId;
     private String backId;
     private String taxId;
-    private String selfPic;
+    private String selfieId;
 
-    public KycDocumentRequest(String frontId, String backId, String taxId, String selfPic) {
+    public KycDocumentRequest(String frontId, String backId, String taxId, String selfieId) {
         this.frontId = frontId;
         this.backId = backId;
         this.taxId = taxId;
-        this.selfPic = selfPic;
-    }
-
-    public String getFrontId() {
-        return frontId;
-    }
-
-    public void setFrontId(String frontId) {
-        this.frontId = frontId;
-    }
-
-    public String getBackId() {
-        return backId;
-    }
-
-    public void setBackId(String backId) {
-        this.backId = backId;
-    }
-
-    public String getTaxId() {
-        return taxId;
-    }
-
-    public void setTaxId(String taxId) {
-        this.taxId = taxId;
-    }
-
-    public String getSelfPic() {
-        return selfPic;
-    }
-
-    public void setSelfPic(String selfPic) {
-        this.selfPic = selfPic;
+        this.selfieId = selfieId;
     }
 }
