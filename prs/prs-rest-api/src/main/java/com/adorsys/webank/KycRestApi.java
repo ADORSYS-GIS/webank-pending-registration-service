@@ -1,15 +1,17 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
 
 @Tag(name = "KYC", description = "Operations related to KYC processing")
 @RequestMapping("/api/prs/kyc")
@@ -49,4 +51,25 @@ public interface KycRestApi {
     })
     @PostMapping(value = "/email", consumes = "application/json", produces = "application/json")
     String sendKycEmail(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycEmailRequest kycEmailRequest);
+
+    @Operation(summary = "Get User Documents", description = "Fetches user documents based on the provided public key hash. The response includes relevant documents if found.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User documents successfully retrieved"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid token"),
+            @ApiResponse(responseCode = "404", description = "User documents not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @PostMapping(value = "/record", consumes = "application/json", produces = "application/json")
+    Optional<UserDocumentsEntity> getDocuments(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycGetDocRequest kycGetDocRequest);
+
+
+    @Operation(summary = "Get pending OTPs", description = "Fetches all pending OTPs where registration is not complete. The response includes the phone number, a masked version of the OTP, and the registration status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pending OTPs successfully retrieved"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping(value = "/infos", produces = "application/json")
+    List<PersonalInfoEntity> getPersonalInfoByStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
 }

@@ -39,17 +39,15 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKycDocument(JWK devicePub, KycDocumentRequest kycDocumentRequest) {
+    public String sendKycDocument( JWK devicePublicKey, KycDocumentRequest kycDocumentRequest) {
 
         if (kycDocumentRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Document Request");
         }
 
         try {
-            log.info("OTP sent to device for KYC Document: {}");
 
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            String publicKeyHash = computePublicKeyHash(String.valueOf(devicePublicKey));
             log.info(publicKeyHash);
             UserDocumentsEntity userDocuments = new UserDocumentsEntity();
             userDocuments.setPublicKeyHash(publicKeyHash);
@@ -67,7 +65,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
-    public String sendKycinfo(JWK devicePub, KycInfoRequest kycInfoRequest) {
+    public String sendKycinfo( JWK devicePub, KycInfoRequest kycInfoRequest) {
         if (kycInfoRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Info Request");
         }
@@ -174,10 +172,19 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hashBytes);
+            return bytesToHex(hashBytes);
         } catch (NoSuchAlgorithmException e) {
             throw new HashComputationException("Error computing hash");
         }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            String hex = String.format("%02x", b);
+            hexString.append(hex);
+        }
+        return hexString.toString();
     }
 
     @Override

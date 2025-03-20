@@ -15,19 +15,19 @@ public class UserDocumentsEntity {
     private String publicKeyHash;
 
     @Lob
-    @Column(name = "front_id", nullable = false)
-    private byte[] frontID;
+    @Column(name = "front_id", nullable = true)
+    private String frontID;
 
     @Lob
-    @Column(name = "back_id", nullable = false)
-    private byte[] backID;
+    @Column(name = "back_id", nullable = true)
+    private String backID;
 
     @Lob
-    @Column(name = "selfie_id", nullable = false)
-    private byte[] selfieID;
+    @Column(name = "selfie_id", nullable = true)
+    private String selfieID;
 
     @Lob
-    @Column(name = "tax_id", nullable = false)
-    private byte[] taxID;
+    @Column(name = "tax_id", nullable = true)
+    private String taxID;
 }
 

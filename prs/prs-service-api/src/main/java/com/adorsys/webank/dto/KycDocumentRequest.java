@@ -6,16 +6,15 @@ import lombok.Setter;
 @Getter
 @Setter
 public class KycDocumentRequest {
-    private byte[] frontId;
-    private byte[] backId;
-    private byte[] taxId;
-    private byte[] selfieId;
+    private String frontId;
+    private String backId;
+    private String taxId;
+    private String selfieId;
 
-    public KycDocumentRequest(byte[] frontId, byte[] backId, byte[] taxId, byte[] selfieId) {
+    public KycDocumentRequest(String frontId, String backId, String taxId, String selfieId) {
         this.frontId = frontId;
         this.backId = backId;
         this.taxId = taxId;
         this.selfieId = selfieId;
     }
-
 }
