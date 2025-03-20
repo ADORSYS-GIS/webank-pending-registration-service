@@ -1,6 +1,5 @@
 package com.adorsys.webank;
 
-import com.adorsys.webank.dto.OtpStatusUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -9,8 +8,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "OTP Status Update", description = "Operations to update OTP status for pending registrations")
-@RequestMapping("/api/prs/otp")
-public interface OtpStatusUpdateRestApi {
+@RequestMapping("/api/prs/kyc")
+public interface KycStatusUpdateRestApi {
 
     @Operation(summary = "Update OTP status", description = "Updates the OTP status for the specified phone number. Accepts a JSON payload with the new status.")
     @ApiResponses(value = {
@@ -19,8 +18,8 @@ public interface OtpStatusUpdateRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PatchMapping(value = "/{phoneNumber}/status", consumes = "application/json", produces = "application/json")
-    String updateOtpStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-                           @PathVariable("phoneNumber") String phoneNumber,
-                           @RequestBody OtpStatusUpdateRequest request);
+    @PatchMapping(value = "/{publicKeyHash}/{status}", consumes = "application/json", produces = "application/json")
+    String updateKycStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+                           @PathVariable("publicKeyHash") String phoneNumber,
+                           @PathVariable("status") String status);
 }
