@@ -187,17 +187,24 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         return computeHash(devicePublicKey);
     }
 
-    private String computeHash(String input) {
+
+    public String computeHash(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            String hash = Base64.getEncoder().encodeToString(hashBytes);
-            log.trace("Computed hash: {}", hash);
-            return hash;
+            return bytesToHex(hashBytes);
         } catch (NoSuchAlgorithmException e) {
-            log.error("Hash computation failed", e);
-            throw new HashComputationException("Webank hash computation error");
+            throw new HashComputationException("Error computing hash");
         }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            String hex = String.format("%02x", b);
+            hexString.append(hex);
+        }
+        return hexString.toString();
     }
 
     private String canonicalizeJson(String json) {
