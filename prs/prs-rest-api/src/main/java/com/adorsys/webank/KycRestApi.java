@@ -72,4 +72,6 @@ public interface KycRestApi {
     })
     @GetMapping(value = "/infos", produces = "application/json")
     List<PersonalInfoEntity> getPersonalInfoByStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
+
+
 }

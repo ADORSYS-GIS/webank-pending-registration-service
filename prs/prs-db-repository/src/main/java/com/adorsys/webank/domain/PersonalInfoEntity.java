@@ -44,7 +44,7 @@ public class PersonalInfoEntity {
     @Column(name = "location")
     private String location;
 
-    @Column(name = "email", length = 20)
+    @Column(name = "email", length = 30)
     private String email;
 
     @Column(name = "email_otp_hash")
