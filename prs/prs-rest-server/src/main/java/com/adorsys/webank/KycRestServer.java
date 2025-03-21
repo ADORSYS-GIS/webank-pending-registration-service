@@ -74,10 +74,11 @@ public class KycRestServer implements KycRestApi {
     public String sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
         String jwtToken;
         JWK publicKey;
+        String location = kycLocationRequest.getLocation();
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            publicKey = JwtValidator.validateAndExtract(jwtToken);
+            publicKey = JwtValidator.validateAndExtract(jwtToken, location);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {

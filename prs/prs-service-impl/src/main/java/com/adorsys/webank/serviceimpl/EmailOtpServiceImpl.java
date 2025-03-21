@@ -72,8 +72,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
             personalInfo.setEmailOtpCode(otp);
             personalInfo.setEmailOtpHash(computeOtpHash(otp, devicePublicKey));
-            personalInfo.setOtpExpirationDateTime(otpExpiration); // Set LocalDateTime
-            personalInfo.setStatus(PersonalInfoStatus.PENDING);
+            personalInfo.setOtpExpirationDateTime(otpExpiration);
             personalInfoRepository.save(personalInfo);
 
             log.debug("OTP stored successfully for public key hash: {}", publicKeyHash);
@@ -99,14 +98,12 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             validateOtpExpiration(personalInfo);
 
             if (validateOtpHash(otpInput, devicePublicKey, personalInfo)) {
-                personalInfo.setEmail(email); // Store email only after validation
-                personalInfo.setStatus(PersonalInfoStatus.VERIFIED);
+                personalInfo.setEmail(email);
                 personalInfoRepository.save(personalInfo);
                 log.info("OTP verified successfully for email: {}", email);
                 return "Webank email verified successfully";
             }
 
-            personalInfo.setStatus(PersonalInfoStatus.FAILED);
             personalInfoRepository.save(personalInfo);
             log.warn("Invalid OTP entered for email: {}", email);
             return "Invalid Webank OTP";
@@ -128,7 +125,6 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         }
 
         if (LocalDateTime.now().isAfter(expiration)) {
-            personalInfo.setStatus(PersonalInfoStatus.EXPIRED);
             personalInfoRepository.save(personalInfo);
             log.warn("OTP expired for public key hash: {}", personalInfo.getPublicKeyHash());
             throw new IllegalArgumentException("Webank OTP expired");
@@ -188,6 +184,8 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
 
+
+
     public String computeHash(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -206,6 +204,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         }
         return hexString.toString();
     }
+
 
     private String canonicalizeJson(String json) {
         try {
