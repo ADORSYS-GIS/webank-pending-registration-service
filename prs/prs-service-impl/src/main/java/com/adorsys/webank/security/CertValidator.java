@@ -72,7 +72,7 @@ public class CertValidator {
 
         Object accountJwt = signedJWT.getHeader().toJSONObject().get("accountJwt");
         if (accountJwt != null) {
-            logger.info("Extracted accountJwt from header.");
+            logger.info("Extracted accountJwt from header. {} ", accountJwt);
             return accountJwt.toString();
         }
 
