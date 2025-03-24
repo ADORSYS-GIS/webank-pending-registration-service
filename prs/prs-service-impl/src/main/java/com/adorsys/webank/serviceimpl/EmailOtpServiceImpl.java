@@ -170,7 +170,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         return isValid;
     }
 
-    private String computeOtpHash(String emailOtp, String devicePublicKey) {
+    String computeOtpHash(String emailOtp, String devicePublicKey) {
         log.debug("Computing OTP hash");
         String input = String.format("{\"emailOtp\":\"%s\", \"devicePub\":%s, \"salt\":\"%s\"}",
                 emailOtp, devicePublicKey, salt);
@@ -206,7 +206,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
 
-    private String canonicalizeJson(String json) {
+    String canonicalizeJson(String json) {
         try {
             log.trace("Canonicalizing JSON: {}", json);
             JsonCanonicalizer jc = new JsonCanonicalizer(json);
