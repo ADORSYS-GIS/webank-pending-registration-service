@@ -3,16 +3,12 @@ package com.adorsys.webank;
 import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.KycCertServiceApi;
-import com.adorsys.webank.service.KycServiceApi;
 import com.nimbusds.jose.jwk.JWK;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class KycCertRestServer implements KycCertRestApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycCertRestServer.class);
     private final KycCertServiceApi kycCertServiceApi;
     private final CertValidator certValidator;
 
