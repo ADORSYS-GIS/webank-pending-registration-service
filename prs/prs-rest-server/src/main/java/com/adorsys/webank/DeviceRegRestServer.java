@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 
 @RestController
-public class DeviceRegRestServer  implements  DeviceRegRestApi{
+class DeviceRegRestServer  implements  DeviceRegRestApi{
     private final DeviceRegServiceApi deviceRegServiceApi;
 
     public DeviceRegRestServer( DeviceRegServiceApi deviceRegServiceApi){
