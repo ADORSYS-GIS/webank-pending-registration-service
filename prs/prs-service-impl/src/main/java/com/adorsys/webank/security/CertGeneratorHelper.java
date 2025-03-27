@@ -9,7 +9,6 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -19,13 +18,8 @@ import java.util.Date;
 
 public class CertGeneratorHelper {
 
-
-    @Value("${server.private.key}")
-    private String SERVER_PRIVATE_KEY_JSON;
-
-    @Value("${server.public.key}")
-    private String SERVER_PUBLIC_KEY_JSON;
-
+    private final String serverPrivateKeyJson;
+    private final String serverPublicKeyJson;
     private final String issuer;
     private final Long expirationTimeMs;
 

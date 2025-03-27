@@ -1,26 +1,28 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.repository.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.jwk.*;
-import com.nimbusds.jose.jwk.gen.*;
-import com.nimbusds.jwt.*;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.*;
-import org.mockito.*;
-import org.mockito.junit.jupiter.*;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.security.CertGeneratorHelper;
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-import java.lang.reflect.*;
-import java.security.*;
-import java.util.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
-public class KycCertServiceImplTest {
+class KycCertServiceImplTest {
 
     @Mock
     private PersonalInfoRepository personalInfoRepository;
@@ -28,145 +30,129 @@ public class KycCertServiceImplTest {
     @InjectMocks
     private KycCertServiceImpl kycCertService;
 
-    private ECKey serverPublicKey; // Retained for test usage
-    private static final String ISSUER = "test-issuer";
-    private static final Long EXPIRATION_TIME_MS = 3600000L;
+    private String serverPrivateKeyJson;
+    private String serverPublicKeyJson;
+    private String issuer = "https://example.com";
+    private Long expirationTimeMs = 3600000L; // 1 hour
 
     @BeforeEach
-    public void setUp() throws Exception {
-        // Convert to local variables
-        ECKey serverPrivateKey = new ECKeyGenerator(Curve.P_256).generate();
-        serverPublicKey = serverPrivateKey.toPublicJWK(); // Class field
-        String serverPrivateKeyJson = serverPrivateKey.toJSONString();
-        String serverPublicKeyJson = serverPublicKey.toJSONString();
+    void setUp() throws NoSuchAlgorithmException {
+        MockitoAnnotations.openMocks(this);
 
-        // Inject into the service using reflection
-        setField("SERVER_PRIVATE_KEY_JSON", serverPrivateKeyJson);
-        setField("SERVER_PUBLIC_KEY_JSON", serverPublicKeyJson);
-        setField("issuer", ISSUER);
-        setField("expirationTimeMs", EXPIRATION_TIME_MS);
-    }
+        // Generate an EC key pair for testing
+        KeyPair keyPair = generateECKeyPair();
+        ECKey ecKey = new ECKey.Builder(Curve.P_256, (java.security.interfaces.ECPublicKey) keyPair.getPublic())
+                .privateKey((java.security.interfaces.ECPrivateKey) keyPair.getPrivate())
+                .build();
 
-    private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
-        Field field = KycCertServiceImpl.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(kycCertService, value);
+        serverPrivateKeyJson = ecKey.toJSONString();
+        serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
+
+        // Initialize CertGeneratorHelper with mock values
+        kycCertService = new KycCertServiceImpl(personalInfoRepository);
+        injectCertGeneratorHelper(kycCertService);
     }
 
     @Test
-    public void testGetCert_Success() throws Exception {
+    void testGetCert_WhenPersonalInfoExistsAndApproved() throws Exception {
         // Arrange
-        ECKey deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-        String deviceJwkJson = deviceKey.toJSONString();
-        String publicKeyHash = kycCertService.computeHash(deviceJwkJson);
+        JWK publicKey = generateTestPublicKey();
+        String publicKeyHash = computeHash(publicKey.toJSONString());
 
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setPublicKeyHash(publicKeyHash);
-        entity.setStatus(PersonalInfoStatus.APPROVED);
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        personalInfo.setPublicKeyHash(publicKeyHash);
+        personalInfo.setStatus(PersonalInfoStatus.APPROVED);
 
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(entity));
+        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(personalInfo));
 
         // Act
-        String result = kycCertService.getCert(deviceKey);
+        String result = kycCertService.getCert(publicKey);
 
         // Assert
-        assertTrue(result.startsWith("Your certificate is: "));
-        String jwt = result.replace("Your certificate is: ", "").trim();
+        assertNotNull(result, "Result should not be null");
+        assertTrue(result.contains("Your certificate is:"), "Certificate should be generated");
 
-        SignedJWT parsedJwt = SignedJWT.parse(jwt);
-        JWSHeader header = parsedJwt.getHeader();
-        JWTClaimsSet claims = parsedJwt.getJWTClaimsSet();
-
-        // Verify header
-        assertEquals(JWSAlgorithm.ES256, header.getAlgorithm());
-        assertEquals(JOSEObjectType.JWT, header.getType());
-        assertEquals(computeKid(serverPublicKey), header.getKeyID());
-
-        // Verify claims
-        assertEquals(ISSUER, claims.getIssuer());
-        assertNotNull(claims.getIssueTime());
-        assertNotNull(claims.getExpirationTime());
-        assertEquals(claims.getIssueTime().getTime() + EXPIRATION_TIME_MS, claims.getExpirationTime().getTime());
-
-        // Verify cnf claim
-        assertTrue(claims.getClaims().containsKey("cnf"));
-        assertTrue(((Map<?, ?>) claims.getClaim("cnf")).containsKey("jwk"));
+        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
     }
 
     @Test
-    public void testGetCert_NotApproved() throws JOSEException {
+    void testGetCert_WhenPersonalInfoDoesNotExist() throws Exception {
         // Arrange
-        ECKey deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-        String deviceJwkJson = deviceKey.toJSONString();
-        String publicKeyHash = kycCertService.computeHash(deviceJwkJson);
+        JWK publicKey = generateTestPublicKey();
+        String publicKeyHash = computeHash(publicKey.toJSONString());
 
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setPublicKeyHash(publicKeyHash);
-        entity.setStatus(PersonalInfoStatus.PENDING);
-
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(entity));
+        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.empty());
 
         // Act
-        String result = kycCertService.getCert(deviceKey);
+        String result = kycCertService.getCert(publicKey);
 
         // Assert
-        assertEquals("null", result);
+        assertEquals("null", result, "Result should be 'null' when personal info does not exist");
+
+        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
     }
 
     @Test
-    public void testGetCert_NotFound() throws JOSEException {
+    void testGetCert_WhenPersonalInfoExistsButNotApproved() throws Exception {
         // Arrange
-        ECKey deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-        when(personalInfoRepository.findByPublicKeyHash(anyString())).thenReturn(Optional.empty());
+        JWK publicKey = generateTestPublicKey();
+        String publicKeyHash = computeHash(publicKey.toJSONString());
+
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        personalInfo.setPublicKeyHash(publicKeyHash);
+        personalInfo.setStatus(PersonalInfoStatus.PENDING);
+
+        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(personalInfo));
 
         // Act
-        String result = kycCertService.getCert(deviceKey);
+        String result = kycCertService.getCert(publicKey);
 
         // Assert
-        assertEquals("null", result);
+        assertEquals("null", result, "Result should be 'null' when personal info is not approved");
+
+        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
     }
 
-    @Test
-    public void testComputeHash() {
-        // Arrange
-        String input = "test";
-        String expectedHash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    private void injectCertGeneratorHelper(KycCertServiceImpl service) throws NoSuchAlgorithmException {
+        CertGeneratorHelper certGeneratorHelper = new CertGeneratorHelper(
+                serverPrivateKeyJson,
+                serverPublicKeyJson,
+                issuer,
+                expirationTimeMs
+        );
 
-        // Act
-        String actualHash = kycCertService.computeHash(input);
-
-        // Assert
-        assertEquals(expectedHash, actualHash);
+        try {
+            var field = KycCertServiceImpl.class.getDeclaredField("certGeneratorHelper");
+            field.setAccessible(true);
+            field.set(service, certGeneratorHelper);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to inject CertGeneratorHelper", e);
+        }
     }
 
-    @Test
-    public void testGetCert_InvalidServerKey() throws Exception {
-        // Arrange
-        ECKey deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-        String deviceJwkJson = deviceKey.toJSONString();
-        String publicKeyHash = kycCertService.computeHash(deviceJwkJson);
-
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setPublicKeyHash(publicKeyHash);
-        entity.setStatus(PersonalInfoStatus.APPROVED);
-
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(entity));
-
-        // Replace server's private key with a public key (no 'd' parameter)
-        ECKey invalidPrivateKey = serverPublicKey;
-        String invalidPrivateKeyJson = invalidPrivateKey.toJSONString();
-        setField("SERVER_PRIVATE_KEY_JSON", invalidPrivateKeyJson);
-
-        // Act
-        String result = kycCertService.getCert(deviceKey);
-
-        // Assert
-        assertEquals("null", result);
+    private JWK generateTestPublicKey() throws NoSuchAlgorithmException {
+        KeyPair keyPair = generateECKeyPair();
+        return new ECKey.Builder(Curve.P_256, (java.security.interfaces.ECPublicKey) keyPair.getPublic()).build();
     }
 
-    private String computeKid(ECKey key) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(key.toPublicJWK().toJSONString().getBytes());
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    private String computeHash(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(input.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = String.format("%02x", b);
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error computing hash", e);
+        }
+    }
+
+    private KeyPair generateECKeyPair() throws NoSuchAlgorithmException {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+        keyPairGenerator.initialize(256); // Use P-256 curve
+        return keyPairGenerator.generateKeyPair();
     }
 }

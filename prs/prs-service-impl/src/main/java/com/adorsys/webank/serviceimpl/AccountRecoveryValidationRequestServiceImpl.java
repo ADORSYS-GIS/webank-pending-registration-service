@@ -19,9 +19,9 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
     private final CertGeneratorHelper certGeneratorHelper;
     private final BankAccountCertificateCreationService bankAccountCertificateCreationService;
 
-
     @Autowired
-    public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper, BankAccountCertificateCreationService bankAccountCertificateCreationService) {
+    public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper,
+                                                       BankAccountCertificateCreationService bankAccountCertificateCreationService) {
         this.certGeneratorHelper = certGeneratorHelper;
         this.bankAccountCertificateCreationService = bankAccountCertificateCreationService;
     }
@@ -29,21 +29,29 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
     @Override
     public AccountRecoveryResponse processRecovery(JWK publicKey, String newAccountId, String recoveryJwt) {
         try {
+            // Parse the recovery JWT
             SignedJWT signedJWT = SignedJWT.parse(recoveryJwt);
             String oldAccountId = getOldAccountId(newAccountId, signedJWT);
 
             // Generate a new KYC certificate
             String newKycCertificate = certGeneratorHelper.generateCertificate(publicKey.toJSONString());
 
-            String newAccountCertificate = bankAccountCertificateCreationService.generateBankAccountCertificate(publicKey.toJSONString(), oldAccountId);
+            // Generate a new account certificate
+            String newAccountCertificate = bankAccountCertificateCreationService.generateBankAccountCertificate(
+                    publicKey.toJSONString(), oldAccountId);
 
-            // Return response
+            // Return a successful response
             return new AccountRecoveryResponse(oldAccountId, newKycCertificate, newAccountCertificate, "Account recovery successful");
 
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Invalid RecoveryJWT format");
+            // Handle invalid JWT format
+            return new AccountRecoveryResponse(null, null, null, "Invalid RecoveryJWT format");
+        } catch (IllegalArgumentException e) {
+            // Handle specific business logic errors (e.g., token expired, account ID mismatch)
+            return new AccountRecoveryResponse(null, null, null, e.getMessage());
         } catch (Exception e) {
-            return new AccountRecoveryResponse(null,null, null, e.getMessage());
+            // Handle unexpected errors
+            return new AccountRecoveryResponse(null, null, null, "An unexpected error occurred: " + e.getMessage());
         }
     }
 
