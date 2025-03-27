@@ -3,33 +3,27 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.security.CertGeneratorHelper;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 import org.erdtman.jcs.JsonCanonicalizer;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.ECKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
 
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
+    private final CertGeneratorHelper certGeneratorHelper;
 
     @Value("${otp.salt}")
     private String salt;
@@ -46,6 +40,10 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
 
+    public DeviceRegServiceImpl() {
+        this.certGeneratorHelper = new CertGeneratorHelper(SERVER_PRIVATE_KEY_JSON, SERVER_PUBLIC_KEY_JSON, issuer, expirationTimeMs);
+    }
+
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
         return generateNonce(salt);
@@ -58,8 +56,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
         String powHash;
+
         try {
-            // Make a JSON object out of initiationNonce, devicePub, powNonce
             String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
             JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
             String hashInput = jc.getEncodedString();
@@ -78,13 +76,13 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         JsonCanonicalizer jc = new JsonCanonicalizer(devicePub.toJSONString());
         String devicePublicKey = jc.getEncodedString();
         logger.warn(devicePublicKey);
-        return generateDeviceCertificate(devicePublicKey);
+        return certGeneratorHelper.generateCertificate(devicePublicKey);
     }
+
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
 
-        // Convert byte array to hexadecimal string
         StringBuilder hexString = new StringBuilder();
         for (byte b : hashBytes) {
             String hex = Integer.toHexString(0xff & b);
@@ -101,77 +99,19 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             throw new HashComputationException("Salt cannot be null");
         }
         LocalDateTime timestamp = LocalDateTime.now();
-
-        // Flatten the timestamp to the nearest previous 15-minute interval
         int flattenedMinute = (timestamp.getMinute() / 15) * 15;
-
         LocalDateTime flattenedTimestamp = timestamp.withMinute(flattenedMinute).withSecond(0).withNano(0);
 
         try {
             String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             String input = timestampString + salt;
 
-            // Compute SHA-256 hash
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
 
-            // Convert hash to Base64
             return Base64.getEncoder().encodeToString(hashBytes);
         } catch (NoSuchAlgorithmException e) {
             throw new HashComputationException("Error computing hash");
         }
     }
-
-    String generateDeviceCertificate(String deviceJwkJson) {
-        try {
-            // Parse the server's private key from the JWK JSON string
-            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-            if (serverPrivateKey.getD() == null) {
-                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
-            }
-
-            // Signer using server's private key
-            JWSSigner signer = new ECDSASigner(serverPrivateKey);
-
-            // Parse the server's public key
-            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
-
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
-            String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-
-            // Create JWT Header
-            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                    .keyID(kid) // Set 'kid' as the SHA-256 of server public JWK
-                    .type(JOSEObjectType.JWT)
-                    .build();
-
-            // Parse device's public JWK
-            JWK deviceJwk = JWK.parse(deviceJwkJson);
-
-            // Create JWT Payload
-            long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
-            logger.info(String.valueOf(issuedAt));
-            JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer("https://webank.com")  // Fixed issuer format
-                    .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
-                    .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject())) // Fix JSON structure
-                    .issueTime(new Date(issuedAt * 1000))
-                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000)) // Convert to milliseconds
-                    .build();
-
-            // Create JWT token
-            SignedJWT signedJWT = new SignedJWT(header, claimsSet);
-            signedJWT.sign(signer);
-
-            String dev = signedJWT.serialize();
-            logger.info(dev);
-            return dev;
-
-        } catch (Exception e) {
-            throw new IllegalStateException("Error generating device certificate", e);
-        }
-    }
-
 }
