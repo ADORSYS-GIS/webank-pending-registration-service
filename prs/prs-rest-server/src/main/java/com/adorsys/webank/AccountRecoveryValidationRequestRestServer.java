@@ -1,7 +1,6 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.AccountRecoveryResponse;
-import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
@@ -17,7 +16,7 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
     private final AccountRecoveryValidationRequestServiceApi service;
     private static final Logger log = LoggerFactory.getLogger(AccountRecoveryValidationRequestRestServer.class);
 
-    public AccountRecoveryValidationRequestRestServer(AccountRecoveryValidationRequestServiceApi service, CertValidator certValidator) {
+    public AccountRecoveryValidationRequestRestServer(AccountRecoveryValidationRequestServiceApi service) {
         this.service = service;
     }
 

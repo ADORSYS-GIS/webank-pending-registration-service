@@ -180,7 +180,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
             keyPairGenerator.initialize(256); // Use P-256 curve
             return keyPairGenerator.generateKeyPair();
         } catch (Exception e) {
-            throw new RuntimeException("Error generating EC key pair", e);
+            return null;
         }
     }
 }

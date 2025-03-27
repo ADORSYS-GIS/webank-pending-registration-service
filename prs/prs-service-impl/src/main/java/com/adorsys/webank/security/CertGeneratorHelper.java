@@ -12,6 +12,7 @@ import com.nimbusds.jwt.SignedJWT;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
@@ -67,7 +68,7 @@ public class CertGeneratorHelper {
         }
     }
 
-    private String computeKid(ECKey serverPublicKey) throws Exception {
+    private String computeKid(ECKey serverPublicKey) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
