@@ -51,10 +51,9 @@ public class KycCertServiceImpl implements KycCertServiceApi {
 
     @Override
     @Transactional
-    public String getCert(JWK publicKey) {
-        String publicKeyHash = computeHash(String.valueOf(publicKey));
+    public String getCert(JWK publicKey, String AccountId) {
 
-        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByPublicKeyHash(publicKeyHash);
+        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(AccountId);
 
         if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
             try {

@@ -10,11 +10,13 @@ public class KycDocumentRequest {
     private String backId;
     private String taxId;
     private String selfieId;
+    private String accountId;
 
-    public KycDocumentRequest(String frontId, String backId, String taxId, String selfieId) {
+    public KycDocumentRequest(String frontId, String backId, String taxId, String selfieId, String accountId) {
         this.frontId = frontId;
         this.backId = backId;
         this.taxId = taxId;
         this.selfieId = selfieId;
+        this.accountId = accountId;
     }
 }

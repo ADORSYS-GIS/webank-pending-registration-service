@@ -49,7 +49,7 @@
 //        PersonalInfoEntity entity = new PersonalInfoEntity();
 //        entity.setPublicKeyHash(publicKeyHash);
 //
-//        when(repository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(entity));
+//        when(repository.findByAccountId(publicKeyHash)).thenReturn(Optional.of(entity));
 //
 //        // Act
 //        Optional<PersonalInfoEntity> result = service.getPersonalInfoByPublicKey(publicKeyHash);
@@ -63,7 +63,7 @@
 //    void getPersonalInfoByPublicKey_shouldReturnEmptyIfNotExists() {
 //        // Arrange
 //        String publicKeyHash = "non-existing-key";
-//        when(repository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.empty());
+//        when(repository.findByAccountId(publicKeyHash)).thenReturn(Optional.empty());
 //
 //        // Act
 //        Optional<PersonalInfoEntity> result = service.getPersonalInfoByPublicKey(publicKeyHash);

@@ -29,12 +29,13 @@ public class KycRestServer implements KycRestApi {
     @Override
     public String sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
         String jwtToken;
-        JWK publicKey;
+
+
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            publicKey = JwtValidator.validateAndExtract(jwtToken,  kycDocumentRequest.getFrontId(),kycDocumentRequest.getBackId(), kycDocumentRequest.getSelfieId()
-                    , kycDocumentRequest.getTaxId());
+            JwtValidator.validateAndExtract(jwtToken,  kycDocumentRequest.getFrontId(),kycDocumentRequest.getBackId(), kycDocumentRequest.getSelfieId()
+                    , kycDocumentRequest.getTaxId(), kycDocumentRequest.getAccountId());
             log.info("Successfully validated sendinfo");
 
 
@@ -46,18 +47,20 @@ public class KycRestServer implements KycRestApi {
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
-        return kycServiceApi.sendKycDocument( publicKey, kycDocumentRequest);
+
+        String AccountId = kycDocumentRequest.getAccountId();
+        return kycServiceApi.sendKycDocument(AccountId, kycDocumentRequest);
     }
 
     @Override
     public String sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
         String jwtToken;
-        JWK publicKey;
+
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            publicKey = JwtValidator.validateAndExtract(jwtToken, kycInfoRequest.getFullName(), kycInfoRequest.getProfession(),
-                    kycInfoRequest.getIdNumber(), kycInfoRequest.getDateOfBirth(), kycInfoRequest.getCurrentRegion(),kycInfoRequest.getExpiryDate());
+            JwtValidator.validateAndExtract(jwtToken, kycInfoRequest.getFullName(), kycInfoRequest.getProfession(),
+                    kycInfoRequest.getIdNumber(), kycInfoRequest.getDateOfBirth(), kycInfoRequest.getCurrentRegion(),kycInfoRequest.getExpiryDate(), kycInfoRequest.getAccountId());
             log.info("Successfully validated sendinfo");
 
             // Validate the JWT token using the injected CertValidator instance
@@ -69,18 +72,20 @@ public class KycRestServer implements KycRestApi {
             return "Invalid JWT: " + e.getMessage();
         }
 
-        return kycServiceApi.sendKycinfo(publicKey, kycInfoRequest);
+        String AccountId = kycInfoRequest.getAccountId();
+
+        return kycServiceApi.sendKycinfo( AccountId, kycInfoRequest);
     }
 
     @Override
     public String sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
         String jwtToken;
-        JWK publicKey;
+
         String location = kycLocationRequest.getLocation();
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            publicKey = JwtValidator.validateAndExtract(jwtToken, location);
+            JwtValidator.validateAndExtract(jwtToken, location, kycLocationRequest.getAccountId());
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
@@ -91,17 +96,17 @@ public class KycRestServer implements KycRestApi {
             return "Invalid JWT: " + e.getMessage();
         }
 
-        return kycServiceApi.sendKyclocation(publicKey, kycLocationRequest);
+        return kycServiceApi.sendKyclocation( kycLocationRequest);
     }
 
     @Override
     public String sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
         String jwtToken;
-        JWK publicKey;
+
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            publicKey = JwtValidator.validateAndExtract(jwtToken);
+            JwtValidator.validateAndExtract(jwtToken);
 
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
@@ -112,25 +117,25 @@ public class KycRestServer implements KycRestApi {
             return "Invalid JWT: " + e.getMessage();
         }
 
-        return kycServiceApi.sendKycEmail(publicKey, kycEmailRequest);
+        return kycServiceApi.sendKycEmail( kycEmailRequest);
     }
 
     @Override
     public Optional<UserDocumentsEntity> getDocuments(String authorizationHeader, KycGetDocRequest kycGetDocRequest) {
         String jwtToken;
-        String publicKeyHash = kycGetDocRequest.getPublicKeyHash();
+        String accountId = kycGetDocRequest.getAccountId();
         try {
             // Extract the JWT token from the Authorization header
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            JwtValidator.validateAndExtract(jwtToken, publicKeyHash);
+            JwtValidator.validateAndExtract(jwtToken, accountId);
 
-            log.info("Fetching documents for public key hash: {}", publicKeyHash);
+            log.info("Fetching documents for public key hash: {}", accountId);
         } catch (Exception e) {
-            log.error("Error extracting JWT token or fetching documents for public key hash: {}", publicKeyHash, e);
+            log.error("Error extracting JWT token or fetching documents for public key hash: {}", accountId, e);
             throw new IllegalArgumentException("An error occurred while fetching documents.");
         }
         // Delegate to the service to retrieve user documents
-        return kycServiceApi.getDocuments(publicKeyHash);
+        return kycServiceApi.getDocuments(accountId);
     }
 
     @Override
@@ -146,6 +151,22 @@ public class KycRestServer implements KycRestApi {
             throw new IllegalArgumentException("An error occurred");
         }
         return kycServiceApi.getPersonalInfoByStatus(PersonalInfoStatus.valueOf("PENDING"));
+    }
+
+    @Override
+    public List<UserInfoResponse> findByDocumentUniqueId(String authorizationHeader, String DocumentUniqueId) {
+//        String jwtToken;
+        try {
+            // Extract the JWT token from the Authorization header
+//            jwtToken = extractJwtFromHeader(authorizationHeader);
+//            JwtValidator.validateAndExtract(jwtToken);
+            log.info("Success");
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException("An error occurred");
+        }
+        return kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
+
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {

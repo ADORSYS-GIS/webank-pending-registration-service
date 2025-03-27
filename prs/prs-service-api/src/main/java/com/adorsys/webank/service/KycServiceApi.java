@@ -2,11 +2,7 @@ package com.adorsys.webank.service;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
-import com.adorsys.webank.dto.KycDocumentRequest;
-import com.adorsys.webank.dto.KycEmailRequest;
-import com.adorsys.webank.dto.KycInfoRequest;
-import com.adorsys.webank.dto.KycLocationRequest;
-import com.nimbusds.jose.jwk.JWK;
+import com.adorsys.webank.dto.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,11 +10,13 @@ import java.util.Optional;
 
 @Service
 public interface KycServiceApi {
-    String sendKycDocument( JWK publicKey, KycDocumentRequest kycDocumentRequest);
-    String sendKycinfo( JWK publicKey, KycInfoRequest kycInfoRequest);
-    String sendKyclocation(JWK devicePub, KycLocationRequest kycLocationRequest);
-    String sendKycEmail(JWK devicePub, KycEmailRequest kycEmailRequest);
-    Optional<UserDocumentsEntity> getDocuments(String publicKeyHash);
-    Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String publicKeyHash);
+    String sendKycDocument( String AccountId, KycDocumentRequest kycDocumentRequest);
+    String sendKycinfo( String AccountId, KycInfoRequest kycInfoRequest);
+    String sendKyclocation( KycLocationRequest kycLocationRequest);
+    String sendKycEmail(KycEmailRequest kycEmailRequest);
+    Optional<UserDocumentsEntity> getDocuments(String accountId);
+    Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String accountId);
     List<PersonalInfoEntity> getPersonalInfoByStatus(PersonalInfoStatus status);
+    List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId);
+
 }

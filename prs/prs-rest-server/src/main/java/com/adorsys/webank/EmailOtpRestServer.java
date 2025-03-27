@@ -23,11 +23,10 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     public String sendEmailOtp(String authorizationHeader,
                                EmailOtpRequest request) {
         String jwtToken;
-        JWK publicKey;
         try {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String email = request.getEmail();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, email);
+            JwtValidator.validateAndExtract(jwtToken, email, request.getAccountId());
 
             if (!certValidator.validateJWT(jwtToken)) {
                 return "Invalid or unauthorized JWT.";
@@ -35,19 +34,19 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
-        return emailOtpService.sendEmailOtp(publicKey, request.getEmail());
+        return emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
     }
 
     @Override
     public String validateEmailOtp(String authorizationHeader,
                                    EmailOtpValidationRequest request) {
         String jwtToken;
-        JWK publicKey;
+
         try {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String email = request.getEmail();
             String otpInput = request.getOtp();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, email, otpInput);
+            JwtValidator.validateAndExtract(jwtToken, email, otpInput);
 
             if (!certValidator.validateJWT(jwtToken)) {
                 return "Invalid or unauthorized JWT.";
@@ -58,7 +57,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
 
         return emailOtpService.validateEmailOtp(
                 request.getEmail(),
-                publicKey,
+                request.getAccountId(),
                 request.getOtp()
         );
     }

@@ -5,5 +5,5 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface KycCertServiceApi {
-    String getCert(JWK publicKey);
+    String getCert(JWK publicKey, String AccountId);
 }

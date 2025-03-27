@@ -52,30 +52,25 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String sendEmailOtp(JWK devicePub, String email) {
+    public String sendEmailOtp(String accountId, String email) {
         log.info("Initiating OTP send process for email: {}", email);
         validateEmailFormat(email);
 
         try {
             String otp = generateOtp();
-            String devicePublicKey = devicePub.toJSONString();
-            log.debug("Device public key: {}", devicePublicKey);
 
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.debug("Computed public key hash: {}", publicKeyHash);
 
-            PersonalInfoEntity personalInfo = personalInfoRepository.findByPublicKeyHash(publicKeyHash)
+            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
 
             LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(5);
 
             personalInfo.setEmailOtpCode(otp);
-            personalInfo.setEmailOtpHash(computeOtpHash(otp, devicePublicKey));
+            personalInfo.setEmailOtpHash(computeOtpHash(otp, accountId));
             personalInfo.setOtpExpirationDateTime(otpExpiration);
             personalInfoRepository.save(personalInfo);
 
-            log.debug("OTP stored successfully for public key hash: {}", publicKeyHash);
             sendOtpEmail(email, otp);
             return "OTP sent successfully to " + email;
         } catch (Exception e) {
@@ -85,19 +80,16 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String validateEmailOtp(String email, JWK devicePub, String otpInput) {
+    public String validateEmailOtp(String email, String accountId, String otpInput) {
         log.info("Validating OTP for email: {}", email);
         try {
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.debug("Computed public key hash: {}", publicKeyHash);
 
-            PersonalInfoEntity personalInfo = personalInfoRepository.findByPublicKeyHash(publicKeyHash)
+            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
             validateOtpExpiration(personalInfo);
 
-            if (validateOtpHash(otpInput, devicePublicKey, personalInfo)) {
+            if (validateOtpHash(otpInput, accountId, personalInfo)) {
                 personalInfo.setEmail(email);
                 personalInfoRepository.save(personalInfo);
                 log.info("OTP verified successfully for email: {}", email);
@@ -126,7 +118,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
         if (LocalDateTime.now().isAfter(expiration)) {
             personalInfoRepository.save(personalInfo);
-            log.warn("OTP expired for public key hash: {}", personalInfo.getPublicKeyHash());
+            log.warn("OTP expired for public key hash: {}", personalInfo.getAccountId());
             throw new IllegalArgumentException("Webank OTP expired");
         }
     }
@@ -177,12 +169,6 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         log.trace("Hash input: {}", input);
         return computeHash(canonicalizeJson(input));
     }
-
-    private String computePublicKeyHash(String devicePublicKey) {
-        log.debug("Computing public key hash");
-        return computeHash(devicePublicKey);
-    }
-
 
 
 

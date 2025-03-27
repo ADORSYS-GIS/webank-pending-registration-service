@@ -26,7 +26,7 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     public String updateKycStatus(String publicKeyHash, String newStatus) {
         log.info("Updating KYC status for publicKeyHash {} to {}", publicKeyHash, newStatus);
 
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByPublicKeyHash(publicKeyHash);
+        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(publicKeyHash);
 
         if (personalInfoOpt.isPresent()) {
             PersonalInfoEntity personalInfo = personalInfoOpt.get();
@@ -51,6 +51,6 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     }
 
     public Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String publicKeyHash) {
-        return inforepository.findByPublicKeyHash(publicKeyHash);
+        return inforepository.findByAccountId(publicKeyHash);
     }
 }
