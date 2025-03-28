@@ -4,7 +4,6 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.nimbusds.jose.jwk.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
@@ -20,7 +19,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
@@ -80,10 +78,10 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String validateEmailOtp(String email, String accountId, String otpInput) {
-        log.info("Validating OTP for email: {}", email);
-        try {
+    public String validateEmailOtp(String email, String otpInput, String accountId) {
+        log.info("Validating OTP for email: {}, Account ID: {}", email, accountId);
 
+        try {
             PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
@@ -92,21 +90,22 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             if (validateOtpHash(otpInput, accountId, personalInfo)) {
                 personalInfo.setEmail(email);
                 personalInfoRepository.save(personalInfo);
-                log.info("OTP verified successfully for email: {}", email);
+                log.info("OTP verified successfully for email: {}, Account ID: {}", email, accountId);
                 return "Webank email verified successfully";
             }
 
             personalInfoRepository.save(personalInfo);
-            log.warn("Invalid OTP entered for email: {}", email);
+            log.warn("Invalid OTP entered for email: {}, Account ID: {}", email, accountId);
             return "Invalid Webank OTP";
         } catch (IllegalArgumentException e) {
-            log.error("Validation error: {}", e.getMessage());
+            log.error("Validation error for Account ID: {} - {}", accountId, e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Error validating OTP", e);
+            log.error("Error validating OTP for Account ID: {}", accountId, e);
             return "Webank OTP validation error";
         }
     }
+
 
     private void validateOtpExpiration(PersonalInfoEntity personalInfo) {
         LocalDateTime expiration = personalInfo.getOtpExpirationDateTime();
@@ -154,18 +153,18 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         }
     }
 
-    private boolean validateOtpHash(String inputOtp, String devicePublicKey, PersonalInfoEntity personalInfo) {
+    private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, devicePublicKey);
+        String currentHash = computeOtpHash(inputOtp, accountId);
         boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
         log.debug("OTP hash validation result: {}", isValid);
         return isValid;
     }
 
-    private String computeOtpHash(String emailOtp, String devicePublicKey) {
+    private String computeOtpHash(String emailOtp, String accountId) {
         log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"devicePub\":%s, \"salt\":\"%s\"}",
-                emailOtp, devicePublicKey, salt);
+        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
+                emailOtp, accountId, salt);
         log.trace("Hash input: {}", input);
         return computeHash(canonicalizeJson(input));
     }

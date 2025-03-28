@@ -5,7 +5,6 @@ import com.adorsys.webank.dto.EmailOtpValidationRequest;
 import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.EmailOtpServiceApi;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -46,7 +45,8 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String email = request.getEmail();
             String otpInput = request.getOtp();
-            JwtValidator.validateAndExtract(jwtToken, email, otpInput);
+            String accountId = request.getAccountId();
+            JwtValidator.validateAndExtract(jwtToken, email, otpInput, accountId);
 
             if (!certValidator.validateJWT(jwtToken)) {
                 return "Invalid or unauthorized JWT.";
@@ -57,9 +57,9 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
 
         return emailOtpService.validateEmailOtp(
                 request.getEmail(),
-                request.getAccountId(),
-                request.getOtp()
-        );
+                request.getOtp(),
+                request.getAccountId()
+                );
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
