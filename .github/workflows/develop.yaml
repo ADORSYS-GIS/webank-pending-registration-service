@@ -41,15 +41,6 @@ jobs:
                   </servers>
                 </settings>" > ~/.m2/settings.xml
 
-      - run: cat ~/.m2/settings.xml > secretfile.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: secret-debug
-          path: secretfile.txt
-
-      - name: Remove Maven Cache
-        run: rm -rf ~/.m2/repository
-
       - name: Run Unit and Integration Tests
         run: mvn verify -s ~/.m2/settings.xml -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
 
@@ -81,19 +72,9 @@ jobs:
                     </server>
                   </servers>
                 </settings>" > ~/.m2/settings.xml
-
-      - run: cat ~/.m2/settings.xml > secretfile.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: secret-debug
-          path: secretfile.txt
-
-      - name: Remove Maven Cache
-        run: rm -rf ~/.m2/repository
-
       - name: Build with
         run: mvn clean install -s ~/.m2/settings.xml -DskipTests -DskipITs -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
-      
+
   pmdCheck:
     needs: build
     name: Run code analyser PMD
@@ -118,56 +99,50 @@ jobs:
 
       - name: build project before check
         run: mvn -ntp -DskipTests -DskipITs -Dmaven.javadoc.skip=true clean install -Ddependency-check.skip=true
-  
+
       - name: Check pmd
         run: mvn -ntp pmd:check -Ddependency-check.skip=true
-  
+
   Sonarqube:
-      name: Build and analyze
-      runs-on: ubuntu-latest
+    name: Build and analyze
+    runs-on: ubuntu-latest
 
-      steps:
-        - uses: actions/checkout@v4
-          with:
-            fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-        - name: Set up JDK 17
-          uses: actions/setup-java@v4
-          with:
-            java-version: 17
-            distribution: 'zulu' # Alternative distribution options are available.
-        - name: Cache SonarQube packages
-          uses: actions/cache@v4
-          with:
-            path: ~/.sonar/cache
-            key: ${{ runner.os }}-sonar
-            restore-keys: ${{ runner.os }}-sonar
-        - name: Cache Maven packages
-          uses: actions/cache@v4
-          with:
-            path: ~/.m2
-            key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-            restore-keys: ${{ runner.os }}-m2
-        - name: Set up Maven settings.xml
-          run: |
-            mkdir -p ~/.m2
-            echo "<settings>
-                    <servers>
-                      <server>
-                        <id>github-webank</id>
-                        <username>${{ github.actor }}</username>
-                        <password>${{ secrets.WEBANK_ACCESS_TOKEN }}</password>
-                      </server>
-                    </servers>
-                  </settings>" > ~/.m2/settings.xml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu' # Alternative distribution options are available.
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Set up Maven settings.xml
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+                  <servers>
+                    <server>
+                      <id>github-webank</id>
+                      <username>${{ github.actor }}</username>
+                      <password>${{ secrets.PRS_ACCESS_TOKEN }}</password>
+                    </server>
+                  </servers>
+                </settings>" > ~/.m2/settings.xml
 
-        - run: cat ~/.m2/settings.xml > secretfile.txt
-        - uses: actions/upload-artifact@v4
-          with:
-            name: secret-debug
-            path: secretfile.txt
-
-        - name: Build and analyze
-          env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=webank-pending-registration-service -Dsonar.projectName='webank-pending-registration-service'
+      - name: Build and analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=webank-pending-registration-service -Dsonar.projectName='webank-pending-registration-service'
