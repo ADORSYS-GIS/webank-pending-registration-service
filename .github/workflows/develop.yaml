@@ -41,6 +41,9 @@ jobs:
                   </servers>
                 </settings>" > ~/.m2/settings.xml
 
+      - name: Remove Maven Cache
+        run: rm -rf ~/.m2/repository
+
       - name: Run Unit and Integration Tests
         run: mvn verify -s ~/.m2/settings.xml -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
 
@@ -72,6 +75,10 @@ jobs:
                     </server>
                   </servers>
                 </settings>" > ~/.m2/settings.xml
+
+      - name: Remove Maven Cache
+        run: rm -rf ~/.m2/repository
+
       - name: Build with
         run: mvn clean install -s ~/.m2/settings.xml -DskipTests -DskipITs -Dmaven.javadoc.skip=true -Ddependency-check.skip=true
       
