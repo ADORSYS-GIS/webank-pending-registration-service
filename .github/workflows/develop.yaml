@@ -35,7 +35,7 @@ jobs:
                   <servers>
                     <server>
                       <id>github-webank</id>
-                      <username>${{ github.actor }}</username>
+                      <username>NkwaTambe</username>
                       <password>${{ secrets.WEBANK_ACCESS_TOKEN }}</password>
                     </server>
                   </servers>
@@ -67,7 +67,7 @@ jobs:
                   <servers>
                     <server>
                       <id>github-webank</id>
-                      <username>${{ github.actor }}</username>
+                      <username>NkwaTambe</username>
                       <password>${{ secrets.WEBANK_ACCESS_TOKEN }}</password>
                     </server>
                   </servers>
@@ -135,7 +135,7 @@ jobs:
                   <servers>
                     <server>
                       <id>github-webank</id>
-                      <username>${{ github.actor }}</username>
+                      <username>NkwaTambe</username>
                       <password>${{ secrets.PRS_ACCESS_TOKEN }}</password>
                     </server>
                   </servers>
