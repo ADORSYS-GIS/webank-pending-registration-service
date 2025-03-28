@@ -35,7 +35,7 @@ public class KycRestServer implements KycRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             publicKey = JwtValidator.validateAndExtract(jwtToken,  kycDocumentRequest.getFrontId(),kycDocumentRequest.getBackId(), kycDocumentRequest.getSelfieId()
                     , kycDocumentRequest.getTaxId());
-            log.info("Successfully validated sendinfo");
+            log.info("Successfully validated send Docs");
 
 
             // Validate the JWT token using the injected CertValidator instance

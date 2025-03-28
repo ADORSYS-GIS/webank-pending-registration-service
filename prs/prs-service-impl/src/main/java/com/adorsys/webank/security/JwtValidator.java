@@ -8,6 +8,7 @@ import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.BadJWTException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +54,7 @@ public class JwtValidator {
         for (String param : params) {
             concatenatedPayload.append(param);
         }
-        logger.debug("Concatenated payload: {}", concatenatedPayload);
+        logger.debug("Payload: {}", concatenatedPayload);
         return concatenatedPayload.toString();
     }
 
@@ -119,4 +120,14 @@ public class JwtValidator {
         logger.debug("Computed hash: {}", hexString);
         return hexString.toString();
     }
+
+    public static String extractClaim(String jwtToken, String claimKey) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(jwtToken);
+            return signedJWT.getJWTClaimsSet().getStringClaim(claimKey);
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Error extracting claim: " + claimKey, e);
+        }
+    }
+
 }
