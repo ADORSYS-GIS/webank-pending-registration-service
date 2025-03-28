@@ -45,7 +45,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: secret-debug
-          path: ~/.m2/settings.xml, secret.txt
+          path: ~/.m2/settings.xml
 
       - name: Remove Maven Cache
         run: rm -rf ~/.m2/repository
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: secret-debug
-          path: ~/.m2/settings.xml, secret.txt
+          path: ~/.m2/settings.xml
 
       - name: Remove Maven Cache
         run: rm -rf ~/.m2/repository
@@ -164,7 +164,7 @@ jobs:
         - uses: actions/upload-artifact@v4
           with:
             name: secret-debug
-            path: ~/.m2/settings.xml, secret.txt
+            path: ~/.m2/settings.xml
 
         - name: Build and analyze
           env:
