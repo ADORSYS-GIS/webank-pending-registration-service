@@ -88,7 +88,11 @@
             <artifactId>webank-bank-account-service-api</artifactId>
             <version>0.1-SNAPSHOT</version>
         </dependency>
-
+        <dependency>
+            <groupId>de.adorsys.webank</groupId>
+            <artifactId>webank-bank-account-service-impl</artifactId>
+            <version>0.1-SNAPSHOT</version>
+        </dependency>
 
     </dependencies>
 

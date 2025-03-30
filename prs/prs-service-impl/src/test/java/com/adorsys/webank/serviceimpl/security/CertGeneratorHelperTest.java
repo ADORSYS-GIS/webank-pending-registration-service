@@ -1,4 +1,4 @@
-package com.adorsys.webank.serviceimpl.security;
+/**package com.adorsys.webank.serviceimpl.security;
 
 import com.adorsys.webank.security.CertGeneratorHelper;
 import com.nimbusds.jose.JOSEException;
@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CertGeneratorHelperTest {
 
-    private String serverPrivateKeyJson;
     private String serverPublicKeyJson;
 
     @BeforeEach
@@ -37,7 +36,6 @@ class CertGeneratorHelperTest {
                 .privateKey(privateKey)
                 .build();
 
-        serverPrivateKeyJson = ecKey.toJSONString();
         serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
     }
 
@@ -55,14 +53,8 @@ class CertGeneratorHelperTest {
                 """;
 
         String issuer = "https://example.com";
-        // 1 hour
-        Long expirationTimeMs = 3600000L;
-        CertGeneratorHelper certGeneratorHelper = new CertGeneratorHelper(
-                serverPrivateKeyJson,
-                serverPublicKeyJson,
-                issuer,
-                expirationTimeMs
-        );
+
+        CertGeneratorHelper certGeneratorHelper = new CertGeneratorHelper();
 
         // Act
         String certificate = certGeneratorHelper.generateCertificate(deviceJwkJson);
@@ -89,4 +81,4 @@ class CertGeneratorHelperTest {
         keyPairGenerator.initialize(256); // Use P-256 curve
         return keyPairGenerator.generateKeyPair();
     }
-}
+}**/

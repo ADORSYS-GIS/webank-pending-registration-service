@@ -1,34 +1,38 @@
 package com.adorsys.webank.security;
 
-import com.nimbusds.jose.JOSEObjectType;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 
+@Component
 public class CertGeneratorHelper {
 
-    private final String serverPrivateKeyJson;
-    private final String serverPublicKeyJson;
-    private final String issuer;
-    private final Long expirationTimeMs;
+    @Value("${server.private.key}")
+    private String serverPrivateKeyJson;
 
-    public CertGeneratorHelper(String serverPrivateKeyJson, String serverPublicKeyJson, String issuer, Long expirationTimeMs) {
-        this.serverPrivateKeyJson = serverPrivateKeyJson;
-        this.serverPublicKeyJson = serverPublicKeyJson;
-        this.issuer = issuer;
-        this.expirationTimeMs = expirationTimeMs;
+    @Value("${server.public.key}")
+    private String serverPublicKeyJson;
+
+    @Value("${jwt.issuer}")
+    private String issuer;
+
+    @Value("${jwt.expiration-time-ms}")
+    private Long expirationTimeMs;
+
+    public CertGeneratorHelper() {
     }
 
     public String generateCertificate(String deviceJwkJson) {
@@ -63,8 +67,10 @@ public class CertGeneratorHelper {
 
             return signedJWT.serialize();
 
-        } catch (Exception e) {
+        } catch (IllegalStateException | JOSEException | ParseException e) {
             throw new IllegalStateException("Error generating device certificate", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -25,21 +25,9 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     private final PersonalInfoRepository personalInfoRepository;
     private final CertGeneratorHelper certGeneratorHelper;
 
-    @Value("${server.private.key.json}")
-    private String SERVER_PRIVATE_KEY_JSON;
-
-    @Value("${server.public.key.json}")
-    private String SERVER_PUBLIC_KEY_JSON;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
-
     public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository) {
         this.personalInfoRepository = personalInfoRepository;
-        this.certGeneratorHelper = new CertGeneratorHelper(SERVER_PRIVATE_KEY_JSON, SERVER_PUBLIC_KEY_JSON, issuer, expirationTimeMs);
+        this.certGeneratorHelper = new CertGeneratorHelper();
     }
 
     @Override

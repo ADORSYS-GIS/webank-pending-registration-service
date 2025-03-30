@@ -28,20 +28,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${otp.salt}")
     private String salt;
 
-    @Value("${server.private.key.json}")
-    private String SERVER_PRIVATE_KEY_JSON;
-
-    @Value("${server.public.key.json}")
-    private String SERVER_PUBLIC_KEY_JSON;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
-
     public DeviceRegServiceImpl() {
-        this.certGeneratorHelper = new CertGeneratorHelper(SERVER_PRIVATE_KEY_JSON, SERVER_PUBLIC_KEY_JSON, issuer, expirationTimeMs);
+        this.certGeneratorHelper = new CertGeneratorHelper();
     }
 
     @Override
