@@ -82,18 +82,6 @@
             <version>3.4.3</version>
         </dependency>
 
-        <!-- bank account dependencies -->
-        <dependency>
-            <groupId>de.adorsys.webank</groupId>
-            <artifactId>webank-bank-account-service-api</artifactId>
-            <version>0.1-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>de.adorsys.webank</groupId>
-            <artifactId>webank-bank-account-service-impl</artifactId>
-            <version>0.1-SNAPSHOT</version>
-        </dependency>
-
     </dependencies>
 
 </project>

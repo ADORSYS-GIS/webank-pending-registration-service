@@ -6,7 +6,6 @@ import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import de.adorsys.webank.bank.api.service.util.BankAccountCertificateCreationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +16,13 @@ import java.util.Date;
 public class AccountRecoveryValidationRequestServiceImpl implements AccountRecoveryValidationRequestServiceApi {
 
     private final CertGeneratorHelper certGeneratorHelper;
-    private final BankAccountCertificateCreationService bankAccountCertificateCreationService;
+    private final AccountCertificateService accountCertificateService;
 
     @Autowired
     public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper,
-                                                       BankAccountCertificateCreationService bankAccountCertificateCreationService) {
+                                                       AccountCertificateService accountCertificateService, AccountCertificateService accountCertificateService1) {
         this.certGeneratorHelper = certGeneratorHelper;
-        this.bankAccountCertificateCreationService = bankAccountCertificateCreationService;
+        this.accountCertificateService = accountCertificateService;
     }
 
     @Override
@@ -37,7 +36,7 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
             String newKycCertificate = certGeneratorHelper.generateCertificate(publicKey.toJSONString());
 
             // Generate a new account certificate
-            String newAccountCertificate = bankAccountCertificateCreationService.generateBankAccountCertificate(
+            String newAccountCertificate = accountCertificateService.generateBankAccountCertificate(
                     publicKey.toJSONString(), oldAccountId);
 
             // Return a successful response

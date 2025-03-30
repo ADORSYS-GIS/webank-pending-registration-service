@@ -6,7 +6,6 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import de.adorsys.webank.bank.api.service.util.BankAccountCertificateCreationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -15,6 +14,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -26,7 +26,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     private CertGeneratorHelper certGeneratorHelper;
 
     @Mock
-    private BankAccountCertificateCreationService bankAccountCertificateCreationService;
+    private AccountCertificateService accountCertificateService;
 
     @InjectMocks
     private AccountRecoveryValidationRequestServiceImpl accountRecoveryService;
@@ -56,7 +56,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         String newAccountCertificate = "newAccountCertificate";
 
         when(certGeneratorHelper.generateCertificate(anyString())).thenReturn(newKycCertificate);
-        when(bankAccountCertificateCreationService.generateBankAccountCertificate(anyString(), anyString()))
+        when(accountCertificateService.generateBankAccountCertificate(anyString(), anyString()))
                 .thenReturn(newAccountCertificate);
 
         // Act
@@ -71,7 +71,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertEquals("Account recovery successful", response.getMessage(), "Message should indicate success");
 
         verify(certGeneratorHelper, times(1)).generateCertificate(anyString());
-        verify(bankAccountCertificateCreationService, times(1)).generateBankAccountCertificate(anyString(), anyString());
+        verify(accountCertificateService, times(1)).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -90,7 +90,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertEquals("Invalid RecoveryJWT format", response.getMessage(), "Message should indicate invalid JWT format");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(bankAccountCertificateCreationService, never()).generateBankAccountCertificate(anyString(), anyString());
+        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -109,7 +109,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertEquals("Recovery token expired", response.getMessage(), "Message should indicate token expiration");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(bankAccountCertificateCreationService, never()).generateBankAccountCertificate(anyString(), anyString());
+        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -128,12 +128,12 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertEquals("Claiming account ID mismatch", response.getMessage(), "Message should indicate account ID mismatch");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(bankAccountCertificateCreationService, never()).generateBankAccountCertificate(anyString(), anyString());
+        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     private JWK generateTestPublicKey() throws JOSEException {
         return new com.nimbusds.jose.jwk.ECKey.Builder(com.nimbusds.jose.jwk.Curve.P_256,
-                (java.security.interfaces.ECPublicKey) generateECKeyPair().getPublic()).build();
+                (java.security.interfaces.ECPublicKey) Objects.requireNonNull(generateECKeyPair()).getPublic()).build();
     }
 
     private String generateValidRecoveryJwt() throws JOSEException {
