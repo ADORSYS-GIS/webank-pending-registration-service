@@ -25,9 +25,6 @@ class AccountRecoveryValidationRequestServiceImplTest {
     @Mock
     private CertGeneratorHelper certGeneratorHelper;
 
-    @Mock
-    private AccountCertificateService accountCertificateService;
-
     @InjectMocks
     private AccountRecoveryValidationRequestServiceImpl accountRecoveryService;
 
@@ -56,8 +53,6 @@ class AccountRecoveryValidationRequestServiceImplTest {
         String newAccountCertificate = "newAccountCertificate";
 
         when(certGeneratorHelper.generateCertificate(anyString())).thenReturn(newKycCertificate);
-        when(accountCertificateService.generateBankAccountCertificate(anyString(), anyString()))
-                .thenReturn(newAccountCertificate);
 
         // Act
         AccountRecoveryResponse response = accountRecoveryService.processRecovery(publicKey, newAccountId, recoveryJwt);
@@ -67,11 +62,9 @@ class AccountRecoveryValidationRequestServiceImplTest {
         String oldAccountId = "oldAccountId";
         assertEquals(oldAccountId, response.getOldAccountId(), "Old account ID should match");
         assertEquals(newKycCertificate, response.getNewKycCertificate(), "New KYC certificate should match");
-        assertEquals(newAccountCertificate, response.getNewAccountCertificate(), "New account certificate should match");
         assertEquals("Account recovery successful", response.getMessage(), "Message should indicate success");
 
         verify(certGeneratorHelper, times(1)).generateCertificate(anyString());
-        verify(accountCertificateService, times(1)).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -86,11 +79,9 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertNotNull(response, "Response should not be null");
         assertNull(response.getOldAccountId(), "Old account ID should be null");
         assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
-        assertNull(response.getNewAccountCertificate(), "New account certificate should be null");
         assertEquals("Invalid RecoveryJWT format", response.getMessage(), "Message should indicate invalid JWT format");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -105,11 +96,9 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertNotNull(response, "Response should not be null");
         assertNull(response.getOldAccountId(), "Old account ID should be null");
         assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
-        assertNull(response.getNewAccountCertificate(), "New account certificate should be null");
         assertEquals("Recovery token expired", response.getMessage(), "Message should indicate token expiration");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     @Test
@@ -124,11 +113,9 @@ class AccountRecoveryValidationRequestServiceImplTest {
         assertNotNull(response, "Response should not be null");
         assertNull(response.getOldAccountId(), "Old account ID should be null");
         assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
-        assertNull(response.getNewAccountCertificate(), "New account certificate should be null");
         assertEquals("Claiming account ID mismatch", response.getMessage(), "Message should indicate account ID mismatch");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
-        verify(accountCertificateService, never()).generateBankAccountCertificate(anyString(), anyString());
     }
 
     private JWK generateTestPublicKey() throws JOSEException {

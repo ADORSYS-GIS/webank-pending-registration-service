@@ -16,13 +16,10 @@ import java.util.Date;
 public class AccountRecoveryValidationRequestServiceImpl implements AccountRecoveryValidationRequestServiceApi {
 
     private final CertGeneratorHelper certGeneratorHelper;
-    private final AccountCertificateService accountCertificateService;
 
     @Autowired
-    public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper,
-                                                       AccountCertificateService accountCertificateService, AccountCertificateService accountCertificateService1) {
+    public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper) {
         this.certGeneratorHelper = certGeneratorHelper;
-        this.accountCertificateService = accountCertificateService;
     }
 
     @Override
@@ -35,22 +32,18 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
             // Generate a new KYC certificate
             String newKycCertificate = certGeneratorHelper.generateCertificate(publicKey.toJSONString());
 
-            // Generate a new account certificate
-            String newAccountCertificate = accountCertificateService.generateBankAccountCertificate(
-                    publicKey.toJSONString(), oldAccountId);
-
             // Return a successful response
-            return new AccountRecoveryResponse(oldAccountId, newKycCertificate, newAccountCertificate, "Account recovery successful");
+            return new AccountRecoveryResponse(oldAccountId, newKycCertificate, "Account recovery successful");
 
         } catch (ParseException e) {
             // Handle invalid JWT format
-            return new AccountRecoveryResponse(null, null, null, "Invalid RecoveryJWT format");
+            return new AccountRecoveryResponse(null, null, "Invalid RecoveryJWT format");
         } catch (IllegalArgumentException e) {
             // Handle specific business logic errors (e.g., token expired, account ID mismatch)
-            return new AccountRecoveryResponse(null, null, null, e.getMessage());
+            return new AccountRecoveryResponse(null, null, e.getMessage());
         } catch (Exception e) {
             // Handle unexpected errors
-            return new AccountRecoveryResponse(null, null, null, "An unexpected error occurred: " + e.getMessage());
+            return new AccountRecoveryResponse(null, null, "An unexpected error occurred: " + e.getMessage());
         }
     }
 
