@@ -124,7 +124,8 @@ public class JwtValidator {
     public static String extractClaim(String jwtToken, String claimKey) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(jwtToken);
-            return signedJWT.getJWTClaimsSet().getStringClaim(claimKey);
+            logger.info("Successfully parsed JWT token:{}", signedJWT);
+            return signedJWT.getHeader().toJSONObject().get(claimKey).toString();
         } catch (ParseException e) {
             throw new IllegalArgumentException("Error extracting claim: " + claimKey, e);
         }

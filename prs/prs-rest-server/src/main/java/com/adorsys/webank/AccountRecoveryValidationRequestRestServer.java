@@ -1,5 +1,6 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.AccountRecovery;
 import com.adorsys.webank.dto.AccountRecoveryResponse;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
@@ -21,7 +22,7 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
     }
 
     @Override
-    public ResponseEntity<AccountRecoveryResponse> validateRecoveryToken(String authorizationHeader, String newAccountId) {
+    public ResponseEntity<AccountRecoveryResponse> validateRecoveryToken(String authorizationHeader, AccountRecovery accountRecovery) {
         String jwtToken;
         JWK publicKey = null;
         String recoveryJwt = "";
@@ -31,11 +32,11 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
             jwtToken = extractJwtFromHeader(authorizationHeader);
 
             // Validate JWT and extract the public key
-            publicKey = JwtValidator.validateAndExtract(jwtToken, newAccountId);
+            publicKey = JwtValidator.validateAndExtract(jwtToken, accountRecovery.getNewAccountId());
 
             // Extract the "RecoveryJWT" claim from the validated JWT
             recoveryJwt = JwtValidator.extractClaim(jwtToken, "recoveryJwt");
-
+            log.info("Successfully extracted RecoveryJWT claim: {}", recoveryJwt);
             if (recoveryJwt == null || recoveryJwt.isEmpty()) {
                 throw new BadRequestException("Invalid request. Missing recoveryJwt.");
             }
@@ -46,7 +47,7 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
             return ResponseEntity.ok(null);
         }
 
-        return ResponseEntity.ok(service.processRecovery(publicKey, newAccountId, recoveryJwt));
+        return ResponseEntity.ok(service.processRecovery(publicKey, accountRecovery.getNewAccountId(), recoveryJwt));
     }
 
 

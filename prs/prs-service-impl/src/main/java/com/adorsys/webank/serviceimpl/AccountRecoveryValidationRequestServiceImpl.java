@@ -50,21 +50,20 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
     private static String getOldAccountId(String newAccountId, SignedJWT signedJWT) throws ParseException {
         JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
 
-        // Extract and validate the TimeStamp claim
-        Date issuedAt = new Date((Long) claimsSet.getClaim("TimeStamp"));
-        long elapsedTime = (new Date().getTime() - issuedAt.getTime()) / (1000 * 60 * 60 * 24); // Days
+//        // Extract and validate the TimeStamp claim
+//        Date issuedAt = new Date((Long) claimsSet.getClaim("iat"));
+//        long elapsedTime = (new Date().getTime() - issuedAt.getTime()) / (1000 * 60 * 60 * 24); // Days
 
-        if (elapsedTime > 5) {
-            throw new IllegalArgumentException("Recovery token expired");
-        }
-
+//        if (elapsedTime > 5) {
+//            throw new IllegalArgumentException("Recovery token expired");
+//        }
         // Extract and validate the ClaimingAccountID
-        String claimingAccountId = claimsSet.getStringClaim("ClaimingAccountID");
+        String claimingAccountId = claimsSet.getStringClaim("newAccountId");
         if (!newAccountId.equals(claimingAccountId)) {
             throw new IllegalArgumentException("Claiming account ID mismatch");
         }
 
         // Restore the old account (assuming a method to find the account by ID)
-        return claimsSet.getStringClaim("OldAccountID");
+        return claimsSet.getStringClaim("oldAccountId");
     }
 }

@@ -1,5 +1,6 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.AccountRecovery;
 import com.adorsys.webank.dto.AccountRecoveryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,6 +27,5 @@ public interface AccountRecoveryValidationRequestRestApi {
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
     ResponseEntity<AccountRecoveryResponse> validateRecoveryToken(
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-            @RequestBody String newAccountId
-    );
+            @RequestBody AccountRecovery accountRecovery);
 }
