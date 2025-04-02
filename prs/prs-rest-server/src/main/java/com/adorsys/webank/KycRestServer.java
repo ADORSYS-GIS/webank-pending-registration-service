@@ -40,6 +40,7 @@ public class KycRestServer implements KycRestApi {
 
 
 
+
             // Validate the JWT token using the injected CertValidator instance
             if (!certValidator.validateJWT(jwtToken)) {
 
