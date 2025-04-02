@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class EmailOtpServiceImplTest {
+class EmailOtpServiceImplTest {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailOtpServiceImplTest.class);
 
 
@@ -65,14 +65,14 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testGenerateOtp() {
+    void testGenerateOtp() {
         String otp = emailOtpService.generateOtp();
         assertEquals(6, otp.length());
         assertTrue(otp.matches("\\d+"));
     }
 
     @Test
-    public void testSendEmailOtp_Success() throws Exception {
+    void testSendEmailOtp_Success() throws Exception {
         // Arrange
         String devicePublicKeyJson = deviceKey.toJSONString(); // Actual key
         PersonalInfoEntity entity = new PersonalInfoEntity();
@@ -91,13 +91,13 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_InvalidEmail() {
+    void testSendEmailOtp_InvalidEmail() {
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.sendEmailOtp(deviceKey, "invalid-email")
         );
     }
     @Test
-    public void testValidateEmailOtp_Valid() throws Exception {
+    void testValidateEmailOtp_Valid() {
         // Arrange
         String devicePublicKeyJson = deviceKey.toJSONString(); // Get actual key JSON
         PersonalInfoEntity entity = createTestEntity();
@@ -116,7 +116,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Expired() {
+    void testValidateEmailOtp_Expired() {
         PersonalInfoEntity entity = createTestEntity();
         entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
 
@@ -128,7 +128,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testComputeOtpHash() throws Exception {
+    void testComputeOtpHash() throws Exception {
         String devicePublicKeyJson = deviceKey.toJSONString();
         String inputJson = String.format("{\"emailOtp\":\"%s\", \"devicePub\":%s, \"salt\":\"%s\"}",
                 TEST_OTP, devicePublicKeyJson, TEST_SALT);
@@ -145,7 +145,7 @@ public class EmailOtpServiceImplTest {
         assertEquals(expectedHash, actualHash);
     }
     @Test
-    public void testCanonicalizeJson() {
+    void testCanonicalizeJson() {
         String json = "{\"b\":2, \"a\":1}";
         String canonical = emailOtpService.canonicalizeJson(json);
         assertEquals("{\"a\":1,\"b\":2}", canonical);
