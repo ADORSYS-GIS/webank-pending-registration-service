@@ -67,10 +67,8 @@ public class CertGeneratorHelper {
 
             return signedJWT.serialize();
 
-        } catch (IllegalStateException | JOSEException | ParseException e) {
-            throw new IllegalStateException("Error generating device certificate", e);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+        } catch (IllegalStateException | JOSEException | ParseException | NoSuchAlgorithmException e) {
+            return "Error generating device certificate" + e.getMessage();
         }
     }
 
