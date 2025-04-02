@@ -13,10 +13,10 @@ public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
     }
 
     @Override
-    public String updateKycStatus(String authorizationHeader, String publicKeyHash, String status) {
+    public String updateKycStatus(String authorizationHeader, String accountId, String status) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ") ) {
             throw new IllegalArgumentException("Unauthorized or invalid JWT.");
         }
-        return kyctatusUpdateServiceApi.updateKycStatus(publicKeyHash, status);
+        return kyctatusUpdateServiceApi.updateKycStatus(accountId, status);
     }
 }

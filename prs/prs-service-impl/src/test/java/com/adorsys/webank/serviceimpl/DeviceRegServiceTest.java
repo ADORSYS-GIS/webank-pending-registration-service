@@ -30,8 +30,6 @@ import static org.mockito.Mockito.*;
     void setUp() {
         String testSalt = "testSalt";
         ReflectionTestUtils.setField(deviceRegService, "salt", testSalt);
-        long expirationTimeMs = 60000;
-        ReflectionTestUtils.setField(deviceRegService, "expirationTimeMs", expirationTimeMs);
     }
 
     @Test
