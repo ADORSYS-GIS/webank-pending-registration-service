@@ -11,6 +11,8 @@ import java.util.UUID;
 
 @Repository
 public interface PersonalInfoRepository extends JpaRepository<PersonalInfoEntity, UUID> {
-    Optional<PersonalInfoEntity> findByPublicKeyHash(String publicKeyHash);
+    Optional<PersonalInfoEntity> findByAccountId(String accountId);
     List<PersonalInfoEntity> findByStatus(PersonalInfoStatus status);
+    List<PersonalInfoEntity> findByDocumentUniqueId(String documentUniqueId);
+
 }

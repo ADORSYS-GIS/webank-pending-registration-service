@@ -1,20 +1,20 @@
 package com.adorsys.webank.dto;
 
 public class KycGetDocRequest {
-    private String publicKeyHash;
+    private String accountId;
 
     public KycGetDocRequest() {
     }
 
-    public KycGetDocRequest(String publicKeyHash) {
-        this.publicKeyHash = publicKeyHash;
+    public KycGetDocRequest(String accountId) {
+        this.accountId = accountId;
     }
 
-    public String getPublicKeyHash() {
-        return publicKeyHash;
+    public String getAccountId() {
+        return accountId;
     }
 
-    public void setPublicKeyHash(String publicKeyHash) {
-        this.publicKeyHash = publicKeyHash;
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 }

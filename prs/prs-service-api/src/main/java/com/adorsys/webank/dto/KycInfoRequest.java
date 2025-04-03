@@ -7,14 +7,16 @@ public class KycInfoRequest {
     private String dateOfBirth;
     private String currentRegion;
     private String expiryDate;
+    private String accountId;
 
-    public KycInfoRequest(String fullName, String profession, String idNumber, String dateOfBirth, String currentRegion, String expiryDate) {
+    public KycInfoRequest(String fullName, String profession, String idNumber, String dateOfBirth, String currentRegion, String expiryDate , String accountId) {
         this.fullName = fullName;
         this.profession = profession;
         this.idNumber = idNumber;
         this.dateOfBirth = dateOfBirth;
         this.currentRegion = currentRegion;
         this.expiryDate = expiryDate;
+        this.accountId = accountId;
     }
 
     public String getFullName() {
@@ -63,5 +65,13 @@ public class KycInfoRequest {
 
     public void setExpiryDate(String expiryDate) {
         this.expiryDate = expiryDate;
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 }

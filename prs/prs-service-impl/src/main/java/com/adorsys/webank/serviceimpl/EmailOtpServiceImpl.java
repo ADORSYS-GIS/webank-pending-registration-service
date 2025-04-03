@@ -4,23 +4,20 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.nimbusds.jose.jwk.*;
+import jakarta.annotation.Resource;
+import jakarta.mail.*;
+import jakarta.mail.internet.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Service;
-import  jakarta.mail.internet.MimeMessage;
-import jakarta.annotation.Resource;
-import jakarta.mail.MessagingException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Base64;
+
+import java.nio.charset.*;
+import java.security.*;
+import java.time.*;
+import java.time.format.*;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
@@ -52,30 +49,23 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String sendEmailOtp(JWK devicePub, String email) {
+    public String sendEmailOtp(String accountId, String email) {
         log.info("Initiating OTP send process for email: {}", email);
         validateEmailFormat(email);
 
         try {
             String otp = generateOtp();
-            String devicePublicKey = devicePub.toJSONString();
-            log.debug("Device public key: {}", devicePublicKey);
 
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.debug("Computed public key hash: {}", publicKeyHash);
 
-            PersonalInfoEntity personalInfo = personalInfoRepository.findByPublicKeyHash(publicKeyHash)
+            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
-
-
             LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(5);
 
             personalInfo.setEmailOtpCode(otp);
-            personalInfo.setEmailOtpHash(computeOtpHash(otp, devicePublicKey));
+            personalInfo.setEmailOtpHash(computeOtpHash(otp, accountId));
             personalInfo.setOtpExpirationDateTime(otpExpiration);
             personalInfoRepository.save(personalInfo);
 
-            log.debug("OTP stored successfully for public key hash: {}", publicKeyHash);
             sendOtpEmail(email, otp);
             return "OTP sent successfully to " + email;
         } catch (Exception e) {
@@ -85,19 +75,16 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String validateEmailOtp(String email, JWK devicePub, String otpInput) {
-        log.info("Validating OTP for email: {}", email);
+    public String validateEmailOtp(String email, String otpInput, String accountId) {
+        log.info("Validating OTP for email: {}, Account ID: {}", email, accountId);
         try {
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.debug("Computed public key hash: {}", publicKeyHash);
 
-            PersonalInfoEntity personalInfo = personalInfoRepository.findByPublicKeyHash(publicKeyHash)
+            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
             validateOtpExpiration(personalInfo);
 
-            if (validateOtpHash(otpInput, devicePublicKey, personalInfo)) {
+            if (validateOtpHash(otpInput, accountId, personalInfo)) {
                 personalInfo.setEmail(email);
                 personalInfoRepository.save(personalInfo);
                 log.info("OTP verified successfully for email: {}", email);
@@ -126,8 +113,9 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
         if (LocalDateTime.now().isAfter(expiration)) {
             personalInfoRepository.save(personalInfo);
-            log.warn("OTP expired for public key hash: {}", personalInfo.getPublicKeyHash());
+            log.warn("OTP expired for public key hash: {}", personalInfo.getAccountId());
             throw new IllegalArgumentException("Webank OTP expired");
+
         }
     }
 
@@ -162,28 +150,21 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         }
     }
 
-    private boolean validateOtpHash(String inputOtp, String devicePublicKey, PersonalInfoEntity personalInfo) {
+    private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, devicePublicKey);
+        String currentHash = computeOtpHash(inputOtp, accountId);
         boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
         log.debug("OTP hash validation result: {}", isValid);
         return isValid;
     }
 
-    String computeOtpHash(String emailOtp, String devicePublicKey) {
+    String computeOtpHash(String emailOtp, String accountId) {
         log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"devicePub\":%s, \"salt\":\"%s\"}",
-                emailOtp, devicePublicKey, salt);
+        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
+                emailOtp, accountId, salt);
         log.trace("Hash input: {}", input);
         return computeHash(canonicalizeJson(input));
     }
-
-    private String computePublicKeyHash(String devicePublicKey) {
-        log.debug("Computing public key hash");
-        return computeHash(devicePublicKey);
-    }
-
-
 
 
     public String computeHash(String input) {

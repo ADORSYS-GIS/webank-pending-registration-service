@@ -11,8 +11,8 @@ import lombok.Setter;
 public class UserDocumentsEntity {
 
     @Id
-    @Column(name = "public_key_hash", length = 255, nullable = false)
-    private String publicKeyHash;
+    @Column(name = "AccountId", nullable = false)
+    private String accountId;
 
     @Lob
     @Column(name = "front_id", nullable = true)

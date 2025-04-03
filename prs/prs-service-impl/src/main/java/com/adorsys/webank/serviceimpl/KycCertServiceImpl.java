@@ -30,42 +30,26 @@ public class KycCertServiceImpl implements KycCertServiceApi {
         this.certGeneratorHelper = new CertGeneratorHelper();
     }
 
-    @Override
-    @Transactional
-    public String getCert(JWK publicKey) {
-        String publicKeyHash = computeHash(String.valueOf(publicKey));
 
-        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByPublicKeyHash(publicKeyHash);
+        @Override
+        public String getCert(JWK publicKey, String accountId) {
+            Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
-        if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
-            try {
-                String certificate = certGeneratorHelper.generateCertificate(publicKey.toJSONString());
-                return "Your certificate is: " + certificate;
-            } catch (Exception e) {
-                log.error("Error generating certificate: ", e);
-                return "null";
+            if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
+                try {
+                    // Convert publicKey to a valid JSON string
+                    String publicKeyJson = publicKey.toJSONString();
+                    String certificate = certGeneratorHelper.generateCertificate(publicKeyJson);
+                    log.info("Certificate generated: {}", certificate);
+                    return "Your certificate is: " + certificate;
+                } catch (Exception e) {
+                    log.error("Error generating certificate: ", e);
+                    return "null";
+                }
             }
+
+            return "null";
         }
 
-        return "null";
-    }
 
-    public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
-    }
-
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = String.format("%02x", b);
-            hexString.append(hex);
-        }
-        return hexString.toString();
-    }
 }

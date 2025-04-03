@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 
+@lombok.extern.slf4j.Slf4j
 @Component
 public class CertGeneratorHelper {
 
@@ -36,6 +37,21 @@ public class CertGeneratorHelper {
     }
 
     public String generateCertificate(String deviceJwkJson) {
+
+        if (deviceJwkJson == null || deviceJwkJson.trim().isEmpty()) {
+            log.info("deviceJwk : {}", deviceJwkJson);
+            return "Error generating device certificate: Device JWK JSON must not be null or empty.";
+        }
+        if (serverPrivateKeyJson == null || serverPrivateKeyJson.trim().isEmpty()) {
+            log.info("server private key : {}", serverPrivateKeyJson);
+            return "Error generating device certificate: Server private key JSON must not be null or empty.";
+        }
+
+        if (serverPublicKeyJson == null || serverPublicKeyJson.trim().isEmpty()) {
+            log.info("server public key : {}", serverPublicKeyJson);
+            return "Error generating device certificate: Server public key JSON must not be null or empty.";
+        }
+
         try {
             ECKey serverPrivateKey = (ECKey) JWK.parse(serverPrivateKeyJson);
             if (serverPrivateKey.getD() == null) {
@@ -78,3 +94,5 @@ public class CertGeneratorHelper {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
     }
 }
+
+

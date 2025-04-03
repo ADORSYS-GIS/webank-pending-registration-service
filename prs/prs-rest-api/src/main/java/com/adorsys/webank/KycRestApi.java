@@ -73,5 +73,14 @@ public interface KycRestApi {
     @GetMapping(value = "/infos", produces = "application/json")
     List<PersonalInfoEntity> getPersonalInfoByStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
 
+    @Operation(summary = "Get pending OTPs", description = "Fetches all pending OTPs where registration is not complete. The response includes the phone number, a masked version of the OTP, and the registration status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pending OTPs successfully retrieved"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping(value = "/findId/{DocumentUniqueId}", produces = "application/json")
+    List<UserInfoResponse> findByDocumentUniqueId(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+                                                  @PathVariable("DocumentUniqueId") String DocumentUniqueId);
 
 }
