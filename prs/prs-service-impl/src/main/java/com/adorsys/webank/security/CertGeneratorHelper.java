@@ -2,13 +2,14 @@ package com.adorsys.webank.security;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
+import  com.nimbusds.jose.jwk.ECKey;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,15 +18,12 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 
-@lombok.extern.slf4j.Slf4j
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class CertGeneratorHelper {
 
-    @Value("${server.private.key}")
-    private String serverPrivateKeyJson;
-
-    @Value("${server.public.key}")
-    private String serverPublicKeyJson;
+    private final KeyLoader keyLoader;
 
     @Value("${jwt.issuer}")
     private String issuer;
@@ -33,42 +31,25 @@ public class CertGeneratorHelper {
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
 
-    public CertGeneratorHelper() {
-    }
-
     public String generateCertificate(String deviceJwkJson) {
-
         if (deviceJwkJson == null || deviceJwkJson.trim().isEmpty()) {
-            log.info("deviceJwk : {}", deviceJwkJson);
+            log.error("Device JWK is null or empty");
             return "Error generating device certificate: Device JWK JSON must not be null or empty.";
-        }
-        if (serverPrivateKeyJson == null || serverPrivateKeyJson.trim().isEmpty()) {
-            log.info("server private key : {}", serverPrivateKeyJson);
-            return "Error generating device certificate: Server private key JSON must not be null or empty.";
-        }
-
-        if (serverPublicKeyJson == null || serverPublicKeyJson.trim().isEmpty()) {
-            log.info("server public key : {}", serverPublicKeyJson);
-            return "Error generating device certificate: Server public key JSON must not be null or empty.";
         }
 
         try {
-            ECKey serverPrivateKey = (ECKey) JWK.parse(serverPrivateKeyJson);
-            if (serverPrivateKey.getD() == null) {
-                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
-            }
+            ECKey serverPrivateKey = keyLoader.loadPrivateKey();
+            ECKey serverPublicKey = keyLoader.loadPublicKey();
+            String kid = computeKid(serverPublicKey);
 
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
-            ECKey serverPublicKey = (ECKey) JWK.parse(serverPublicKeyJson);
-            String kid = computeKid(serverPublicKey);
+            JWK deviceJwk = JWK.parse(deviceJwkJson);
+            long issuedAt = System.currentTimeMillis() / 1000;
 
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                     .keyID(kid)
                     .type(JOSEObjectType.JWT)
                     .build();
-
-            JWK deviceJwk = JWK.parse(deviceJwkJson);
-            long issuedAt = System.currentTimeMillis() / 1000;
 
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .issuer(issuer)
@@ -84,7 +65,8 @@ public class CertGeneratorHelper {
             return signedJWT.serialize();
 
         } catch (IllegalStateException | JOSEException | ParseException | NoSuchAlgorithmException e) {
-            return "Error generating device certificate" + e.getMessage();
+            log.error("Error generating certificate", e);
+            return "Error generating device certificate: " + e.getMessage();
         }
     }
 
@@ -94,5 +76,3 @@ public class CertGeneratorHelper {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
     }
 }
-
-

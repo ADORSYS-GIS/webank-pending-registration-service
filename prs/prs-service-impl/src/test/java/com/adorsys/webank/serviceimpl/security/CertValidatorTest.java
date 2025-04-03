@@ -13,6 +13,7 @@ import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.adorsys.webank.security.KeyLoader;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,18 +21,24 @@ class CertValidatorTest {
 
     private CertValidator certValidator;
     private ECKey serverPrivateKey;
+    private KeyLoader keyLoader;
 
     @BeforeEach
     void setUp() throws JOSEException {
-        certValidator = new CertValidator();
-        // Create an EC key pair.
+        // Create KeyLoader instance
+        keyLoader = new KeyLoader();
+
+        // Create EC key pair
         ECKey ecKey = new ECKeyGenerator(Curve.P_256).generate();
         serverPrivateKey = ecKey;
-        // Use a local variable for the public key.
         String serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
-        ReflectionTestUtils.setField(certValidator, "SERVER_PUBLIC_KEY_JSON", serverPublicKeyJson);
-    }
 
+        // Set public key in KeyLoader
+        ReflectionTestUtils.setField(keyLoader, "serverPublicKeyJson", serverPublicKeyJson);
+
+        // Initialize CertValidator with KeyLoader
+        certValidator = new CertValidator(keyLoader);
+    }
     @Test
     void validateJWT_validToken_returnsTrue() throws JOSEException {
         SignedJWT devJwt = createSignedJWT(serverPrivateKey);
@@ -61,7 +68,7 @@ class CertValidatorTest {
 
     @Test
     void validateJWT_invalidPublicKey_returnsFalse() throws JOSEException {
-        ReflectionTestUtils.setField(certValidator, "SERVER_PUBLIC_KEY_JSON", "invalid_json");
+        ReflectionTestUtils.setField(keyLoader, "serverPublicKeyJson", "invalid_json");
         SignedJWT devJwt = createSignedJWT(serverPrivateKey);
         SignedJWT mainJwt = createMainJWT(devJwt, serverPrivateKey);
 

@@ -1,22 +1,14 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.security.CertGeneratorHelper;
-import com.adorsys.webank.service.KycCertServiceApi;
-import com.nimbusds.jose.jwk.JWK;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.adorsys.webank.domain.*;
+import com.adorsys.webank.repository.*;
+import com.adorsys.webank.security.*;
+import com.adorsys.webank.service.*;
+import com.nimbusds.jose.jwk.*;
+import org.slf4j.*;
+import org.springframework.stereotype.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class KycCertServiceImpl implements KycCertServiceApi {
@@ -25,9 +17,9 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     private final PersonalInfoRepository personalInfoRepository;
     private final CertGeneratorHelper certGeneratorHelper;
 
-    public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository) {
+    public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository, com.adorsys.webank.security.CertGeneratorHelper certGeneratorHelper) {
         this.personalInfoRepository = personalInfoRepository;
-        this.certGeneratorHelper = new CertGeneratorHelper();
+        this.certGeneratorHelper = certGeneratorHelper;
     }
 
 
