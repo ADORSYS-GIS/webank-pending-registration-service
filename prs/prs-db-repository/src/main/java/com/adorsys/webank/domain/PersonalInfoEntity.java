@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 public class PersonalInfoEntity {
 
     @Id
-    @Column(name = "public_key_hash", nullable = false)
-    private String publicKeyHash;
+    @Column(name = "AccountId", nullable = false)
+    private String accountId;
 
     @Column(name = "id", nullable = false, length = 20)
     private String documentUniqueId;

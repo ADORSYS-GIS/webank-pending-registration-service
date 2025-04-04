@@ -1,34 +1,32 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.TokenRequest;
 import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
-import com.adorsys.webank.service.KycCertServiceApi;
+import com.adorsys.webank.service.TokenServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class KycCertRestServer implements KycCertRestApi {
+public class TokenRestServer implements TokenRestApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycCertRestServer.class);
-    private final KycCertServiceApi kycCertServiceApi;
+    private static final Logger log = LoggerFactory.getLogger(TokenRestServer.class);
+    private final TokenServiceApi tokenServiceApi;
     private final CertValidator certValidator;
 
-    public KycCertRestServer( KycCertServiceApi kycCertServiceApi, CertValidator certValidator) {
-        this.kycCertServiceApi = kycCertServiceApi;
+    public TokenRestServer( TokenServiceApi tokenServiceApi, CertValidator certValidator) {
+        this.tokenServiceApi = tokenServiceApi;
         this.certValidator = certValidator;
     }
 
     @Override
-    public String getCert(String authorizationHeader, String accountId) {
+    public String requestRecoveryToken(String authorizationHeader, TokenRequest tokenRequest) {
         String jwtToken;
-        JWK publicKey;
         try {
             jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("JWT token: {}", jwtToken);
-            publicKey = JwtValidator.validateAndExtract(jwtToken);
-            log.info("Public key: {}", publicKey);
+            JwtValidator.validateAndExtract(jwtToken, tokenRequest.getOldAccountId(), tokenRequest.getNewAccountId());
 
             // Validate the JWT token
             if (!certValidator.validateJWT(jwtToken)) {
@@ -39,7 +37,7 @@ public class KycCertRestServer implements KycCertRestApi {
         }
 
         // Retrieve and return the KYC certificate
-        return kycCertServiceApi.getCert(publicKey, accountId);
+        return tokenServiceApi.requestRecoveryToken( tokenRequest);
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
@@ -48,4 +46,5 @@ public class KycCertRestServer implements KycCertRestApi {
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }
+
 }

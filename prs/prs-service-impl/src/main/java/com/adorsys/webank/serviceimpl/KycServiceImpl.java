@@ -3,10 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
-import com.adorsys.webank.dto.KycDocumentRequest;
-import com.adorsys.webank.dto.KycEmailRequest;
-import com.adorsys.webank.dto.KycInfoRequest;
-import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.*;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.repository.PersonalInfoRepository;
@@ -21,7 +18,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,7 +36,7 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKycDocument( JWK devicePublicKey, KycDocumentRequest kycDocumentRequest) {
+    public String sendKycDocument( String AccountId, KycDocumentRequest kycDocumentRequest) {
 
         if (kycDocumentRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Document Request");
@@ -47,16 +44,13 @@ public class KycServiceImpl implements KycServiceApi {
 
         try {
 
-            String publicKeyHash = computePublicKeyHash(String.valueOf(devicePublicKey));
-            log.info(publicKeyHash);
             UserDocumentsEntity userDocuments = new UserDocumentsEntity();
-            userDocuments.setPublicKeyHash(publicKeyHash);
+            userDocuments.setAccountId(AccountId);
             userDocuments.setFrontID(kycDocumentRequest.getFrontId());
             userDocuments.setBackID(kycDocumentRequest.getBackId());
             userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
             userDocuments.setTaxID(kycDocumentRequest.getTaxId());
             repository.save(userDocuments);
-
             return "KYC Document sent successfully and saved";
         } catch (Exception e) {
             log.error("Failed to send KYC Document", e);
@@ -65,7 +59,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
-    public String sendKycinfo( JWK devicePub, KycInfoRequest kycInfoRequest) {
+    public String sendKycinfo( String AccountId, KycInfoRequest kycInfoRequest) {
         if (kycInfoRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Info Request");
         }
@@ -73,14 +67,9 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Info for the device.");
 
-            // Extract public key and compute hash
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.info("Computed Public Key Hash: {}", publicKeyHash);
-
             // Create and populate PersonalInfoEntity
             PersonalInfoEntity personalInfoEntity = PersonalInfoEntity.builder()
-                    .publicKeyHash(publicKeyHash)
+                    .accountId(AccountId)
                     .documentUniqueId(kycInfoRequest.getIdNumber())  // Mapping idNumber -> documentUniqueId
                     .name(kycInfoRequest.getFullName())              // Mapping fullName -> name
                     .dateOfBirth(kycInfoRequest.getDateOfBirth())
@@ -92,7 +81,6 @@ public class KycServiceImpl implements KycServiceApi {
 
             // Save entity in the database
             inforepository.save(personalInfoEntity);
-            log.info("KYC Info saved successfully for Public Key Hash: {}", publicKeyHash);
 
             return "KYC Info sent successfully and saved.";
         } catch (Exception e) {
@@ -104,7 +92,7 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKyclocation(JWK devicePub, KycLocationRequest kycLocationRequest) {
+    public String sendKyclocation( KycLocationRequest kycLocationRequest) {
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
             throw new IllegalArgumentException("Invalid KYC Location Request");
         }
@@ -112,18 +100,14 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Location update.");
 
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.info("Computed Public Key Hash: {}", publicKeyHash);
-
-
+            String accountId = kycLocationRequest.getAccountId();
             // Use getPersonalInfoByPublicKey
-            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoByPublicKey(publicKeyHash);
+            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoByPublicKey(accountId);
             if (existingInfo.isPresent()) {
                 PersonalInfoEntity personalInfo = existingInfo.get();
                 personalInfo.setLocation(kycLocationRequest.getLocation()); // Update location
                 inforepository.save(personalInfo);
-                log.info("KYC Location updated successfully for Public Key Hash: {}", publicKeyHash);
+                log.info("KYC Location updated successfully for accountId: {}", accountId);
                 return "KYC Location updated successfully.";
             } else {
                 throw new EntityNotFoundException("No KYC record found for the provided Public Key Hash.");
@@ -136,7 +120,7 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKycEmail(JWK devicePub, KycEmailRequest kycEmailRequest) {
+    public String sendKycEmail( KycEmailRequest kycEmailRequest) {
         if (kycEmailRequest == null || kycEmailRequest.getEmail() == null) {
             throw new IllegalArgumentException("Invalid KYC Email Request");
         }
@@ -144,18 +128,15 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Email update.");
 
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-            log.info("Computed Public Key Hash: {}", publicKeyHash);
-
+            String accountId = kycEmailRequest.getAccountId();
             // Use getPersonalInfoByPublicKey
-            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoByPublicKey(publicKeyHash);
+            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoByPublicKey(accountId);
 
             if (existingInfo.isPresent()) {
                 PersonalInfoEntity personalInfo = existingInfo.get();
                 personalInfo.setEmail(kycEmailRequest.getEmail()); // Update email
                 inforepository.save(personalInfo);
-                log.info("KYC Email updated successfully for Public Key Hash: {}", publicKeyHash);
+                log.info("KYC Email updated successfully for accountId: {}", accountId);
                 return "KYC Email updated successfully.";
             } else {
                 throw new EntityNotFoundException("No KYC record found for the provided Public Key Hash.");
@@ -168,33 +149,14 @@ public class KycServiceImpl implements KycServiceApi {
 
 
 
-    public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
-    }
-
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = String.format("%02x", b);
-            hexString.append(hex);
-        }
-        return hexString.toString();
+    @Override
+    public Optional<UserDocumentsEntity> getDocuments(String accountId) {
+        return repository.findById(accountId);
     }
 
     @Override
-    public Optional<UserDocumentsEntity> getDocuments(String publicKeyHash) {
-        return repository.findById(publicKeyHash);
-    }
-
-    @Override
-    public Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String publicKeyHash) {
-        return inforepository.findByPublicKeyHash(publicKeyHash);
+    public Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String accountId) {
+        return inforepository.findByAccountId(accountId);
     }
 
     @Override
@@ -202,8 +164,43 @@ public class KycServiceImpl implements KycServiceApi {
         return inforepository.findByStatus(status);
     }
 
-    private String computePublicKeyHash(String devicePublicKey) {
-        return computeHash(devicePublicKey);
+    @Override
+    public List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId) {
+        List<PersonalInfoEntity> personalInfoList = inforepository.findByDocumentUniqueId(documentUniqueId);
+
+        List<UserInfoResponse> responseList = new ArrayList<>();
+
+        for (PersonalInfoEntity personalInfo : personalInfoList) {
+            String accountId = personalInfo.getAccountId();
+
+            Optional<UserDocumentsEntity> documentsOpt = repository.findById(accountId);
+            UserDocumentsEntity documents = documentsOpt.orElse(new UserDocumentsEntity());
+
+            UserInfoResponse response = new UserInfoResponse();
+            response.setAccountId(accountId);
+            response.setFullName(personalInfo.getName());
+            response.setProfession(personalInfo.getProfession());
+            response.setIdNumber(personalInfo.getDocumentUniqueId());
+            response.setDob(personalInfo.getDateOfBirth());
+            response.setRegion(personalInfo.getRegion());
+            response.setExpirationDate(personalInfo.getExpirationDate());
+            response.setLocation(personalInfo.getLocation());
+            response.setEmail(personalInfo.getEmail());
+            response.setStatus(personalInfo.getStatus().name()); // Converts Enum to String
+
+
+            // Set documents
+            response.setFrontID(documents.getFrontID());
+            response.setBackID(documents.getBackID());
+            response.setSelfie(documents.getSelfieID());
+            response.setTaxDocument(documents.getTaxID());
+
+            responseList.add(response);
+        }
+
+        return responseList;
     }
+
+
 
 }

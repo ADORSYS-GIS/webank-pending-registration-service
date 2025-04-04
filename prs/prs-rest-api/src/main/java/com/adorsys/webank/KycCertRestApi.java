@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Tag(name = "KYC", description = "Operations related to KYC processing")
 @RequestMapping("/api/prs/kyc")
@@ -20,6 +21,7 @@ public interface KycCertRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid token"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @GetMapping(value = "/cert", produces = "application/json")
-    String getCert(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
+    @GetMapping(value = "/cert/{accountId}", produces = "application/json")
+    String getCert(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+                   @PathVariable("accountId") String accountId);
 }
