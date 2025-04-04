@@ -7,7 +7,7 @@ import com.adorsys.webank.service.*;
 import com.nimbusds.jose.jwk.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
-
+import com.adorsys.webank.security.CertGeneratorHelper;
 import java.util.*;
 
 @Service
@@ -17,7 +17,7 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     private final PersonalInfoRepository personalInfoRepository;
     private final CertGeneratorHelper certGeneratorHelper;
 
-    public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository, com.adorsys.webank.security.CertGeneratorHelper certGeneratorHelper) {
+    public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository, CertGeneratorHelper certGeneratorHelper) {
         this.personalInfoRepository = personalInfoRepository;
         this.certGeneratorHelper = certGeneratorHelper;
     }

@@ -23,7 +23,6 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     public String sendEmailOtp(String authorizationHeader,
                                EmailOtpRequest request) {
         String jwtToken;
-        JWK publicKey;
         try {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             String email = request.getEmail();
