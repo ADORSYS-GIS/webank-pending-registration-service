@@ -77,13 +77,21 @@ public class OtpServiceImpl implements OtpServiceApi {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
+        String devicePublicKey = devicePub.toJSONString();
+        String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
         try {
+            // First check: is this phone number already registered with the given publicKeyHash?
+            Optional<OtpEntity> existingOtp = otpRequestRepository
+                    .findByPhoneNumberAndPublicKeyHash(phoneNumber, publicKeyHash);
+
+            if (existingOtp.isPresent()) {
+                return "Phone number already exists";
+            }
+
+            // Generate OTP
             String otp = generateOtp();
             log.info("OTP sent to phone number:{}", otp);
-
-            String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
             String otpJSON = "{\"otp\":\"" + otp + "\","
                     + "\"devicePub\":" + devicePub.toJSONString() + ","
@@ -106,12 +114,13 @@ public class OtpServiceImpl implements OtpServiceApi {
             otpRequestRepository.save(otpRequest);
 
             log.info("Message sent to phone number: {}", otp);
-
             return otpHash;
+
         } catch (Exception e) {
             throw new FailedToSendOTPException("Failed to send OTP");
         }
     }
+
 
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
@@ -123,6 +132,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             if (otpEntityOpt.isEmpty()) {
                 return "No OTP request found for this public key";
             }
+
 
             OtpEntity otpEntity = otpEntityOpt.get();
             LocalDateTime now = LocalDateTime.now();

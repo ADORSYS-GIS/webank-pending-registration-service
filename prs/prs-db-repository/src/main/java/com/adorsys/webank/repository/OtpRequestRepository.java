@@ -13,4 +13,6 @@ import java.util.Optional;
 public interface OtpRequestRepository extends JpaRepository<OtpEntity, UUID> {
     Optional<OtpEntity> findByPublicKeyHash(String publicKeyHash);
     List<OtpEntity> findByStatus(OtpStatus status);
+    Optional<OtpEntity> findByPhoneNumberAndPublicKeyHash(String phoneNumber, String publicKeyHash);
+
 }
