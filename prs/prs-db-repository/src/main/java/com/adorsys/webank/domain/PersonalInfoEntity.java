@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+
+@Table(name = "personal_information_table")
 public class PersonalInfoEntity {
 
     @Id
@@ -21,7 +23,7 @@ public class PersonalInfoEntity {
     @Column(name = "id", nullable = false, length = 20)
     private String documentUniqueId;
 
-    @Column(name = "name", nullable = false, length = 20)
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "date_of_birth", nullable = false, length = 20)
