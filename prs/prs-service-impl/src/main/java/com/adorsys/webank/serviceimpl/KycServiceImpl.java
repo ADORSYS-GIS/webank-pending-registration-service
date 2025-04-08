@@ -34,22 +34,24 @@ public class KycServiceImpl implements KycServiceApi {
         this.inforepository = inforepository;
     }
 
-
     @Override
-    public String sendKycDocument( String AccountId, KycDocumentRequest kycDocumentRequest) {
-
+    public String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest) {
         if (kycDocumentRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Document Request");
         }
 
         try {
+            log.info("Processing KYC Document for accountId: {}", AccountId);
 
-            UserDocumentsEntity userDocuments = new UserDocumentsEntity();
-            userDocuments.setAccountId(AccountId);
-            userDocuments.setFrontID(kycDocumentRequest.getFrontId());
-            userDocuments.setBackID(kycDocumentRequest.getBackId());
-            userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
-            userDocuments.setTaxID(kycDocumentRequest.getTaxId());
+            // Build the UserDocumentsEntity using builder pattern
+            UserDocumentsEntity userDocuments = UserDocumentsEntity.builder()
+                    .accountId(AccountId)
+                    .frontID(kycDocumentRequest.getFrontId())
+                    .backID(kycDocumentRequest.getBackId())
+                    .selfieID(kycDocumentRequest.getSelfieId())
+                    .taxID(kycDocumentRequest.getTaxId())
+                    .build();
+
             repository.save(userDocuments);
             return "KYC Document sent successfully and saved";
         } catch (Exception e) {
@@ -57,6 +59,7 @@ public class KycServiceImpl implements KycServiceApi {
             throw new FailedToSendOTPException("Failed to send KYC Document");
         }
     }
+
 
     @Override
     public String sendKycinfo( String AccountId, KycInfoRequest kycInfoRequest) {
