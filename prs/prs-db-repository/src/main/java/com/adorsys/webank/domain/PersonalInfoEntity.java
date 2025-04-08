@@ -7,7 +7,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "personal_information_table")
+@Table(name = "personal_information_table", indexes = @Index(name = "idx_account_id", columnList = "account_id"))
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 public class PersonalInfoEntity {
 
     @Id
-    @Column(name = "AccountId", nullable = false)
+    @Column(name = "account_id", nullable = false)
     private String accountId;
 
     @Column(name = "id", nullable = false, length = 20)

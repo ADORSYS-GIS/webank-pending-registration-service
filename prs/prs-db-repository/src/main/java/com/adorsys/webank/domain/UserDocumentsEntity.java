@@ -11,7 +11,7 @@ import lombok.Setter;
 public class UserDocumentsEntity {
 
     @Id
-    @Column(name = "AccountId", nullable = false)
+    @Column(name = "account_id", nullable = false)
     private String accountId;
 
     @Lob
