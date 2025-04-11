@@ -17,30 +17,17 @@ import java.time.LocalDateTime;
 public class PersonalInfoEntity {
 
     @Id
-    @Column(name = "\"AccountId\"", nullable = false)
+    @Column(name = "account_id", nullable = false)
     private String accountId;
 
-    @Column(name = "id", nullable = false, length = 20)
+    @Column(name = "document_id", nullable = false, length = 20)
     private String documentUniqueId;
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
-    @Column(name = "date_of_birth", nullable = false, length = 20)
-    private String dateOfBirth;
-
-    @Column(name = "profession", nullable = false, length = 20)
-    private String profession;
-
-    @Column(name = "region", nullable = false, length = 20)
-    private String region;
-
-    @Column(name = "expires_on", nullable = false, updatable = false)
+    @Column(name = "document_expiration_date", nullable = false, updatable = false)
     private String expirationDate;
 
     @Column(name = "otp_expires_at")
     private LocalDateTime otpExpirationDateTime;
-
 
     @Column(name = "location")
     private String location;

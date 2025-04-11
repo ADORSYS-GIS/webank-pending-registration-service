@@ -1,7 +1,6 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,15 +15,6 @@ import java.util.Optional;
 @Tag(name = "KYC", description = "Operations related to KYC processing")
 @RequestMapping("/api/prs/kyc")
 public interface KycRestApi {
-
-    @Operation(summary = "Send KYC Document", description = "Sends and processes KYC documents for identity verification.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "KYC document successfully processed"),
-            @ApiResponse(responseCode = "400", description = "Invalid KYC document data")
-    })
-    @PostMapping(value = "/documents", consumes = "application/json", produces = "application/json")
-    String sendKycDocument(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycDocumentRequest kycDocumentRequest);
-
 
     @Operation(summary = "Submit KYC Info", description = "Submits personal information required for KYC verification.")
     @ApiResponses(value = {
@@ -59,17 +49,7 @@ public interface KycRestApi {
             @ApiResponse(responseCode = "404", description = "User documents not found"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PostMapping(value = "/record", consumes = "application/json", produces = "application/json")
-    Optional<UserDocumentsEntity> getDocuments(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycGetDocRequest kycGetDocRequest);
 
-
-    @Operation(summary = "Get pending OTPs", description = "Fetches all pending OTPs where registration is not complete. The response includes the phone number, a masked version of the OTP, and the registration status.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Pending OTPs successfully retrieved"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
     @GetMapping(value = "/infos", produces = "application/json")
     List<PersonalInfoEntity> getPersonalInfoByStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
 

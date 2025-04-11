@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
+import com.adorsys.webank.dto.KycInfoRequest;
 
 @Tag(name = "OTP Status Update", description = "Operations to update OTP status for pending registrations")
 @RequestMapping("/api/prs/kyc")
@@ -18,8 +19,9 @@ public interface KycStatusUpdateRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PatchMapping(value = "/{publicKeyHash}/{status}", consumes = "application/json", produces = "application/json")
+    @PatchMapping(value = "/{accountId}/{status}", consumes = "application/json", produces = "application/json")
     String updateKycStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-                           @PathVariable("publicKeyHash") String phoneNumber,
-                           @PathVariable("status") String status);
+                           @PathVariable("accountId") String accountId,
+                           @PathVariable("status") String status,
+                           @RequestBody KycInfoRequest kycInfoRequest);
 }

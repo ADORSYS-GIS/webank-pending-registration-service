@@ -2,22 +2,15 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
-import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.dto.*;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.repository.UserDocumentsRepository;
 import com.adorsys.webank.service.KycServiceApi;
-import com.nimbusds.jose.jwk.JWK;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -26,38 +19,10 @@ import java.util.Optional;
 public class KycServiceImpl implements KycServiceApi {
 
     private static final Logger log = LoggerFactory.getLogger(KycServiceImpl.class);
-    private final UserDocumentsRepository repository;
     private final PersonalInfoRepository inforepository;
 
-    public KycServiceImpl(UserDocumentsRepository repository, PersonalInfoRepository inforepository) {
-        this.repository = repository;
+    public KycServiceImpl(PersonalInfoRepository inforepository) {
         this.inforepository = inforepository;
-    }
-
-    @Override
-    public String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest) {
-        if (kycDocumentRequest == null) {
-            throw new IllegalArgumentException("Invalid KYC Document Request");
-        }
-
-        try {
-            log.info("Processing KYC Document for accountId: {}", AccountId);
-
-            // Build the UserDocumentsEntity using builder pattern
-            UserDocumentsEntity userDocuments = UserDocumentsEntity.builder()
-                    .accountId(AccountId)
-                    .frontID(kycDocumentRequest.getFrontId())
-                    .backID(kycDocumentRequest.getBackId())
-                    .selfieID(kycDocumentRequest.getSelfieId())
-                    .taxID(kycDocumentRequest.getTaxId())
-                    .build();
-
-            repository.save(userDocuments);
-            return "KYC Document sent successfully and saved";
-        } catch (Exception e) {
-            log.error("Failed to send KYC Document", e);
-            throw new FailedToSendOTPException("Failed to send KYC Document");
-        }
     }
 
 
@@ -73,11 +38,7 @@ public class KycServiceImpl implements KycServiceApi {
             // Create and populate PersonalInfoEntity
             PersonalInfoEntity personalInfoEntity = PersonalInfoEntity.builder()
                     .accountId(AccountId)
-                    .documentUniqueId(kycInfoRequest.getIdNumber())  // Mapping idNumber -> documentUniqueId
-                    .name(kycInfoRequest.getFullName())              // Mapping fullName -> name
-                    .dateOfBirth(kycInfoRequest.getDateOfBirth())
-                    .profession(kycInfoRequest.getProfession())
-                    .region(kycInfoRequest.getCurrentRegion())       // Mapping currentRegion -> region
+                    .documentUniqueId(kycInfoRequest.getIdNumber())
                     .expirationDate(kycInfoRequest.getExpiryDate())
                     .status(PersonalInfoStatus.PENDING)
                     .build();
@@ -151,12 +112,6 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
 
-
-    @Override
-    public Optional<UserDocumentsEntity> getDocuments(String accountId) {
-        return repository.findById(accountId);
-    }
-
     @Override
     public Optional<PersonalInfoEntity> getPersonalInfoByPublicKey(String accountId) {
         return inforepository.findByAccountId(accountId);
@@ -176,34 +131,20 @@ public class KycServiceImpl implements KycServiceApi {
         for (PersonalInfoEntity personalInfo : personalInfoList) {
             String accountId = personalInfo.getAccountId();
 
-            Optional<UserDocumentsEntity> documentsOpt = repository.findById(accountId);
-            UserDocumentsEntity documents = documentsOpt.orElse(new UserDocumentsEntity());
 
             UserInfoResponse response = new UserInfoResponse();
             response.setAccountId(accountId);
-            response.setFullName(personalInfo.getName());
-            response.setProfession(personalInfo.getProfession());
             response.setIdNumber(personalInfo.getDocumentUniqueId());
-            response.setDob(personalInfo.getDateOfBirth());
-            response.setRegion(personalInfo.getRegion());
             response.setExpirationDate(personalInfo.getExpirationDate());
             response.setLocation(personalInfo.getLocation());
             response.setEmail(personalInfo.getEmail());
-            response.setStatus(personalInfo.getStatus().name()); // Converts Enum to String
-
-
-            // Set documents
-            response.setFrontID(documents.getFrontID());
-            response.setBackID(documents.getBackID());
-            response.setSelfie(documents.getSelfieID());
-            response.setTaxDocument(documents.getTaxID());
+            response.setStatus(personalInfo.getStatus().name());
 
             responseList.add(response);
         }
 
         return responseList;
     }
-
 
 
 }
