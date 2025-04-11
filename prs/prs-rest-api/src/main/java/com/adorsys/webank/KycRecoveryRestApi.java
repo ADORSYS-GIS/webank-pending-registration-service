@@ -20,7 +20,7 @@ public interface KycRecoveryRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized access"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PatchMapping(value = "/{accountId}", consumes = "application/json", produces = "application/json")
+    @PostMapping(value = "/{accountId}", consumes = "application/json", produces = "application/json")
     String verifyKycRecoveryFields(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
                            @PathVariable("accountId") String accountId,
                            @RequestBody KycInfoRequest kycInfoRequest);
