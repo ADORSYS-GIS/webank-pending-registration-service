@@ -24,7 +24,7 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     @Override
     @Transactional
     public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate) {
-        log.info("Updating KYC status for publicKeyHash {} to {}", accountId, newStatus);
+        log.info("Updating KYC status for accountId {} to {}", accountId, newStatus);
 
         Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
         if (personalInfoOpt.isPresent()) {
