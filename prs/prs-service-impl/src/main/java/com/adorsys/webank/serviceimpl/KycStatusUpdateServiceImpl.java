@@ -30,15 +30,13 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
         if (personalInfoOpt.isPresent()) {
             PersonalInfoEntity personalInfo = personalInfoOpt.get();
 
-
             // Validate document details
-
             if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
                 log.error("Document ID mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getDocumentUniqueId(), idNumber);
                 return "Failed: Document ID mismatch";
             }
 
-            if (!personalInfo.getExpirationDate() .equals(expiryDate)) {
+            if (!personalInfo.getExpirationDate().equals(expiryDate)) {
                 log.error("Document expiry date mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getExpirationDate(), expiryDate);
                 return "Failed: Document expiry date mismatch";
             }
@@ -56,8 +54,8 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
                 return "Failed: Invalid KYC status value '" + newStatus + "'";
             }
         } else {
-            log.warn("No record found for publicKeyHash {}", accountId);
-            return "Failed: No record found for publicKeyHash " + accountId;
+            log.warn("No record found for accountId {}", accountId);
+            return "Failed: No record found for accountId " + accountId;
         }
     }
 }
