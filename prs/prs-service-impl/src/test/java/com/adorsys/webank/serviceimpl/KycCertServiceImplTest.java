@@ -1,4 +1,4 @@
-/**package com.adorsys.webank.serviceimpl;
+package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
@@ -15,7 +15,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
@@ -27,93 +26,74 @@ class KycCertServiceImplTest {
     @Mock
     private PersonalInfoRepository personalInfoRepository;
 
+    @Mock
+    private CertGeneratorHelper certGeneratorHelper;
+
     @InjectMocks
     private KycCertServiceImpl kycCertService;
+
+    private JWK publicKey;
+    private static final String TEST_ACCOUNT_ID = "test-account-id";
 
     @BeforeEach
     void setUp() throws NoSuchAlgorithmException {
         MockitoAnnotations.openMocks(this);
-
-        // Generate an EC key pair for testing
-        KeyPair keyPair = generateECKeyPair();
-        ECKey ecKey = new ECKey.Builder(Curve.P_256, (java.security.interfaces.ECPublicKey) keyPair.getPublic())
-                .privateKey((java.security.interfaces.ECPrivateKey) keyPair.getPrivate())
-                .build();
-
-        // Initialize CertGeneratorHelper with mock values
-        kycCertService = new KycCertServiceImpl(personalInfoRepository);
-        injectCertGeneratorHelper(kycCertService);
+        publicKey = generateTestPublicKey();
     }
 
     @Test
     void testGetCert_WhenPersonalInfoExistsAndApproved() throws Exception {
         // Arrange
-        JWK publicKey = generateTestPublicKey();
-        String publicKeyHash = computeHash(publicKey.toJSONString());
-
         PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-        personalInfo.setPublicKeyHash(publicKeyHash);
+        personalInfo.setAccountId(TEST_ACCOUNT_ID);
         personalInfo.setStatus(PersonalInfoStatus.APPROVED);
 
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(personalInfo));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
+        when(certGeneratorHelper.generateCertificate(publicKey.toJSONString())).thenReturn("test-certificate");
 
         // Act
-        String result = kycCertService.getCert(publicKey);
+        String result = kycCertService.getCert(publicKey, TEST_ACCOUNT_ID);
 
         // Assert
         assertNotNull(result, "Result should not be null");
-        assertTrue(result.contains("Your certificate is:"), "Certificate should be generated");
+        assertTrue(result.contains("Your certificate is: test-certificate"), "Certificate should be generated");
 
-        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
+        verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, times(1)).generateCertificate(publicKey.toJSONString());
     }
 
     @Test
-    void testGetCert_WhenPersonalInfoDoesNotExist() throws Exception {
+    void testGetCert_WhenPersonalInfoDoesNotExist() {
         // Arrange
-        JWK publicKey = generateTestPublicKey();
-        String publicKeyHash = computeHash(publicKey.toJSONString());
-
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.empty());
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.empty());
 
         // Act
-        String result = kycCertService.getCert(publicKey);
+        String result = kycCertService.getCert(publicKey, TEST_ACCOUNT_ID);
 
         // Assert
         assertEquals("null", result, "Result should be 'null' when personal info does not exist");
 
-        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
+        verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     @Test
-    void testGetCert_WhenPersonalInfoExistsButNotApproved() throws Exception {
+    void testGetCert_WhenPersonalInfoExistsButNotApproved() {
         // Arrange
-        JWK publicKey = generateTestPublicKey();
-        String publicKeyHash = computeHash(publicKey.toJSONString());
-
         PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-        personalInfo.setPublicKeyHash(publicKeyHash);
+        personalInfo.setAccountId(TEST_ACCOUNT_ID);
         personalInfo.setStatus(PersonalInfoStatus.PENDING);
 
-        when(personalInfoRepository.findByPublicKeyHash(publicKeyHash)).thenReturn(Optional.of(personalInfo));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
 
         // Act
-        String result = kycCertService.getCert(publicKey);
+        String result = kycCertService.getCert(publicKey, TEST_ACCOUNT_ID);
 
         // Assert
         assertEquals("null", result, "Result should be 'null' when personal info is not approved");
 
-        verify(personalInfoRepository, times(1)).findByPublicKeyHash(publicKeyHash);
-    }
-
-    private void injectCertGeneratorHelper(KycCertServiceImpl service) throws NoSuchAlgorithmException {
-        CertGeneratorHelper certGeneratorHelper = new CertGeneratorHelper();
-
-        try {
-            var field = KycCertServiceImpl.class.getDeclaredField("certGeneratorHelper");
-            field.setAccessible(true);
-            field.set(service, certGeneratorHelper);
-        } catch (Exception ignored) {
-        }
+        verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     private JWK generateTestPublicKey() throws NoSuchAlgorithmException {
@@ -121,24 +101,9 @@ class KycCertServiceImplTest {
         return new ECKey.Builder(Curve.P_256, (java.security.interfaces.ECPublicKey) keyPair.getPublic()).build();
     }
 
-    private String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                String hex = String.format("%02x", b);
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            return null;
-        }
-    }
-
     private KeyPair generateECKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
         keyPairGenerator.initialize(256); // Use P-256 curve
         return keyPairGenerator.generateKeyPair();
     }
-}**/
+}
