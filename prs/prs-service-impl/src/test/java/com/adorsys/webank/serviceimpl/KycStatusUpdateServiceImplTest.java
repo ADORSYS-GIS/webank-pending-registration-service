@@ -30,16 +30,21 @@ class KycStatusUpdateServiceImplTest {
         dummyEntity = new PersonalInfoEntity();
         dummyEntity.setAccountId("dummyHash");
         dummyEntity.setStatus(PersonalInfoStatus.PENDING);
+        dummyEntity.setDocumentUniqueId("dummyIdNumber");
+        dummyEntity.setExpirationDate("2025-12-31");
     }
 
     @Test
     void testUpdateKycStatus_Success() {
-        // Given a valid status string that converts to an enum (e.g., APPROVED)
+        // Given a valid status string and matching document details
         when(personalInfoRepository.findByAccountId("dummyHash")).thenReturn(Optional.of(dummyEntity));
         when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(dummyEntity);
 
-        String newStatus = "approved";  // will be converted to APPROVED by valueOf(…)
-        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", newStatus);
+        String newStatus = "approved";
+        String idNumber = "dummyIdNumber";
+        String expiryDate = "2025-12-31";
+
+        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", newStatus, idNumber, expiryDate);
 
         assertEquals("KYC status for dummyHash updated to approved", response);
         assertEquals(PersonalInfoStatus.APPROVED, dummyEntity.getStatus());
@@ -48,33 +53,56 @@ class KycStatusUpdateServiceImplTest {
 
     @Test
     void testUpdateKycStatus_InvalidStatus() {
-        // Given an invalid status string which should trigger IllegalArgumentException in valueOf(…)
+        // Given an invalid status string
         when(personalInfoRepository.findByAccountId("dummyHash")).thenReturn(Optional.of(dummyEntity));
 
         String invalidStatus = "notAValidStatus";
-        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", invalidStatus);
+        String idNumber = "dummyIdNumber";
+        String expiryDate = "2025-12-31";
+
+        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", invalidStatus, idNumber, expiryDate);
 
         assertEquals("Failed: Invalid KYC status value 'notAValidStatus'", response);
-        // Ensure save is not attempted when status conversion fails.
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 
     @Test
     void testUpdateKycStatus_RecordNotFound() {
-        // Given no record found for the provided publicKeyHash.
+        // Given no record found for the provided accountId
         when(personalInfoRepository.findByAccountId("nonExistingHash")).thenReturn(Optional.empty());
 
-        String response = kycStatusUpdateServiceImpl.updateKycStatus("nonExistingHash", "approved");
+        String response = kycStatusUpdateServiceImpl.updateKycStatus("nonExistingHash", "approved", "dummyIdNumber", "2025-12-31");
 
-        assertEquals("Failed: No record found for publicKeyHash nonExistingHash", response);
+        assertEquals("Failed: No record found for accountId nonExistingHash", response);
     }
 
     @Test
-    void testGetPersonalInfoByPublicKey() {
+    void testUpdateKycStatus_DocumentIdMismatch() {
+        // Given a mismatched document ID
         when(personalInfoRepository.findByAccountId("dummyHash")).thenReturn(Optional.of(dummyEntity));
-        Optional<PersonalInfoEntity> result = kycStatusUpdateServiceImpl.getPersonalInfoByPublicKey("dummyHash");
 
-        assertTrue(result.isPresent());
-        assertEquals("dummyHash", result.get().getAccountId());
+        String newStatus = "approved";
+        String idNumber = "wrongIdNumber";
+        String expiryDate = "2025-12-31";
+
+        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", newStatus, idNumber, expiryDate);
+
+        assertEquals("Failed: Document ID mismatch", response);
+        verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
+    }
+
+    @Test
+    void testUpdateKycStatus_ExpiryDateMismatch() {
+        // Given a mismatched expiry date
+        when(personalInfoRepository.findByAccountId("dummyHash")).thenReturn(Optional.of(dummyEntity));
+
+        String newStatus = "approved";
+        String idNumber = "dummyIdNumber";
+        String expiryDate = "2024-12-31";
+
+        String response = kycStatusUpdateServiceImpl.updateKycStatus("dummyHash", newStatus, idNumber, expiryDate);
+
+        assertEquals("Failed: Document expiry date mismatch", response);
+        verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 }
