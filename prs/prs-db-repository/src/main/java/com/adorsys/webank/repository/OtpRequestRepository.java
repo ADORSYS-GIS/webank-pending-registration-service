@@ -8,9 +8,26 @@ import com.adorsys.webank.domain.OtpStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+
 
 @Repository
 public interface OtpRequestRepository extends JpaRepository<OtpEntity, UUID> {
     Optional<OtpEntity> findByPublicKeyHash(String publicKeyHash);
     List<OtpEntity> findByStatus(OtpStatus status);
+
+    @Modifying
+    @Query("UPDATE OtpEntity o SET " +
+            "o.otpCode = :otpCode, " +
+            "o.status = :status, " +
+            "o.updatedAt = :updatedAt " +
+            "WHERE o.publicKeyHash = :publicKeyHash")
+    int updateOtpByPublicKeyHash(
+            @Param("publicKeyHash") String publicKeyHash,
+            @Param("otpCode") String otpCode,
+            @Param("status") OtpStatus status,
+            @Param("updatedAt") java.time.LocalDateTime updatedAt
+    );
 }
