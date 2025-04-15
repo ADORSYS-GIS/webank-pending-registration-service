@@ -1,30 +1,22 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.OtpEntity;
-import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.adorsys.webank.repository.OtpRequestRepository;
-import com.adorsys.webank.service.OtpServiceApi;
+import com.adorsys.webank.domain.*;
+import com.adorsys.webank.exceptions.*;
+import com.adorsys.webank.repository.*;
+import com.adorsys.webank.service.*;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import com.twilio.Twilio;
-import jakarta.annotation.PostConstruct;
-import org.erdtman.jcs.JsonCanonicalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import com.nimbusds.jose.crypto.*;
+import com.nimbusds.jose.jwk.*;
+import jakarta.transaction.*;
+import org.erdtman.jcs.*;
+import org.slf4j.*;
+import org.springframework.beans.factory.annotation.*;
+import org.springframework.stereotype.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.Optional;
+import java.nio.charset.*;
+import java.security.*;
+import java.time.*;
+import java.util.*;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -33,16 +25,6 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
-    // Twilio credentials and other @Value fields
-    @Value("${twilio.account.sid}")
-    private String accountSid;
-
-    @Value("${twilio.auth.token}")
-    private String authToken;
-
-    @Value("${twilio.phone.number}")
-    private String fromPhoneNumber;
 
     @Value("${otp.salt}")
     private String salt;
@@ -58,12 +40,6 @@ public class OtpServiceImpl implements OtpServiceApi {
         this.otpRequestRepository = otpRequestRepository;
     }
 
-    @PostConstruct
-    public void initTwilio() {
-        Twilio.init(accountSid, authToken); // Initialize Twilio once
-    }
-
-    // Remaining methods...
 
     @Override
     public String generateOtp() {
@@ -73,6 +49,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
+    @Transactional
     public String sendOtp(JWK devicePub, String phoneNumber) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
@@ -80,38 +57,52 @@ public class OtpServiceImpl implements OtpServiceApi {
 
         try {
             String otp = generateOtp();
-            log.info("OTP sent to phone number:{}", otp);
-
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
-            String otpJSON = "{\"otp\":\"" + otp + "\","
-                    + "\"devicePub\":" + devicePub.toJSONString() + ","
-                    + "\"phoneNumber\":\"" + phoneNumber + "\","
-                    + "\"salt\":\"" + salt + "\"}";
+            // 1. First try to update existing record if found
+            int updatedRows = otpRequestRepository.updateOtpByPublicKeyHash(
+                    publicKeyHash,
+                    otp,
+                    OtpStatus.PENDING,
+                    LocalDateTime.now()
+            );
 
-            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String input = jc.getEncodedString();
-            log.info(input);
-            String otpHash = computeHash(input);
-            log.info("OTP hash:{}", otpHash);
+            OtpEntity otpRequest;
 
-            OtpEntity otpRequest = OtpEntity.builder()
-                    .phoneNumber(phoneNumber)
-                    .publicKeyHash(publicKeyHash)
-                    .otpHash(otpHash)
-                    .otpCode(otp)
-                    .status(OtpStatus.PENDING)
-                    .build();
+            if (updatedRows == 0) {
+                // 2. If no record was updated, create new one
+                otpRequest = OtpEntity.builder()
+                        .phoneNumber(phoneNumber)
+                        .publicKeyHash(publicKeyHash)
+                        .status(OtpStatus.PENDING)
+                        .build();
+            } else {
+                // 3. If record was updated, fetch it
+                otpRequest = otpRequestRepository.findByPublicKeyHash(publicKeyHash)
+                        .orElseThrow(() -> new FailedToSendOTPException("Failed to fetch updated OTP record"));
+            }
+
+            // Generate OTP hash
+            String otpJSON = String.format(
+                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
+                    otp, devicePub.toJSONString(), phoneNumber, salt
+            );
+            String otpHash = computeHash(new JsonCanonicalizer(otpJSON).getEncodedString());
+
+            // Set hash and save
+            otpRequest.setOtpHash(otpHash);
+            otpRequest.setOtpCode(otp);
             otpRequestRepository.save(otpRequest);
 
-            log.info("Message sent to phone number: {}", otp);
-
+            log.info("OTP code for {}  is  {}",   phoneNumber, otpRequest.getOtpCode());
             return otpHash;
         } catch (Exception e) {
+            log.error("Failed to send OTP to {}", phoneNumber, e);
             throw new FailedToSendOTPException("Failed to send OTP");
         }
     }
+
 
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {

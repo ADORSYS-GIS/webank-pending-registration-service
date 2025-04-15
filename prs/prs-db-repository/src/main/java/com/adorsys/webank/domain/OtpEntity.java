@@ -26,7 +26,7 @@ public class OtpEntity {
     @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;
 
-    @Column(name = "public_key_hash", nullable = false)
+    @Column(name = "public_key_hash", unique = true, nullable = false)
     private String publicKeyHash;
 
     @Column(name = "otp_hash", nullable = false)
