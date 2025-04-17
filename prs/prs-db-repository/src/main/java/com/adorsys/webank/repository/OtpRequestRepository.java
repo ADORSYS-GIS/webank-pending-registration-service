@@ -11,6 +11,7 @@ import java.util.Optional;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import java.time.LocalDateTime;
 
 
 @Repository
@@ -28,6 +29,6 @@ public interface OtpRequestRepository extends JpaRepository<OtpEntity, UUID> {
             @Param("publicKeyHash") String publicKeyHash,
             @Param("otpCode") String otpCode,
             @Param("status") OtpStatus status,
-            @Param("updatedAt") java.time.LocalDateTime updatedAt
+            @Param("updatedAt") LocalDateTime updatedAt
     );
 }
