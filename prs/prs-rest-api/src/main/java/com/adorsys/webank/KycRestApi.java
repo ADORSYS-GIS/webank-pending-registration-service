@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
+import com.adorsys.webank.domain.UserDocumentsEntity;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +16,16 @@ import java.util.Optional;
 @Tag(name = "KYC", description = "Operations related to KYC processing")
 @RequestMapping("/api/prs/kyc")
 public interface KycRestApi {
+
+
+    @Operation(summary = "Send KYC Document", description = "Sends and processes KYC documents for identity verification.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "KYC document successfully processed"),
+            @ApiResponse(responseCode = "400", description = "Invalid KYC document data")
+    })
+    @PostMapping(value = "/documents", consumes = "application/json", produces = "application/json")
+    String sendKycDocument(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycDocumentRequest kycDocumentRequest);
+
 
     @Operation(summary = "Submit KYC Info", description = "Submits personal information required for KYC verification.")
     @ApiResponses(value = {
@@ -59,8 +70,14 @@ public interface KycRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @GetMapping(value = "/findId/{DocumentUniqueId}", produces = "application/json")
+    @GetMapping(value = "/findById/{DocumentUniqueId}", produces = "application/json")
     List<UserInfoResponse> findByDocumentUniqueId(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
                                                   @PathVariable("DocumentUniqueId") String DocumentUniqueId);
+
+
+    @PostMapping(value = "/record", consumes = "application/json", produces = "application/json")
+    Optional<UserDocumentsEntity> getDocuments(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycGetDocRequest kycGetDocRequest);
+
 
 }
