@@ -9,6 +9,8 @@ import com.adorsys.webank.service.KycServiceApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.domain.UserDocumentsEntity;
 
 import java.util.List;
 import java.util.Optional;
@@ -122,6 +124,54 @@ public class KycRestServer implements KycRestApi {
         return kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
 
     }
+
+    @Override
+    public String sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
+        String jwtToken;
+
+
+        try {
+            // Extract the JWT token from the Authorization header
+            jwtToken = extractJwtFromHeader(authorizationHeader);
+            JwtValidator.validateAndExtract(jwtToken,  kycDocumentRequest.getFrontId(),kycDocumentRequest.getBackId(), kycDocumentRequest.getSelfieId()
+                    , kycDocumentRequest.getTaxId(), kycDocumentRequest.getAccountId());
+            log.info("Successfully validated sendinfo");
+
+
+            // Validate the JWT token using the injected CertValidator instance
+            if (!certValidator.validateJWT(jwtToken)) {
+
+                return "Invalid or unauthorized JWT.";
+            }
+        } catch (Exception e) {
+            return "Invalid JWT: " + e.getMessage();
+        }
+
+        String AccountId = kycDocumentRequest.getAccountId();
+        return kycServiceApi.sendKycDocument(AccountId, kycDocumentRequest);
+    }
+
+
+    @Override
+    public Optional<UserDocumentsEntity> getDocuments(String authorizationHeader, KycGetDocRequest kycGetDocRequest) {
+        String jwtToken;
+        String accountId = kycGetDocRequest.getAccountId();
+        try {
+            // Extract the JWT token from the Authorization header
+            jwtToken = extractJwtFromHeader(authorizationHeader);
+            JwtValidator.validateAndExtract(jwtToken, accountId);
+
+            log.info("Fetching documents for public key hash: {}", accountId);
+        } catch (Exception e) {
+            log.error("Error extracting JWT token or fetching documents for accountid: {}", accountId, e);
+            throw new IllegalArgumentException("An error occurred while fetching documents.");
+        }
+        // Delegate to the service to retrieve user documents
+        return kycServiceApi.getDocuments(accountId);
+    }
+
+
+
 
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
