@@ -1,20 +1,15 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.domain.*;
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.service.KycServiceApi;
-import jakarta.persistence.EntityNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import  com.adorsys.webank.repository.UserDocumentsRepository;
-import com.adorsys.webank.domain.UserDocumentsEntity;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import com.adorsys.webank.exceptions.*;
+import com.adorsys.webank.repository.*;
+import com.adorsys.webank.service.*;
+import jakarta.persistence.*;
+import org.slf4j.*;
+import org.springframework.stereotype.*;
+
+import java.util.*;
 
 @Service
 public class KycServiceImpl implements KycServiceApi {
@@ -139,79 +134,65 @@ public class KycServiceImpl implements KycServiceApi {
         }
     }
 
-
-    @Override
-    public Optional<UserDocumentsEntity> getDocuments(String accountId) {
-        return repository.findByAccountId(accountId);
-    }
-
     @Override
     public Optional<PersonalInfoEntity> getPersonalInfoAccountId(String accountId) {
         return inforepository.findByAccountId(accountId);
     }
 
     @Override
-    public List<PersonalInfoEntity> getPersonalInfoByStatus(PersonalInfoStatus status) {
-        return inforepository.findByStatus(status);
-    }
+    public List<UserInfoResponse> getPendingKycRecords() {
+        List<PersonalInfoEntity> pendingInfos = inforepository.findByStatus(PersonalInfoStatus.PENDING);
+        List<UserInfoResponse> responses = new ArrayList<>();
 
+        for (PersonalInfoEntity info : pendingInfos) {
+            Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(info.getAccountId());
+            responses.add(mapToUserInfoResponse(info, documentsOpt));
+        }
+
+        return responses;
+    }
 
     @Override
     public List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId) {
-        // Log the input parameter for debugging
         log.info("Finding KYC records for documentUniqueId: {}", documentUniqueId);
 
-        // Fetch personal information from the database
         List<PersonalInfoEntity> personalInfoList = inforepository.findByDocumentUniqueId(documentUniqueId);
-        log.info("PersonalInfoEntity List fetched: {}", personalInfoList);
-
-        // Initialize the response list
         List<UserInfoResponse> responseList = new ArrayList<>();
 
-        // Iterate through each PersonalInfoEntity
         for (PersonalInfoEntity personalInfo : personalInfoList) {
             try {
-                // Log the current PersonalInfoEntity being processed
                 log.info("Processing PersonalInfoEntity: {}", personalInfo);
-
-                // Extract accountId from PersonalInfoEntity
-                String accountId = personalInfo.getAccountId();
-                log.info("Fetching documents for accountId: {}", accountId);
-
-                // Fetch user documents using accountId
-                Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(accountId);
-                UserDocumentsEntity documents = documentsOpt.orElse(new UserDocumentsEntity());
-                log.info("UserDocumentsEntity fetched: {}", documents);
-
-                // Create a UserInfoResponse object
-                UserInfoResponse response = new UserInfoResponse();
-
-                // Populate personal information fields
-                response.setAccountId(accountId);
-                response.setIdNumber(personalInfo.getDocumentUniqueId());
-                response.setExpirationDate(personalInfo.getExpirationDate());
-                response.setLocation(personalInfo.getLocation());
-                response.setEmail(personalInfo.getEmail());
-                response.setStatus(personalInfo.getStatus().name());
-
-                // Populate document-related fields with null checks
-                response.setFrontID(documents.getFrontID());
-                response.setBackID(documents.getBackID());
-                response.setSelfie(documents.getSelfieID());
-                response.setTaxDocument(documents.getTaxID());
-
-                // Add the response to the list
-                responseList.add(response);
-                log.info("UserInfoResponse created: {}", response);
+                Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(personalInfo.getAccountId());
+                responseList.add(mapToUserInfoResponse(personalInfo, documentsOpt));
             } catch (Exception e) {
-                // Log any errors encountered during processing
                 log.error("Error processing PersonalInfoEntity: {}", personalInfo, e);
             }
         }
 
-        // Log the final response list before returning
         log.info("Final UserInfoResponse List: {}", responseList);
         return responseList;
     }
+
+
+    //Helper Method
+    private UserInfoResponse mapToUserInfoResponse(PersonalInfoEntity info, Optional<UserDocumentsEntity> documentsOpt) {
+        UserDocumentsEntity documents = documentsOpt.orElseGet(UserDocumentsEntity::new);
+
+        UserInfoResponse response = new UserInfoResponse();
+        response.setAccountId(info.getAccountId());
+        response.setIdNumber(info.getDocumentUniqueId());
+        response.setExpirationDate(info.getExpirationDate());
+        response.setLocation(info.getLocation());
+        response.setEmail(info.getEmail());
+        response.setStatus(info.getStatus().name());
+
+        response.setFrontID(documents.getFrontID());
+        response.setBackID(documents.getBackID());
+        response.setSelfie(documents.getSelfieID());
+        response.setTaxDocument(documents.getTaxID());
+
+        return response;
+    }
+
 
 }
