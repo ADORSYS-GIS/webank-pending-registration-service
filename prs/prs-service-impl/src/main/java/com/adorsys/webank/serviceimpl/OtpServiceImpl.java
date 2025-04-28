@@ -29,12 +29,6 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Value("${otp.salt}")
     private String salt;
 
-    @Value("${server.private.key}")
-    private String SERVER_PRIVATE_KEY_JSON;
-
-    @Value("${server.public.key}")
-    private String SERVER_PUBLIC_KEY_JSON;
-
     // Constructor
     public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
         this.otpRequestRepository = otpRequestRepository;
@@ -137,7 +131,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             if (newOtpHash.equals(otpEntity.getOtpHash())) {
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
-                return "Certificate generated: " + generatePhoneNumberCertificate(phoneNumber, devicePublicKey);
+                return "Otp Validated Successfully";
             } else {
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
@@ -164,35 +158,4 @@ public class OtpServiceImpl implements OtpServiceApi {
         return computeHash(devicePublicKey);
     }
 
-    public String generatePhoneNumberCertificate(String phoneNumber, String devicePublicKey) {
-        try {
-            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-            if (serverPrivateKey.getD() == null) {
-                throw new HashComputationException("Private key 'd' (private) parameter is missing.");
-            }
-
-            JWSSigner signer = new ECDSASigner(serverPrivateKey);
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashedPhoneNumber = digest.digest(phoneNumber.getBytes(StandardCharsets.UTF_8));
-            String phoneHash = Base64.getEncoder().encodeToString(hashedPhoneNumber);
-
-            byte[] hashedDevicePubKey = digest.digest(devicePublicKey.getBytes(StandardCharsets.UTF_8));
-            String devicePubKeyHash = Base64.getEncoder().encodeToString(hashedDevicePubKey);
-
-            String payloadData = String.format("{\"phoneHash\": \"%s\", \"devicePubKeyHash\": \"%s\"}", phoneHash, devicePubKeyHash);
-            Payload payload = new Payload(payloadData);
-
-            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                    .type(JOSEObjectType.JWT)
-                    .build();
-
-            JWSObject jwsObject = new JWSObject(header, payload);
-            jwsObject.sign(signer);
-
-            return jwsObject.serialize();
-        } catch (Exception e) {
-            log.error("Error generating device certificate", e);
-            throw new HashComputationException("Error generating device certificate");
-        }
-    }
 }

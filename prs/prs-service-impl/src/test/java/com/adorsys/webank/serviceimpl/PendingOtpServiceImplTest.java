@@ -48,7 +48,7 @@ class PendingOtpServiceImplTest {
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(otpList);
 
         // Act: call the service method.
-        List<PendingOtpDto> result = pendingOtpServiceImpl.getPendingOtps();
+        List<PendingOtpDto> result = pendingOtpServiceImpl.fetchPendingOtpEntries();
 
         // Assert: ensure proper mapping from OtpEntity to PendingOtpDto.
         assertEquals(2, result.size());

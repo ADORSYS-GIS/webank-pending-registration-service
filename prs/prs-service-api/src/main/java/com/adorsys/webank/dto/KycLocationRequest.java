@@ -1,5 +1,10 @@
 package com.adorsys.webank.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class KycLocationRequest {
     private String location;
     private String accountId;
@@ -9,19 +14,6 @@ public class KycLocationRequest {
         this.accountId = accountId;
     }
 
-    public String getLocation() {
-        return location;
-    }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
 
-    public String getAccountId() {
-        return accountId;
-    }
-
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
 }

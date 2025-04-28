@@ -1,5 +1,10 @@
 package com.adorsys.webank.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class KycEmailRequest {
     private String email;
     private String accountId;
@@ -9,19 +14,4 @@ public class KycEmailRequest {
         this.accountId = accountId;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getAccountId() {
-        return accountId;
-    }
-
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
 }

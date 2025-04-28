@@ -1,20 +1,14 @@
 package com.adorsys.webank.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class KycGetDocRequest {
     private String accountId;
 
     public KycGetDocRequest() {
     }
 
-    public KycGetDocRequest(String accountId) {
-        this.accountId = accountId;
-    }
-
-    public String getAccountId() {
-        return accountId;
-    }
-
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
 }

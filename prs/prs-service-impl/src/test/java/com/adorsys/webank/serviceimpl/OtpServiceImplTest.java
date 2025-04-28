@@ -36,19 +36,14 @@ public class OtpServiceImplTest {
     @InjectMocks
     private OtpServiceImpl otpService;
 
-    private ECKey serverPrivateKey;
     private ECKey devicePublicKey;
     private String phoneNumber = "+1234567890";
 
     @BeforeEach
     void setUp() throws Exception {
         // Generate test EC keys for server and device
-        serverPrivateKey = new ECKeyGenerator(Curve.P_256).generate();
         devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
 
-        // Set server keys using reflection
-        ReflectionTestUtils.setField(otpService, "SERVER_PRIVATE_KEY_JSON", serverPrivateKey.toJSONString());
-        ReflectionTestUtils.setField(otpService, "SERVER_PUBLIC_KEY_JSON", serverPrivateKey.toPublicJWK().toJSONString());
         ReflectionTestUtils.setField(otpService, "salt", "test-salt");
     }
 
@@ -105,22 +100,6 @@ public class OtpServiceImplTest {
 
         assertEquals("Invalid OTP", result);
         assertEquals(OtpStatus.INCOMPLETE, request.getStatus());
-    }
-
-    // Fixed SignatureDeclareThrowsException by changing Exception to JOSEException
-    @Test
-    void generatePhoneNumberCertificate_ValidInput_ReturnsSignedJwt() throws JOSEException, ParseException {
-        String certificate = otpService.generatePhoneNumberCertificate(phoneNumber, devicePublicKey.toJSONString());
-
-        // Parse and verify JWT
-        JWSObject jws = JWSObject.parse(certificate);
-        ECKey publicKey = serverPrivateKey.toPublicJWK();
-        assertTrue(jws.verify(new ECDSAVerifier(publicKey)));
-
-        // Verify payload content
-        String payload = jws.getPayload().toString();
-        assertTrue(payload.contains("phoneHash"));
-        assertTrue(payload.contains("devicePubKeyHash"));
     }
 
     private OtpEntity createTestOtpRequest(String otpCode, int minutesAgo) {

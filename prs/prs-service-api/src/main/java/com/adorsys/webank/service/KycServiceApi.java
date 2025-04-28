@@ -9,8 +9,8 @@ import java.util.*;
 @Service
 public interface KycServiceApi {
     String sendKycDocument( String AccountId, KycDocumentRequest kycDocumentRequest);
-    String sendKycinfo( String AccountId, KycInfoRequest kycInfoRequest);
-    String sendKyclocation( KycLocationRequest kycLocationRequest);
+    String sendKycInfo(String AccountId, KycInfoRequest kycInfoRequest);
+    String sendKycLocation(KycLocationRequest kycLocationRequest);
     String sendKycEmail(KycEmailRequest kycEmailRequest);
     Optional<PersonalInfoEntity> getPersonalInfoAccountId(String accountId);
     List<UserInfoResponse> getPendingKycRecords();

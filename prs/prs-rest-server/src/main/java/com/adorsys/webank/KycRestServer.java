@@ -29,7 +29,7 @@ public class KycRestServer implements KycRestApi {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            return kycServiceApi.sendKycinfo(kycInfoRequest.getAccountId(), kycInfoRequest);
+            return kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }
@@ -45,7 +45,7 @@ public class KycRestServer implements KycRestApi {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            return kycServiceApi.sendKyclocation(kycLocationRequest);
+            return kycServiceApi.sendKycLocation(kycLocationRequest);
         } catch (Exception e) {
             return "Invalid JWT: " + e.getMessage();
         }

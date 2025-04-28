@@ -29,10 +29,10 @@ public class TokenServiceImpl implements TokenServiceApi {
 
     private static final Logger log = LoggerFactory.getLogger(TokenServiceImpl.class);
 
-    @Value("${server.private.key.json}")
+    @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
 
-    @Value("${server.public.key.json}")
+    @Value("${server.public.key}")
     private String SERVER_PUBLIC_KEY_JSON;
 
     @Value("${jwt.issuer}")

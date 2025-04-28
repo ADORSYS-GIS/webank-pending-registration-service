@@ -12,5 +12,5 @@ public interface PendingOtpServiceApi {
      *
      * @return List of PendingOtpDto objects containing phone number, masked OTP, and status.
      */
-    List<PendingOtpDto> getPendingOtps();
+    List<PendingOtpDto> fetchPendingOtpEntries();
 }
