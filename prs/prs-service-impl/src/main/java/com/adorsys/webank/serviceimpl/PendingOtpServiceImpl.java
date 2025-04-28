@@ -22,7 +22,7 @@ public class PendingOtpServiceImpl implements PendingOtpServiceApi {
     }
 
     @Override
-    public List<PendingOtpDto> getPendingOtps() {
+    public List<PendingOtpDto> fetchPendingOtpEntries() {
         return otpRequestRepository.findByStatus(OtpStatus.PENDING)
                 .stream()
                 .map(otp -> new PendingOtpDto(otp.getPhoneNumber(), otp.getOtpCode(), otp.getStatus().name()))

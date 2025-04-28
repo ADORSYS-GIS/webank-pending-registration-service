@@ -35,10 +35,10 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${otp.salt}")
     private String salt;
 
-    @Value("${server.private.key.json}")
+    @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
 
-    @Value("${server.public.key.json}")
+    @Value("${server.public.key}")
     private String SERVER_PUBLIC_KEY_JSON;
 
     @Value("${jwt.issuer}")

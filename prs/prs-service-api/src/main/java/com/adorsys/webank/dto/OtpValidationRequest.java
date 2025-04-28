@@ -1,5 +1,10 @@
 package com.adorsys.webank.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class OtpValidationRequest {
     private String phoneNumber;
     private String otpInput;
@@ -11,24 +16,4 @@ public class OtpValidationRequest {
         this.otpInput = otpInput;
     }
 
-
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public String getOtpInput() {
-        return otpInput;
-    }
-
-
-
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public void setOtpInput(String otpInput) {
-        this.otpInput = otpInput;
-    }
 }

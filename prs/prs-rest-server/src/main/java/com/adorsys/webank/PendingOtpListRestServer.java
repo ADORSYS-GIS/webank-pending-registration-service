@@ -1,7 +1,6 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.PendingOtpDto;
-import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.PendingOtpServiceApi;
 import org.slf4j.Logger;
@@ -34,7 +33,7 @@ public class PendingOtpListRestServer implements PendingOtpListRestApi {
             throw new IllegalArgumentException("An error occurred");
         }
         // Delegate to the service to retrieve pending OTP records.
-        return pendingOtpServiceApi.getPendingOtps();
+        return pendingOtpServiceApi.fetchPendingOtpEntries();
     }
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {

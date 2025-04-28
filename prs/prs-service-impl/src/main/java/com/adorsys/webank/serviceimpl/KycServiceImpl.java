@@ -51,7 +51,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
-    public String sendKycinfo( String AccountId, KycInfoRequest kycInfoRequest) {
+    public String sendKycInfo(String AccountId, KycInfoRequest kycInfoRequest) {
         if (kycInfoRequest == null) {
             throw new IllegalArgumentException("Invalid KYC Info Request");
         }
@@ -79,7 +79,7 @@ public class KycServiceImpl implements KycServiceApi {
 
 
     @Override
-    public String sendKyclocation( KycLocationRequest kycLocationRequest) {
+    public String sendKycLocation(KycLocationRequest kycLocationRequest) {
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
             throw new IllegalArgumentException("Invalid KYC Location Request");
         }
