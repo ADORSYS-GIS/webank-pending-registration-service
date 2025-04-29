@@ -23,7 +23,6 @@ public class KycServiceImpl implements KycServiceApi {
         this.repository = repository;
     }
 
-
     @Override
     public String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest) {
         if (kycDocumentRequest == null) {
@@ -33,7 +32,6 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Document for accountId: {}", AccountId);
 
-            // Build the UserDocumentsEntity using builder pattern
             UserDocumentsEntity userDocuments = UserDocumentsEntity.builder()
                     .accountId(AccountId)
                     .frontID(kycDocumentRequest.getFrontId())
@@ -45,8 +43,8 @@ public class KycServiceImpl implements KycServiceApi {
             repository.save(userDocuments);
             return "KYC Document sent successfully and saved";
         } catch (Exception e) {
-            log.error("Failed to send KYC Document", e);
-            throw new FailedToSendOTPException("Failed to send KYC Document");
+            log.error("Failed to send KYC Document for accountId: {}", AccountId, e);
+            throw new KycProcessingException("Failed to send KYC Document: " + e.getMessage());
         }
     }
 
@@ -57,26 +55,35 @@ public class KycServiceImpl implements KycServiceApi {
         }
 
         try {
-            log.info("Processing KYC Info for the device.");
+            log.info("Processing KYC Info for accountId: {}", AccountId);
 
-            // Create and populate PersonalInfoEntity
-            PersonalInfoEntity personalInfoEntity = PersonalInfoEntity.builder()
-                    .accountId(AccountId)
-                    .documentUniqueId(kycInfoRequest.getIdNumber())
-                    .expirationDate(kycInfoRequest.getExpiryDate())
-                    .status(PersonalInfoStatus.PENDING)
-                    .build();
+            Optional<PersonalInfoEntity> existingInfoOpt = inforepository.findByAccountId(AccountId);
+            PersonalInfoEntity personalInfoEntity;
 
-            // Save entity in the database
+            if (existingInfoOpt.isPresent()) {
+                personalInfoEntity = existingInfoOpt.get();
+                personalInfoEntity.setDocumentUniqueId(kycInfoRequest.getIdNumber());
+                personalInfoEntity.setExpirationDate(kycInfoRequest.getExpiryDate());
+                personalInfoEntity.setStatus(PersonalInfoStatus.PENDING);
+                log.debug("Updating existing PersonalInfoEntity: {}", personalInfoEntity);
+            } else {
+                personalInfoEntity = PersonalInfoEntity.builder()
+                        .accountId(AccountId)
+                        .documentUniqueId(kycInfoRequest.getIdNumber())
+                        .expirationDate(kycInfoRequest.getExpiryDate())
+                        .status(PersonalInfoStatus.PENDING)
+                        .build();
+                log.debug("Creating new PersonalInfoEntity: {}", personalInfoEntity);
+            }
+
             inforepository.save(personalInfoEntity);
-
+            log.info("KYC Info saved successfully for accountId: {}", AccountId);
             return "KYC Info sent successfully and saved.";
         } catch (Exception e) {
-            log.error("Failed to send KYC Info", e);
-            throw new FailedToSendOTPException("Failed to send KYC Info");
+            log.error("Failed to send KYC Info for accountId: {}", AccountId, e);
+            throw new KycProcessingException("Failed to send KYC Info: " + e.getMessage());
         }
     }
-
 
     @Override
     public String sendKycLocation(KycLocationRequest kycLocationRequest) {
@@ -85,52 +92,49 @@ public class KycServiceImpl implements KycServiceApi {
         }
 
         try {
-            log.info("Processing KYC Location update.");
+            log.info("Processing KYC Location update for accountId: {}", kycLocationRequest.getAccountId());
 
             String accountId = kycLocationRequest.getAccountId();
-            // Use getPersonalInfoByPublicKey
             Optional<PersonalInfoEntity> existingInfo = getPersonalInfoAccountId(accountId);
             if (existingInfo.isPresent()) {
                 PersonalInfoEntity personalInfo = existingInfo.get();
-                personalInfo.setLocation(kycLocationRequest.getLocation()); // Update location
+                personalInfo.setLocation(kycLocationRequest.getLocation());
                 inforepository.save(personalInfo);
                 log.info("KYC Location updated successfully for accountId: {}", accountId);
                 return "KYC Location updated successfully.";
             } else {
-                throw new EntityNotFoundException("No KYC record found for the provided Public Key Hash.");
+                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
             }
         } catch (Exception e) {
-            log.error("Failed to update KYC Location", e);
-            throw new FailedToSendOTPException("Failed to update KYC Location");
+            log.error("Failed to update KYC Location for accountId: {}", kycLocationRequest.getAccountId(), e);
+            throw new KycProcessingException("Failed to update KYC Location: " + e.getMessage());
         }
     }
 
-
     @Override
-    public String sendKycEmail( KycEmailRequest kycEmailRequest) {
+    public String sendKycEmail(KycEmailRequest kycEmailRequest) {
         if (kycEmailRequest == null || kycEmailRequest.getEmail() == null) {
             throw new IllegalArgumentException("Invalid KYC Email Request");
         }
 
         try {
-            log.info("Processing KYC Email update.");
+            log.info("Processing KYC Email update for accountId: {}", kycEmailRequest.getAccountId());
 
             String accountId = kycEmailRequest.getAccountId();
-            // Use getPersonalInfoAccountId
             Optional<PersonalInfoEntity> existingInfo = getPersonalInfoAccountId(accountId);
 
             if (existingInfo.isPresent()) {
                 PersonalInfoEntity personalInfo = existingInfo.get();
-                personalInfo.setEmail(kycEmailRequest.getEmail()); // Update email
+                personalInfo.setEmail(kycEmailRequest.getEmail());
                 inforepository.save(personalInfo);
                 log.info("KYC Email updated successfully for accountId: {}", accountId);
                 return "KYC Email updated successfully.";
             } else {
-                throw new EntityNotFoundException("No KYC record found for the provided Public Key Hash.");
+                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
             }
         } catch (Exception e) {
-            log.error("Failed to update KYC Email", e);
-            throw new FailedToSendOTPException("Failed to update KYC Email");
+            log.error("Failed to update KYC Email for accountId: {}", kycEmailRequest.getAccountId(), e);
+            throw new KycProcessingException("Failed to update KYC Email: " + e.getMessage());
         }
     }
 
@@ -173,8 +177,6 @@ public class KycServiceImpl implements KycServiceApi {
         return responseList;
     }
 
-
-    //Helper Method
     private UserInfoResponse mapToUserInfoResponse(PersonalInfoEntity info, Optional<UserDocumentsEntity> documentsOpt) {
         UserDocumentsEntity documents = documentsOpt.orElseGet(UserDocumentsEntity::new);
 
@@ -193,6 +195,4 @@ public class KycServiceImpl implements KycServiceApi {
 
         return response;
     }
-
-
 }
