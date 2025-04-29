@@ -20,10 +20,10 @@ public class PersonalInfoEntity {
     @Column(name = "account_id", nullable = false)
     private String accountId;
 
-    @Column(name = "document_id", nullable = false, length = 20)
+    @Column(name = "document_id", nullable = true, length = 20)
     private String documentUniqueId;
 
-    @Column(name = "document_expiration_date", nullable = false, updatable = false)
+    @Column(name = "document_expiration_date", nullable = true, length = 20)
     private String expirationDate;
 
     @Column(name = "otp_expires_at")
@@ -42,6 +42,6 @@ public class PersonalInfoEntity {
     private String emailOtpCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = true)
     private PersonalInfoStatus status;
 }
