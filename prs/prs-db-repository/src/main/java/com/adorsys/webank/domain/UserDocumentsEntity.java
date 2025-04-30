@@ -33,4 +33,8 @@ public class UserDocumentsEntity {
 
     @Column(name = "tax_id", nullable = true)
     private String taxID;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = true)
+    private UserDocumentsStatus status;
 }
