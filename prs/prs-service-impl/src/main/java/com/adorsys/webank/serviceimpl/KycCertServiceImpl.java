@@ -23,25 +23,32 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     }
 
 
-        @Override
-        public String getCert(JWK publicKey, String accountId) {
-            Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+    @Override
+    public String getCert(JWK publicKey, String accountId) {
+        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
-            if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
-                try {
-                    // Convert publicKey to a valid JSON string
-                    String publicKeyJson = publicKey.toJSONString();
-                    String certificate = certGeneratorHelper.generateCertificate(publicKeyJson);
-                    log.info("Certificate generated: {}", certificate);
-                    return "Your certificate is: " + certificate;
-                } catch (Exception e) {
-                    log.error("Error generating certificate: ", e);
-                    return "null";
-                }
+        if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
+            try {
+                // Convert publicKey to a valid JSON string
+                String publicKeyJson = publicKey.toJSONString();
+                String certificate = certGeneratorHelper.generateCertificate(publicKeyJson);
+                log.info("Certificate generated: {}", certificate);
+                return "Your certificate is: " + certificate;
+            } catch (Exception e) {
+                log.error("Error generating certificate: ", e);
+                return "null";
             }
-
+        } else if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.REJECTED) {
+            // Get the rejection reason from the entity (assuming getRejectionReason() exists)
+            String reason = personalInfoOpt.get().getRejectionReason();
+            if (reason == null || reason.isEmpty()) {
+                reason = "Your identity verification was rejected. Please check your documents and try again.";
+            }
+            return "REJECTED: " + reason;
+        } else {
             return "null";
         }
+    }
 
 
 }
