@@ -31,6 +31,11 @@ public class CertGeneratorHelper {
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
 
+
+    public CertGeneratorHelper(KeyLoader keyLoader) {
+        this.keyLoader = keyLoader;
+    }
+
     public String generateCertificate(String deviceJwkJson) {
         if (deviceJwkJson == null || deviceJwkJson.trim().isEmpty()) {
             log.error("Device JWK is null or empty");
