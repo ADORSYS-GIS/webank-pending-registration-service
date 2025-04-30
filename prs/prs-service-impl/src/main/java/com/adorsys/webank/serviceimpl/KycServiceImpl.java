@@ -193,6 +193,7 @@ public class KycServiceImpl implements KycServiceApi {
         response.setSelfie(documents.getSelfieID());
         response.setTaxDocument(documents.getTaxID());
 
+        response.setRejectionReason(info.getRejectionReason());
         return response;
     }
 }

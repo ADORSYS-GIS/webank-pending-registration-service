@@ -9,11 +9,13 @@ public class KycInfoRequest {
     private String idNumber;
     private String expiryDate;
     private String accountId;
+    private String rejectionReason;
+    private String rejectionNote;
 
-    public KycInfoRequest(String idNumber, String expiryDate , String accountId) {
-
+    public KycInfoRequest(String idNumber, String expiryDate, String accountId, String rejectionReason) {
         this.idNumber = idNumber;
         this.expiryDate = expiryDate;
         this.accountId = accountId;
+        this.rejectionReason = rejectionReason;
     }
 }

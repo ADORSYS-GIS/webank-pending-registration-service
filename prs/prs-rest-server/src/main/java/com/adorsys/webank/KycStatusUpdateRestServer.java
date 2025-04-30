@@ -18,6 +18,6 @@ public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ") ) {
             throw new IllegalArgumentException("Unauthorized or invalid JWT.");
         }
-        return kyctatusUpdateServiceApi.updateKycStatus(accountId, status, kycInfoRequest.getIdNumber(),  kycInfoRequest.getExpiryDate());
+        return kyctatusUpdateServiceApi.updateKycStatus(accountId, status, kycInfoRequest.getIdNumber(),  kycInfoRequest.getExpiryDate(), kycInfoRequest.getRejectionReason());
     }
 }
