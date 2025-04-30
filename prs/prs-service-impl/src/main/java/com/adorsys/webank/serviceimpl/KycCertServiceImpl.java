@@ -22,12 +22,15 @@ public class KycCertServiceImpl implements KycCertServiceApi {
         this.certGeneratorHelper = certGeneratorHelper;
     }
 
+    @Override
+    public String getCert(JWK publicKey, String accountId) {
+        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
-        @Override
-        public String getCert(JWK publicKey, String accountId) {
-            Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+        if (personalInfoOpt.isPresent()) {
+            PersonalInfoStatus status = personalInfoOpt.get().getStatus();
 
-            if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
+            // Check status and return appropriate value
+            if (status == PersonalInfoStatus.APPROVED) {
                 try {
                     // Convert publicKey to a valid JSON string
                     String publicKeyJson = publicKey.toJSONString();
@@ -38,10 +41,13 @@ public class KycCertServiceImpl implements KycCertServiceApi {
                     log.error("Error generating certificate: ", e);
                     return "null";
                 }
+            } else if (status == PersonalInfoStatus.REJECTED) {
+                return "REJECTED";
+            } else if (status == PersonalInfoStatus.PENDING) {
+                return "null";
             }
-
-            return "null";
         }
 
-
+        return null;
+    }
 }
