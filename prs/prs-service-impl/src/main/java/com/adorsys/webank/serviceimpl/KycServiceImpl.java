@@ -145,12 +145,18 @@ public class KycServiceImpl implements KycServiceApi {
 
     @Override
     public List<UserInfoResponse> getPendingKycRecords() {
-        List<PersonalInfoEntity> pendingInfos = inforepository.findByStatus(PersonalInfoStatus.PENDING);
+        // Get all personal info records with pending status
+        List<PersonalInfoEntity> pendingPersonalInfos = inforepository.findByStatus(PersonalInfoStatus.PENDING);
         List<UserInfoResponse> responses = new ArrayList<>();
 
-        for (PersonalInfoEntity info : pendingInfos) {
+        for (PersonalInfoEntity info : pendingPersonalInfos) {
+            // For each pending personal info, check if there's a matching document
             Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(info.getAccountId());
-            responses.add(mapToUserInfoResponse(info, documentsOpt));
+
+            // Only add to response if user document exists and is pending
+            if (documentsOpt.isPresent() && documentsOpt.get().getStatus() == UserDocumentsStatus.PENDING) {
+                responses.add(mapToUserInfoResponse(info, documentsOpt));
+            }
         }
 
         return responses;

@@ -22,7 +22,6 @@ public class KycCertServiceImpl implements KycCertServiceApi {
         this.certGeneratorHelper = certGeneratorHelper;
     }
 
-
     @Override
     public String getCert(JWK publicKey, String accountId) {
         Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
@@ -46,9 +45,7 @@ public class KycCertServiceImpl implements KycCertServiceApi {
             }
             return "REJECTED: " + reason;
         } else {
-            return "null";
+            return null;
         }
     }
-
-
 }
