@@ -44,4 +44,7 @@ public class PersonalInfoEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = true)
     private PersonalInfoStatus status;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
 }

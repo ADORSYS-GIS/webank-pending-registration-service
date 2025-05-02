@@ -21,8 +21,9 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
 
     @Override
     @Transactional
-    public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate) {
-        log.info("Updating KYC status for accountId {} to {}", accountId, newStatus);
+    public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason) {
+        log.info("Updating KYC status for accountId {} to {} with rejection reason: {}",
+                accountId, newStatus, rejectionReason);
 
         Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
         if (personalInfoOpt.isPresent()) {
@@ -43,6 +44,18 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
                 // Convert newStatus string to Enum
                 PersonalInfoStatus kycStatus = PersonalInfoStatus.valueOf(newStatus.toUpperCase());
                 personalInfo.setStatus(kycStatus);  // Update status field
+                
+                // Set rejection fields if status is REJECTED
+                if (kycStatus == PersonalInfoStatus.REJECTED) {
+                    if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+                        return "Failed: Rejection reason is required when status is REJECTED";
+                    }
+                    personalInfo.setRejectionReason(rejectionReason);
+                } else {
+                    // Clear rejection fields if status is not REJECTED
+                    personalInfo.setRejectionReason(null);
+                }
+                
                 inforepository.save(personalInfo); // Save the updated record
 
                 log.info("Successfully updated KYC status for accountId {}", accountId);
