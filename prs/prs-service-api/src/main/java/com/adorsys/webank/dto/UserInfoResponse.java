@@ -22,5 +22,5 @@ public class UserInfoResponse {
     private String backID;
     private String selfie;
     private String taxDocument;
-
+    private String rejectionReason;
 }

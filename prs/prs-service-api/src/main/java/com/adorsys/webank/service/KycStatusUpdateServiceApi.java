@@ -11,5 +11,5 @@ public interface KycStatusUpdateServiceApi {
      * @param newStatus   The new status to set (e.g., OTP_SENT, OTP_VALIDATED, OTP_FAILED).
      * @return A confirmation message.
      */
-    String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate);
+    String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason);
 }
