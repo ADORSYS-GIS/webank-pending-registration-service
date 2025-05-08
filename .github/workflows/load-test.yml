@@ -4,7 +4,7 @@ on:
   push:
     branches: 
       - main
-      - test/** 
+      - test/**  # This will trigger on any branch starting with 'test/'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -53,7 +53,7 @@ jobs:
         TARGET_URL: ${{ env.TARGET_URL }}
         
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: load-test-results
         path: load-test-report.json
@@ -64,7 +64,7 @@ jobs:
         artillery report load-test-report.json --output load-test-report.html
         
     - name: Upload HTML report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: load-test-report-html
         path: load-test-report.html
