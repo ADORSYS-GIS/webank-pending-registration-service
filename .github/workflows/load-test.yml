@@ -30,6 +30,7 @@ jobs:
         node-version: '18'
         
     - name: Install dependencies
+      working-directory: qa/load-tests
       run: |
         npm install -g artillery
         npm install
@@ -45,54 +46,71 @@ jobs:
         
     - name: Run load tests
       id: run-tests
+      working-directory: qa/load-tests
       run: |
         echo "Running tests against: $TARGET_URL"
         echo "Branch: ${{ github.ref }}"
-        artillery run -e ${{ github.event.inputs.environment || 'dev' }} qa/load-tests/load-test.yml
+        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml
       env:
         TARGET_URL: ${{ env.TARGET_URL }}
         
     - name: Upload test results
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: load-test-results
-        path: load-test-report.json
+        path: qa/load-tests/load-test-report.json
         
     - name: Generate test report
       if: always()
+      working-directory: qa/load-tests
       run: |
-        artillery report load-test-report.json --output load-test-report.html
+        if [ -f "load-test-report.json" ]; then
+          artillery report load-test-report.json --output load-test-report.html
+        else
+          echo "No test report found to generate HTML report"
+        fi
         
     - name: Upload HTML report
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: load-test-report-html
-        path: load-test-report.html
+        path: qa/load-tests/load-test-report.html
 
     - name: Extract test metrics
       if: always()
       id: metrics
+      working-directory: qa/load-tests
       run: |
-        # Extract key metrics from the JSON report
-        echo "metrics<<EOF" >> $GITHUB_OUTPUT
-        jq -r '
-          "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}\n\n" +
-          "### Branch\n" +
-          "- Branch: ${{ github.ref }}\n\n" +
-          "### Target URL\n" +
-          "- URL: $TARGET_URL\n\n" +
-          "### Summary\n" +
-          "- Total Requests: \(.metrics.http.requests.total)\n" +
-          "- Failed Requests: \(.metrics.http.responses.codes.\"5xx\" // 0)\n" +
-          "- Success Rate: \(100 - ((.metrics.http.responses.codes.\"5xx\" // 0) / .metrics.http.requests.total * 100))%\n\n" +
-          "### Response Times (ms)\n" +
-          "- Median: \(.metrics.http.response_time.median)\n" +
-          "- P95: \(.metrics.http.response_time.p95)\n" +
-          "- P99: \(.metrics.http.response_time.p99)\n\n" +
-          "### Endpoint Performance\n" +
-          (.metrics.http.responses.codes | to_entries | map("- \(.key): \(.value) requests") | join("\n"))
-        ' load-test-report.json >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        if [ -f "load-test-report.json" ]; then
+          echo "metrics<<EOF" >> $GITHUB_OUTPUT
+          echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Branch" >> $GITHUB_OUTPUT
+          echo "- Branch: ${{ github.ref }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Target URL" >> $GITHUB_OUTPUT
+          echo "- URL: $TARGET_URL" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Summary" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.requests.total' load-test-report.json | xargs -I {} echo "- Total Requests: {}" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json | xargs -I {} echo "- Failed Requests: {}" >> $GITHUB_OUTPUT
+          jq -r '100 - ((.metrics.http.responses.codes."5xx" // 0) / .metrics.http.requests.total * 100)' load-test-report.json | xargs -I {} echo "- Success Rate: {}%" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Response Times (ms)" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.response_time.median' load-test-report.json | xargs -I {} echo "- Median: {}" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.response_time.p95' load-test-report.json | xargs -I {} echo "- P95: {}" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.response_time.p99' load-test-report.json | xargs -I {} echo "- P99: {}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Endpoint Performance" >> $GITHUB_OUTPUT
+          jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "metrics<<EOF" >> $GITHUB_OUTPUT
+          echo "## Load Test Results" >> $GITHUB_OUTPUT
+          echo "No test results available. The test may have failed to run." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Comment on PR
       if: github.event_name == 'pull_request'
