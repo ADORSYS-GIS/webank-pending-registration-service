@@ -1,0 +1,218 @@
+config:
+  target: "{{ $processEnvironment.TARGET_URL }}"
+  phases:
+    - duration: 15
+      arrivalRate: 2
+      rampTo: 5
+      name: "Ramp up load"
+    - duration: 15
+      arrivalRate: 3
+      name: "Sustained load"
+  processor: "./functions.js"
+  plugins:
+    metrics-by-endpoint: {}
+    expect:
+      - maxErrorRate: 5
+      - maxResponseTime: 2000
+  # Add detailed reporting
+  output: "load-test-report.json"
+  # Add environment variables
+  environments:
+    dev:
+      target: "https://dev.webank.gis.ssegning.com"
+    local:
+      target: "http://localhost:8080"
+
+scenarios:
+  - name: "KYC Document Flow"
+    weight: 3
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      # Create personal info in PENDING state
+      - post:
+          url: "/api/prs/kyc/info"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            accountId: "{{ testData.accountId }}"
+            idNumber: "TEST-{{ $randomString() }}"
+            expiryDate: "{{ $timestamp('YYYY-MM-DD') }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+      # Create documents in PENDING state
+      - post:
+          url: "/api/prs/kyc/documents"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            accountId: "{{ testData.accountId }}"
+            frontId: "front-{{ $randomString() }}"
+            backId: "back-{{ $randomString() }}"
+            selfieId: "selfie-{{ $randomString() }}"
+            taxId: "tax-{{ $randomString() }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+          capture:
+            - json: "$.documentUniqueId"
+              as: "documentUniqueId"
+      # Get KYC certificate
+      - get:
+          url: "/api/prs/kyc/cert/{{ testData.accountId }}"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+      # Get document by ID
+      - get:
+          url: "/api/prs/kyc/findById/{{ documentUniqueId }}"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+      # Get pending KYC documents
+      - get:
+          url: "/api/prs/kyc/pending"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+
+  - name: "KYC Location Flow"
+    weight: 2
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      - post:
+          url: "/api/prs/kyc/location"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            accountId: "{{ testData.accountId }}"
+            latitude: "{{ $randomFloat(0, 90) }}"
+            longitude: "{{ $randomFloat(-180, 180) }}"
+            address: "Test Address {{ $randomString() }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+
+  - name: "KYC Email Flow"
+    weight: 2
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      - post:
+          url: "/api/prs/kyc/email"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            accountId: "{{ testData.accountId }}"
+            email: "{{ testData.email }}"
+            emailVerified: true
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+
+  - name: "OTP Flow"
+    weight: 5
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      - post:
+          url: "/api/prs/otp/send"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            phoneNumber: "{{ testData.phoneNumber }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+          capture:
+            - json: "$.otpId"
+              as: "otpId"
+      - post:
+          url: "/api/prs/otp/validate"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            phoneNumber: "{{ testData.phoneNumber }}"
+            otpInput: "123456"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+      # Get pending OTP list
+      - get:
+          url: "/api/prs/otp/pending"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+
+  - name: "Email OTP Flow"
+    weight: 3
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      - post:
+          url: "/api/prs/email-otp/send"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            email: "{{ testData.email }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+          capture:
+            - json: "$.otpId"
+              as: "emailOtpId"
+      - post:
+          url: "/api/prs/email-otp/validate"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            email: "{{ testData.email }}"
+            otpInput: "123456"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+
+  - name: "Account Recovery Flow"
+    weight: 2
+    flow:
+      - function: "generateTestKeyPair"
+      - function: "generateTestData"
+      - function: "generateJWT"
+      - post:
+          url: "/api/prs/recovery/token"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            oldAccountId: "{{ testData.accountId }}"
+            newAccountId: "{{ $randomString() }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+          capture:
+            - json: "$.recoveryToken"
+              as: "recoveryToken"
+      - post:
+          url: "/api/prs/recovery/validate"
+          headers:
+            Authorization: "Bearer {{ jwtToken }}"
+          json:
+            newAccountId: "{{ testData.accountId }}"
+            recoveryToken: "{{ recoveryToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"

@@ -1,0 +1,121 @@
+name: Load Testing
+
+on:
+  push:
+    branches: 
+      - main
+      - test/** 
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        npm install -g artillery
+        npm install
+        
+    - name: Set target URL
+      id: set-url
+      run: |
+        if [ "${{ github.event.inputs.environment }}" == "dev" ]; then
+          echo "TARGET_URL=${{ secrets.DEV_TARGET_URL }}" >> $GITHUB_ENV
+        else
+          echo "TARGET_URL=${{ secrets.DEV_TARGET_URL }}" >> $GITHUB_ENV
+        fi
+        
+    - name: Run load tests
+      id: run-tests
+      run: |
+        echo "Running tests against: $TARGET_URL"
+        echo "Branch: ${{ github.ref }}"
+        artillery run -e ${{ github.event.inputs.environment || 'dev' }} qa/load-tests/load-test.yml
+      env:
+        TARGET_URL: ${{ env.TARGET_URL }}
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: load-test-results
+        path: load-test-report.json
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        artillery report load-test-report.json --output load-test-report.html
+        
+    - name: Upload HTML report
+      uses: actions/upload-artifact@v3
+      with:
+        name: load-test-report-html
+        path: load-test-report.html
+
+    - name: Extract test metrics
+      if: always()
+      id: metrics
+      run: |
+        # Extract key metrics from the JSON report
+        echo "metrics<<EOF" >> $GITHUB_OUTPUT
+        jq -r '
+          "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}\n\n" +
+          "### Branch\n" +
+          "- Branch: ${{ github.ref }}\n\n" +
+          "### Target URL\n" +
+          "- URL: $TARGET_URL\n\n" +
+          "### Summary\n" +
+          "- Total Requests: \(.metrics.http.requests.total)\n" +
+          "- Failed Requests: \(.metrics.http.responses.codes.\"5xx\" // 0)\n" +
+          "- Success Rate: \(100 - ((.metrics.http.responses.codes.\"5xx\" // 0) / .metrics.http.requests.total * 100))%\n\n" +
+          "### Response Times (ms)\n" +
+          "- Median: \(.metrics.http.response_time.median)\n" +
+          "- P95: \(.metrics.http.response_time.p95)\n" +
+          "- P99: \(.metrics.http.response_time.p99)\n\n" +
+          "### Endpoint Performance\n" +
+          (.metrics.http.responses.codes | to_entries | map("- \(.key): \(.value) requests") | join("\n"))
+        ' load-test-report.json >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const metrics = process.env.METRICS;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: metrics
+          });
+
+    - name: Create Commit Comment
+      if: github.event_name == 'push'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const metrics = process.env.METRICS;
+          github.rest.repos.createCommitComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            commit_sha: context.sha,
+            body: metrics
+          }); 

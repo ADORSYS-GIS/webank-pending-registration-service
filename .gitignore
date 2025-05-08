@@ -36,3 +36,31 @@ replay_pid*
 ### Maven
 target
 
+### Load Testing ###
+# Node modules
+qa/load-tests/node_modules/
+
+# Test reports
+qa/load-tests/load-test-report.json
+qa/load-tests/load-test-report.html
+qa/load-tests/reports/
+
+# Environment files
+qa/load-tests/.env
+qa/load-tests/.env.*
+
+# Logs
+qa/load-tests/*.log
+qa/load-tests/npm-debug.log*
+qa/load-tests/yarn-debug.log*
+qa/load-tests/yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
