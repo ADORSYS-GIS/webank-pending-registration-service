@@ -1,5 +1,6 @@
 config:
   target: "{{ $processEnvironment.TARGET_URL }}"
+  output: "load-test-report.json"
   phases:
     - duration: 15
       arrivalRate: 2
@@ -14,8 +15,6 @@ config:
     expect:
       - maxErrorRate: 5
       - maxResponseTime: 2000
-  # Add detailed reporting
-  output: "load-test-report.json"
   # Add environment variables
   environments:
     dev:

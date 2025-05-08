@@ -54,25 +54,31 @@ jobs:
       env:
         TARGET_URL: ${{ env.TARGET_URL }}
         
+    - name: Check test results
+      id: check-results
+      working-directory: qa/load-tests
+      run: |
+        if [ -f "load-test-report.json" ]; then
+          echo "has_results=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_results=false" >> $GITHUB_OUTPUT
+        fi
+        
     - name: Upload test results
-      if: always()
+      if: always() && steps.check-results.outputs.has_results == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: load-test-results
         path: qa/load-tests/load-test-report.json
         
     - name: Generate test report
-      if: always()
+      if: always() && steps.check-results.outputs.has_results == 'true'
       working-directory: qa/load-tests
       run: |
-        if [ -f "load-test-report.json" ]; then
-          artillery report load-test-report.json --output load-test-report.html
-        else
-          echo "No test report found to generate HTML report"
-        fi
+        artillery report load-test-report.json --output load-test-report.html
         
     - name: Upload HTML report
-      if: always()
+      if: always() && steps.check-results.outputs.has_results == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: load-test-report-html
@@ -83,34 +89,45 @@ jobs:
       id: metrics
       working-directory: qa/load-tests
       run: |
-        if [ -f "load-test-report.json" ]; then
-          echo "metrics<<EOF" >> $GITHUB_OUTPUT
-          echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "### Branch" >> $GITHUB_OUTPUT
-          echo "- Branch: ${{ github.ref }}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "### Target URL" >> $GITHUB_OUTPUT
-          echo "- URL: $TARGET_URL" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "### Summary" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.requests.total' load-test-report.json | xargs -I {} echo "- Total Requests: {}" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json | xargs -I {} echo "- Failed Requests: {}" >> $GITHUB_OUTPUT
-          jq -r '100 - ((.metrics.http.responses.codes."5xx" // 0) / .metrics.http.requests.total * 100)' load-test-report.json | xargs -I {} echo "- Success Rate: {}%" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "### Response Times (ms)" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.response_time.median' load-test-report.json | xargs -I {} echo "- Median: {}" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.response_time.p95' load-test-report.json | xargs -I {} echo "- P95: {}" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.response_time.p99' load-test-report.json | xargs -I {} echo "- P99: {}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "### Endpoint Performance" >> $GITHUB_OUTPUT
-          jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        else
-          echo "metrics<<EOF" >> $GITHUB_OUTPUT
-          echo "## Load Test Results" >> $GITHUB_OUTPUT
-          echo "No test results available. The test may have failed to run." >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+        {
+          echo "metrics<<EOF"
+          echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}"
+          echo ""
+          echo "### Branch"
+          echo "- Branch: ${{ github.ref }}"
+          echo ""
+          echo "### Target URL"
+          echo "- URL: $TARGET_URL"
+          echo ""
+          
+          if [ -f "load-test-report.json" ]; then
+            echo "### Summary"
+            TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total' load-test-report.json)
+            FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
+            SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
+            
+            echo "- Total Requests: $TOTAL_REQUESTS"
+            echo "- Failed Requests: $FAILED_REQUESTS"
+            echo "- Success Rate: $SUCCESS_RATE%"
+            echo ""
+            
+            echo "### Response Times (ms)"
+            echo "- Median: $(jq -r '.metrics.http.response_time.median' load-test-report.json)"
+            echo "- P95: $(jq -r '.metrics.http.response_time.p95' load-test-report.json)"
+            echo "- P99: $(jq -r '.metrics.http.response_time.p99' load-test-report.json)"
+            echo ""
+            
+            echo "### Endpoint Performance"
+            jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
+          else
+            echo "### Test Status"
+            echo "No test results available. The test may have failed to run."
+            echo ""
+            echo "### Error Details"
+            echo "Please check the workflow logs for more information."
+          fi
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
 
     - name: Comment on PR
       if: github.event_name == 'pull_request'
