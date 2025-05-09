@@ -4,7 +4,7 @@ on:
   push:
     branches: 
       - main
-      - test/**  # This will trigger on any branch starting with 'test/'
+      - test/** 
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
           - dev
 
 permissions:
-  contents: write  # Required for commit comments
+  contents: write
 
 jobs:
   load-test:
@@ -53,9 +53,23 @@ jobs:
       run: |
         echo "Running tests against: $TARGET_URL"
         echo "Branch: ${{ github.ref }}"
-        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml
+        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml --output load-test-report.json
       env:
         TARGET_URL: ${{ env.TARGET_URL }}
+        
+    - name: Debug - List files
+      working-directory: qa/load-tests
+      run: |
+        echo "Current directory contents:"
+        ls -la
+        echo "Checking if report exists:"
+        if [ -f "load-test-report.json" ]; then
+          echo "Report file exists"
+          echo "Report file size:"
+          ls -l load-test-report.json
+        else
+          echo "Report file does not exist"
+        fi
         
     - name: Check test results
       id: check-results
@@ -63,8 +77,10 @@ jobs:
       run: |
         if [ -f "load-test-report.json" ]; then
           echo "has_results=true" >> $GITHUB_OUTPUT
+          echo "Report file found"
         else
           echo "has_results=false" >> $GITHUB_OUTPUT
+          echo "Report file not found"
         fi
         
     - name: Upload test results
@@ -78,7 +94,10 @@ jobs:
       if: always() && steps.check-results.outputs.has_results == 'true'
       working-directory: qa/load-tests
       run: |
+        echo "Generating HTML report..."
         artillery report load-test-report.json --output load-test-report.html
+        echo "HTML report generated"
+        ls -l load-test-report.html
         
     - name: Upload HTML report
       if: always() && steps.check-results.outputs.has_results == 'true'

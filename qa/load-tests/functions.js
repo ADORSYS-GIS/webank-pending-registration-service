@@ -127,13 +127,13 @@ function generateJWT(context, events, done) {
 
         // The server uses UTF-8 encoding and hex string format for the hash
         const hash = crypto.createHash('sha256')
-            .update(Buffer.from(dataToHash, 'utf8'))  // Use UTF-8 encoding like the server
-            .digest('hex')  // Convert to hex string like the server
-            .toLowerCase();  // Ensure lowercase hex like the server's String.format("%02x", b)
+            .update(Buffer.from(dataToHash, 'utf8'))
+            .digest('hex') 
+            .toLowerCase();  
 
         // Create JWT payload
         const payload = {
-            hash: hash,  // This hash is validated by JwtValidator.validateAndExtract
+            hash: hash, 
             iat: Math.floor(Date.now() / 1000),
             exp: Math.floor(Date.now() / 1000) + 3600,
             iss: 'https://webank.com',
