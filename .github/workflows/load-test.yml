@@ -53,7 +53,7 @@ jobs:
       run: |
         echo "Running tests against: $TARGET_URL"
         echo "Branch: ${{ github.ref }}"
-        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml
+        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml --output load-test-report.json
       env:
         TARGET_URL: ${{ env.TARGET_URL }}
         
@@ -98,11 +98,11 @@ jobs:
         echo ""
         echo "### Target URL"
         echo "- URL: $TARGET_URL"
-        echo ""
+        echo ""+
         
         if [ -f "load-test-report.json" ]; then
           echo "### Summary"
-          TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total' load-test-report.json)
+          TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total // 0' load-test-report.json)
           FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
           SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
           
@@ -112,13 +112,48 @@ jobs:
           echo ""
           
           echo "### Response Times (ms)"
-          echo "- Median: $(jq -r '.metrics.http.response_time.median' load-test-report.json)"
-          echo "- P95: $(jq -r '.metrics.http.response_time.p95' load-test-report.json)"
-          echo "- P99: $(jq -r '.metrics.http.response_time.p99' load-test-report.json)"
+          MEDIAN_RESPONSE=$(jq -r '.metrics.http.response_time.median // 0' load-test-report.json)
+          P95_RESPONSE=$(jq -r '.metrics.http.response_time.p95 // 0' load-test-report.json)
+          P99_RESPONSE=$(jq -r '.metrics.http.response_time.p99 // 0' load-test-report.json)
+          
+          echo "- Median: $MEDIAN_RESPONSE"
+          echo "- P95: $P95_RESPONSE"
+          echo "- P99: $P99_RESPONSE"
           echo ""
           
+          echo "### Performance Analysis"
+          echo "#### Response Time Thresholds"
+          if (( $(echo "$P95_RESPONSE > 2000" | bc -l) )); then
+            echo "⚠️ P95 response time ($P95_RESPONSE ms) exceeds threshold (2000 ms)"
+          fi
+          if (( $(echo "$P99_RESPONSE > 3000" | bc -l) )); then
+            echo "⚠️ P99 response time ($P99_RESPONSE ms) exceeds threshold (3000 ms)"
+          fi
+          
+          echo "#### Error Analysis"
+          if (( $(echo "$FAILED_REQUESTS > 0" | bc -l) )); then
+            echo "⚠️ Failed requests detected: $FAILED_REQUESTS"
+            echo "Error distribution:"
+            jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
+          fi
+          
           echo "### Endpoint Performance"
-          jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
+          echo "#### Slow Endpoints (P95 > 1000ms)"
+          jq -r '.metrics.http.response_time.p95 | to_entries | .[] | select(.value > 1000) | "- \(.key): \(.value)ms"' load-test-report.json || echo "No slow endpoints detected"
+          
+          echo "#### High Error Rate Endpoints (> 5%)"
+          jq -r '.metrics.http.responses | to_entries | .[] | select(.value > 0) | "- \(.key): \(.value) errors"' load-test-report.json || echo "No high error rate endpoints detected"
+          
+          echo "### Recommendations"
+          if (( $(echo "$P95_RESPONSE > 2000" | bc -l) )); then
+            echo "1. Investigate slow endpoints and optimize response times"
+            echo "2. Consider implementing caching for frequently accessed data"
+            echo "3. Review database query performance"
+          fi
+          if (( $(echo "$FAILED_REQUESTS > 0" | bc -l) )); then
+            echo "4. Investigate failed requests and implement proper error handling"
+            echo "5. Review server logs for error patterns"
+          fi
         else
           echo "### Test Status"
           echo "No test results available. The test may have failed to run."
