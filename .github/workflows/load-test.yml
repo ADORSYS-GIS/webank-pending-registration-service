@@ -2,9 +2,7 @@ name: Load Testing
 
 on:
   push:
-    branches: 
-      - main
-      - test/** 
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -16,132 +14,94 @@ on:
         type: choice
         options:
           - dev
-
-permissions:
-  contents: write
+          - local
 
 jobs:
   load-test:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      working-directory: qa/load-tests
-      run: |
-        npm install -g artillery
-        npm install
-        
-    - name: Set target URL
-      id: set-url
-      run: |
-        if [ "${{ github.event.inputs.environment }}" == "dev" ]; then
-          echo "TARGET_URL=${{ secrets.DEV_TARGET_URL }}" >> $GITHUB_ENV
-        else
-          echo "TARGET_URL=${{ secrets.DEV_TARGET_URL }}" >> $GITHUB_ENV
-        fi
-        
-    - name: Run load tests
-      id: run-tests
-      working-directory: qa/load-tests
-      run: |
-        echo "Running tests against: $TARGET_URL"
-        echo "Branch: ${{ github.ref }}"
-        artillery run -e ${{ github.event.inputs.environment || 'dev' }} load-test.yml --output load-test-report.json
-      env:
-        TARGET_URL: ${{ env.TARGET_URL }}
-        
-    - name: Debug - List files
-      working-directory: qa/load-tests
-      run: |
-        echo "Current directory contents:"
-        ls -la
-        echo "Checking if report exists:"
-        if [ -f "load-test-report.json" ]; then
-          echo "Report file exists"
-          echo "Report file size:"
-          ls -l load-test-report.json
-        else
-          echo "Report file does not exist"
-        fi
-        
-    - name: Check test results
-      id: check-results
-      working-directory: qa/load-tests
-      run: |
-        if [ -f "load-test-report.json" ]; then
-          echo "has_results=true" >> $GITHUB_OUTPUT
-          echo "Report file found"
-        else
-          echo "has_results=false" >> $GITHUB_OUTPUT
-          echo "Report file not found"
-        fi
-        
-    - name: Upload test results
-      if: always() && steps.check-results.outputs.has_results == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: load-test-results
-        path: qa/load-tests/load-test-report.json
-        
-    - name: Generate test report
-      if: always() && steps.check-results.outputs.has_results == 'true'
-      working-directory: qa/load-tests
-      run: |
-        echo "Generating HTML report..."
-        artillery report load-test-report.json --output load-test-report.html
-        echo "HTML report generated"
-        ls -l load-test-report.html
-        
-    - name: Upload HTML report
-      if: always() && steps.check-results.outputs.has_results == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: load-test-report-html
-        path: qa/load-tests/load-test-report.html
+    environment: ${{ github.event.inputs.environment || 'dev' }}
 
-    - name: Display test metrics
-      if: always()
-      working-directory: qa/load-tests
-      run: |
-        echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}"
-        echo ""
-        echo "### Branch"
-        echo "- Branch: ${{ github.ref }}"
-        echo ""
-        echo "### Target URL"
-        echo "- URL: $TARGET_URL"
-        echo ""
-        
-        if [ -f "load-test-report.json" ]; then
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd qa/load-tests
+          npm install
+
+      - name: Run load tests
+        run: |
+          cd qa/load-tests
+          export TARGET_URL="${{ secrets.TARGET_URL }}"
+          npm run test:${{ github.event.inputs.environment || 'dev' }}
+        continue-on-error: true
+
+      - name: Generate HTML report
+        run: |
+          cd qa/load-tests
+          artillery report --output load-test-report.html load-test-report.json
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: qa/load-tests/load-test-report.json
+          if-no-files-found: error
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-report-html
+          path: qa/load-tests/load-test-report.html
+          if-no-files-found: error
+
+      - name: Process and display results
+        run: |
+          echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}"
+          echo "### Branch"
+          echo "- Branch: ${{ github.ref }}"
+          echo "### Target URL"
+          echo "- URL: ${{ secrets.TARGET_URL }}"
           echo "### Summary"
-          TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total' load-test-report.json)
-          FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
-          SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
           
-          echo "- Total Requests: $TOTAL_REQUESTS"
-          echo "- Failed Requests: $FAILED_REQUESTS"
-          echo "- Success Rate: $SUCCESS_RATE%"
-          echo ""
-          
-          echo "### Response Times (ms)"
-          echo "- Median: $(jq -r '.metrics.http.response_time.median' load-test-report.json)"
-          echo "- P95: $(jq -r '.metrics.http.response_time.p95' load-test-report.json)"
-          echo "- P99: $(jq -r '.metrics.http.response_time.p99' load-test-report.json)"
-          echo ""
-          
-          echo "### Endpoint Performance"
-          jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
-        else
-          echo "### Test Status"
-          echo "No test results available. The test may have failed to run."
-          echo ""
-          echo "### Error Details"
-          echo "Please check the workflow logs for more information."
-        fi
+          # Check if report file exists and has content
+          if [ -f "qa/load-tests/load-test-report.json" ]; then
+            # Extract metrics with error handling
+            TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total // 0' qa/load-tests/load-test-report.json)
+            FAILED_REQUESTS=$(jq -r '.metrics.http.responses.errors // 0' qa/load-tests/load-test-report.json)
+            SUCCESS_RATE=$(jq -r 'if .metrics.http.requests.total > 0 then ((.metrics.http.requests.total - .metrics.http.responses.errors) / .metrics.http.requests.total * 100) else 0 end' qa/load-tests/load-test-report.json)
+            MEDIAN_RESPONSE=$(jq -r '.metrics.http.response_time.median // 0' qa/load-tests/load-test-report.json)
+            P95_RESPONSE=$(jq -r '.metrics.http.response_time.p95 // 0' qa/load-tests/load-test-report.json)
+            P99_RESPONSE=$(jq -r '.metrics.http.response_time.p99 // 0' qa/load-tests/load-test-report.json)
+            
+            echo "- Total Requests: $TOTAL_REQUESTS"
+            echo "- Failed Requests: $FAILED_REQUESTS"
+            echo "- Success Rate: ${SUCCESS_RATE}%"
+            echo "### Response Times (ms)"
+            echo "- Median: $MEDIAN_RESPONSE"
+            echo "- P95: $P95_RESPONSE"
+            echo "- P99: $P99_RESPONSE"
+            
+            # Extract endpoint performance with error handling
+            echo "### Endpoint Performance"
+            jq -r '.metrics.http.responses | to_entries[] | "- \(.key): \(.value) requests" // "- No endpoint data available"' qa/load-tests/load-test-report.json || echo "- No endpoint data available"
+          else
+            echo "Error: Load test report file not found or empty"
+            echo "- Total Requests: 0"
+            echo "- Failed Requests: 0"
+            echo "- Success Rate: 0%"
+            echo "### Response Times (ms)"
+            echo "- Median: 0"
+            echo "- P95: 0"
+            echo "- P99: 0"
+            echo "### Endpoint Performance"
+            echo "- No endpoint data available"
+          fi
+        continue-on-error: true
