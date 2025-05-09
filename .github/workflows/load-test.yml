@@ -17,6 +17,10 @@ on:
         options:
           - dev
 
+permissions:
+  contents: write  # Required for commit comments
+  pull-requests: write  # Required for PR comments
+
 jobs:
   load-test:
     runs-on: ubuntu-latest
@@ -153,4 +157,4 @@ jobs:
             repo: context.repo.repo,
             commit_sha: context.sha,
             body: metrics
-          }); 
+          });
