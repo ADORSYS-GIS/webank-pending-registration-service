@@ -19,7 +19,6 @@ on:
 
 permissions:
   contents: write  # Required for commit comments
-  pull-requests: write  # Required for PR comments
 
 jobs:
   load-test:
@@ -88,73 +87,42 @@ jobs:
         name: load-test-report-html
         path: qa/load-tests/load-test-report.html
 
-    - name: Extract test metrics
+    - name: Display test metrics
       if: always()
-      id: metrics
       working-directory: qa/load-tests
       run: |
-        {
-          echo "metrics<<EOF"
-          echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}"
-          echo ""
-          echo "### Branch"
-          echo "- Branch: ${{ github.ref }}"
-          echo ""
-          echo "### Target URL"
-          echo "- URL: $TARGET_URL"
+        echo "## Load Test Results for Environment: ${{ github.event.inputs.environment || 'dev' }}"
+        echo ""
+        echo "### Branch"
+        echo "- Branch: ${{ github.ref }}"
+        echo ""
+        echo "### Target URL"
+        echo "- URL: $TARGET_URL"
+        echo ""
+        
+        if [ -f "load-test-report.json" ]; then
+          echo "### Summary"
+          TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total' load-test-report.json)
+          FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
+          SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
+          
+          echo "- Total Requests: $TOTAL_REQUESTS"
+          echo "- Failed Requests: $FAILED_REQUESTS"
+          echo "- Success Rate: $SUCCESS_RATE%"
           echo ""
           
-          if [ -f "load-test-report.json" ]; then
-            echo "### Summary"
-            TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total' load-test-report.json)
-            FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
-            SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
-            
-            echo "- Total Requests: $TOTAL_REQUESTS"
-            echo "- Failed Requests: $FAILED_REQUESTS"
-            echo "- Success Rate: $SUCCESS_RATE%"
-            echo ""
-            
-            echo "### Response Times (ms)"
-            echo "- Median: $(jq -r '.metrics.http.response_time.median' load-test-report.json)"
-            echo "- P95: $(jq -r '.metrics.http.response_time.p95' load-test-report.json)"
-            echo "- P99: $(jq -r '.metrics.http.response_time.p99' load-test-report.json)"
-            echo ""
-            
-            echo "### Endpoint Performance"
-            jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
-          else
-            echo "### Test Status"
-            echo "No test results available. The test may have failed to run."
-            echo ""
-            echo "### Error Details"
-            echo "Please check the workflow logs for more information."
-          fi
-          echo "EOF"
-        } >> $GITHUB_OUTPUT
-
-    - name: Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const metrics = process.env.METRICS;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: metrics
-          });
-
-    - name: Create Commit Comment
-      if: github.event_name == 'push'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const metrics = process.env.METRICS;
-          github.rest.repos.createCommitComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            commit_sha: context.sha,
-            body: metrics
-          });
+          echo "### Response Times (ms)"
+          echo "- Median: $(jq -r '.metrics.http.response_time.median' load-test-report.json)"
+          echo "- P95: $(jq -r '.metrics.http.response_time.p95' load-test-report.json)"
+          echo "- P99: $(jq -r '.metrics.http.response_time.p99' load-test-report.json)"
+          echo ""
+          
+          echo "### Endpoint Performance"
+          jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
+        else
+          echo "### Test Status"
+          echo "No test results available. The test may have failed to run."
+          echo ""
+          echo "### Error Details"
+          echo "Please check the workflow logs for more information."
+        fi
