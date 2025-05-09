@@ -98,13 +98,18 @@ jobs:
         echo ""
         echo "### Target URL"
         echo "- URL: $TARGET_URL"
-        echo ""+
+        echo ""
         
         if [ -f "load-test-report.json" ]; then
           echo "### Summary"
           TOTAL_REQUESTS=$(jq -r '.metrics.http.requests.total // 0' load-test-report.json)
           FAILED_REQUESTS=$(jq -r '.metrics.http.responses.codes."5xx" // 0' load-test-report.json)
-          SUCCESS_RATE=$(echo "100 - ($FAILED_REQUESTS / $TOTAL_REQUESTS * 100)" | bc)
+          
+          if [ "$TOTAL_REQUESTS" -gt 0 ]; then
+            SUCCESS_RATE=$(echo "scale=2; 100 - ($FAILED_REQUESTS * 100 / $TOTAL_REQUESTS)" | bc)
+          else
+            SUCCESS_RATE=0
+          fi
           
           echo "- Total Requests: $TOTAL_REQUESTS"
           echo "- Failed Requests: $FAILED_REQUESTS"
@@ -131,7 +136,7 @@ jobs:
           fi
           
           echo "#### Error Analysis"
-          if (( $(echo "$FAILED_REQUESTS > 0" | bc -l) )); then
+          if [ "$FAILED_REQUESTS" -gt 0 ]; then
             echo "⚠️ Failed requests detected: $FAILED_REQUESTS"
             echo "Error distribution:"
             jq -r '.metrics.http.responses.codes | to_entries | .[] | "- \(.key): \(.value) requests"' load-test-report.json
@@ -150,7 +155,7 @@ jobs:
             echo "2. Consider implementing caching for frequently accessed data"
             echo "3. Review database query performance"
           fi
-          if (( $(echo "$FAILED_REQUESTS > 0" | bc -l) )); then
+          if [ "$FAILED_REQUESTS" -gt 0 ]; then
             echo "4. Investigate failed requests and implement proper error handling"
             echo "5. Review server logs for error patterns"
           fi
