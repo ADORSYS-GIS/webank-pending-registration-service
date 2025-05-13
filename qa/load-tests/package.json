@@ -1,0 +1,18 @@
+{
+  "name": "webank-load-tests",
+  "version": "1.0.0",
+  "description": "Load testing suite for Webank Pending Registration Service",
+  "scripts": {
+    "test": "artillery run load-test.yml",
+    "test:dev": "artillery run -e dev load-test.yml",
+    "test:staging": "artillery run -e staging load-test.yml",
+    "test:prod": "artillery run -e prod load-test.yml",
+    "report": "artillery report load-test-report.json"
+  },
+  "dependencies": {
+    "artillery": "^2.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "ec-key": "^0.0.4",
+    "json-canonicalize": "^1.0.0"
+  }
+} 
