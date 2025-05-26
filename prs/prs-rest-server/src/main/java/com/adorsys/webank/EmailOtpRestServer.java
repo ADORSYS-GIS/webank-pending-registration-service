@@ -2,11 +2,16 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.EmailOtpRequest;
 import com.adorsys.webank.dto.EmailOtpValidationRequest;
+import com.adorsys.webank.dto.response.EmailResponse;
 import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.EmailOtpServiceApi;
 import com.nimbusds.jose.jwk.JWK;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDateTime;
 
 @RestController
 public class EmailOtpRestServer implements EmailOtpRestApi {
@@ -20,7 +25,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     }
 
     @Override
-    public String sendEmailOtp(String authorizationHeader,
+    public ResponseEntity<EmailResponse> sendEmailOtp(String authorizationHeader,
                                EmailOtpRequest request) {
         String jwtToken;
         try {
@@ -29,16 +34,25 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             JwtValidator.validateAndExtract(jwtToken, email, request.getAccountId());
 
             if (!certValidator.validateJWT(jwtToken)) {
-                return "Invalid or unauthorized JWT.";
+                return ResponseEntity.badRequest().body(createErrorResponse("Invalid or unauthorized JWT."));
             }
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            return ResponseEntity.badRequest().body(createErrorResponse("Invalid JWT: " + e.getMessage()));
         }
-        return emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
+        
+        String result = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
+        
+        EmailResponse response = new EmailResponse();
+        response.setOperationId("email_otp_" + System.currentTimeMillis());
+        response.setStatus(EmailResponse.EmailStatus.SUCCESS);
+        response.setTimestamp(LocalDateTime.now());
+        response.setMessage(result);
+        
+        return ResponseEntity.ok(response);
     }
 
     @Override
-    public String validateEmailOtp(String authorizationHeader,
+    public ResponseEntity<EmailResponse> validateEmailOtp(String authorizationHeader,
                                    EmailOtpValidationRequest request) {
         String jwtToken;
         try {
@@ -50,17 +64,25 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
 
 
             if (!certValidator.validateJWT(jwtToken)) {
-                return "Invalid or unauthorized JWT.";
+                return ResponseEntity.badRequest().body(createErrorResponse("Invalid or unauthorized JWT."));
             }
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            return ResponseEntity.badRequest().body(createErrorResponse("Invalid JWT: " + e.getMessage()));
         }
 
-        return emailOtpService.validateEmailOtp(
+        String result = emailOtpService.validateEmailOtp(
                 request.getEmail(),
                 request.getOtp(),
                 request.getAccountId()
         );
+        
+        EmailResponse response = new EmailResponse();
+        response.setOperationId("email_validation_" + System.currentTimeMillis());
+        response.setStatus(EmailResponse.EmailStatus.SUCCESS);
+        response.setTimestamp(LocalDateTime.now());
+        response.setMessage(result);
+        
+        return ResponseEntity.ok(response);
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
@@ -71,5 +93,14 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             );
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
+    }
+    
+    private EmailResponse createErrorResponse(String message) {
+        EmailResponse response = new EmailResponse();
+        response.setOperationId("error_" + System.currentTimeMillis());
+        response.setStatus(EmailResponse.EmailStatus.FAILED);
+        response.setTimestamp(LocalDateTime.now());
+        response.setMessage("Error: " + message);
+        return response;
     }
 }
