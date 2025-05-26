@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.lang.reflect.Field;
 import java.security.MessageDigest;
@@ -22,7 +23,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 public class EmailOtpServiceImplTest {
@@ -33,6 +38,9 @@ public class EmailOtpServiceImplTest {
 
     @Mock
     private JavaMailSender mailSender;
+    
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private EmailOtpServiceImpl emailOtpService;
@@ -54,6 +62,11 @@ public class EmailOtpServiceImplTest {
         // Inject salt and fromEmail using reflection
         setField("salt", TEST_SALT);
         setField("fromEmail", "no-reply@test.com");
+        
+        // Setup password encoder mock with lenient to avoid unnecessary stubbing errors
+        lenient().when(passwordEncoder.encode(anyString())).thenReturn("{argon2}encoded-hash");
+        lenient().when(passwordEncoder.matches(anyString(), eq("{argon2}encoded-hash"))).thenReturn(true);
+        lenient().when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
     }
 
     private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
@@ -103,10 +116,13 @@ public class EmailOtpServiceImplTest {
         PersonalInfoEntity entity = new PersonalInfoEntity();
         entity.setAccountId(accountId);
         entity.setEmailOtpCode(TEST_OTP);
-        entity.setEmailOtpHash(computeOtpHash(TEST_OTP, accountId));
+        entity.setEmailOtpHash("{argon2}encoded-hash");
         entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+        
+        // Override the general stub with a specific one for this test
+        when(passwordEncoder.matches(anyString(), eq("{argon2}encoded-hash"))).thenReturn(true);
 
         // Act
         String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
@@ -138,15 +154,14 @@ public class EmailOtpServiceImplTest {
                 TEST_OTP, accountId, TEST_SALT);
 
         String canonicalJson = new JsonCanonicalizer(inputJson).getEncodedString();
-        String expectedHash = bytesToHex(MessageDigest.getInstance("SHA-256")
-                .digest(canonicalJson.getBytes()));
-
+        
         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
-
-        log.info("Expected: " + expectedHash);
+        
+        log.info("Expected: {argon2}encoded-hash");
         log.info("Actual:   " + actualHash);
-
-        assertEquals(expectedHash, actualHash);
+        
+        assertEquals("{argon2}encoded-hash", actualHash);
+        verify(passwordEncoder).encode(canonicalJson);
     }
 
     @Test
@@ -162,13 +177,5 @@ public class EmailOtpServiceImplTest {
 
     private String computeOtpHash(String otp, String accountId) {
         return emailOtpService.computeOtpHash(otp, accountId);
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) {
-            hex.append(String.format("%02x", b));
-        }
-        return hex.toString();
     }
 }

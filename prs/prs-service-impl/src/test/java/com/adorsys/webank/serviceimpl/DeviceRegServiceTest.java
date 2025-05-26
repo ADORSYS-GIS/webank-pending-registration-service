@@ -7,29 +7,36 @@ import com.nimbusds.jose.jwk.JWK;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-@ExtendWith(MockitoExtension.class)class DeviceRegServiceTest {
-
-    @InjectMocks
-    private DeviceRegServiceImpl deviceRegService;
+@ExtendWith(MockitoExtension.class)
+class DeviceRegServiceTest {
 
     @Mock
+    private PasswordEncoder passwordEncoder;
+    
+    @Mock
     private JWK mockJWK;
+    
+    private DeviceRegServiceImpl deviceRegService;
 
 
     @BeforeEach
     void setUp() {
         String testSalt = "testSalt";
+        deviceRegService = new DeviceRegServiceImpl(passwordEncoder);
         ReflectionTestUtils.setField(deviceRegService, "salt", testSalt);
+        
+        // Use lenient() to avoid unnecessary stubbing errors
+        lenient().when(passwordEncoder.encode(anyString())).thenReturn("{argon2}encodedHash");
+        lenient().when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
     }
 
     @Test
@@ -40,7 +47,7 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void testValidateDeviceRegistration_ErrorOnNonceMismatch() throws IOException {
+    void testValidateDeviceRegistration_ErrorOnNonceMismatch() {
         DeviceValidateRequest request = mock(DeviceValidateRequest.class);
         when(request.getInitiationNonce()).thenReturn("invalidNonce");
         when(request.getPowNonce()).thenReturn("testNonce");
@@ -51,16 +58,17 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void testCalculateSHA256_ValidInput() throws NoSuchAlgorithmException {
+    void testCalculateHash_ValidInput() {
         String input = "testInput";
-        String hash = deviceRegService.calculateSHA256(input);
+        String hash = deviceRegService.calculateHash(input);
         assertNotNull(hash);
-        assertEquals(64, hash.length()); // SHA-256 hash length
+        assertEquals("{argon2}encodedHash", hash); // Argon2 hash format
+        verify(passwordEncoder).encode(input);
     }
 
     @Test
     void testGenerateNonce_NullSaltThrowsException() {
-        assertThrows(HashComputationException.class, () -> DeviceRegServiceImpl.generateNonce(null));
+        assertThrows(HashComputationException.class, () -> deviceRegService.generateNonce(null));
     }
 
 

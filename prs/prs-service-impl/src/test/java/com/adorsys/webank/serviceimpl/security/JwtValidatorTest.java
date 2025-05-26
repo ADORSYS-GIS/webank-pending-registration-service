@@ -43,7 +43,7 @@ class JwtValidatorTest {
     }
 
     @Test
-    void validateAndExtract_missingJwk_throwsBadJOSEException() {
+    void validateAndExtract_missingJwk_throwsIllegalArgumentException() {
         SignedJWT signedJWT = assertDoesNotThrow(() -> {
             SignedJWT jwt = new SignedJWT(
                     new JWSHeader.Builder(JWSAlgorithm.ES256).build(),
@@ -52,36 +52,41 @@ class JwtValidatorTest {
             return jwt;
         });
 
-        assertThrows(BadJOSEException.class, () ->
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
                 JwtValidator.validateAndExtract(signedJWT.serialize(), "param"));
+        assertTrue(exception.getMessage().contains("JWT validation failed"));
     }
 
     @Test
-    void validateAndExtract_invalidKeyType_throwsBadJOSEException() {
+    void validateAndExtract_invalidKeyType_throwsIllegalArgumentException() {
         RSAKey rsaKey = assertDoesNotThrow(() -> new RSAKeyGenerator(2048).generate());
         SignedJWT signedJWT = assertDoesNotThrow(() -> createSignedJWTWithRSA(rsaKey, "dummyHash"));
 
-        assertThrows(BadJOSEException.class, () ->
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
                 JwtValidator.validateAndExtract(signedJWT.serialize(), "dummy"));
+        assertTrue(exception.getMessage().contains("JWT validation failed"));
     }
 
     @Test
-    void validateAndExtract_invalidSignature_throwsBadJWTException() {
+    void validateAndExtract_invalidSignature_throwsIllegalArgumentException() {
         String hash = assertDoesNotThrow(() -> JwtValidator.hashPayload("originalPayload"));
         // Create a JWT where the header contains validEcKey's public key,
         // but sign the token with invalidEcKey.
         SignedJWT invalidJWT = assertDoesNotThrow(() -> createSignedJWTWithMismatchedKey(invalidEcKey, validEcKey, hash));
 
-        assertThrows(BadJWTException.class, () ->
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
                 JwtValidator.validateAndExtract(invalidJWT.serialize(), "originalPayload"));
+        assertTrue(exception.getMessage().contains("JWT validation failed") || 
+                   exception.getMessage().contains("JWT processing failed"));
     }
 
     @Test
-    void validateAndExtract_hashMismatch_throwsBadJWTException() {
+    void validateAndExtract_hashMismatch_throwsIllegalArgumentException() {
         SignedJWT signedJWT = assertDoesNotThrow(() -> createSignedJWT(validEcKey, "wrongHash"));
 
-        assertThrows(BadJWTException.class, () ->
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
                 JwtValidator.validateAndExtract(signedJWT.serialize(), "correct"));
+        assertTrue(exception.getMessage().contains("JWT validation failed"));
     }
 
     @Test

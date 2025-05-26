@@ -17,24 +17,32 @@ class JwtExtractorTest {
     @Test
     void extractPayloadHash_missingHash_throwsException() {
         String payload = "{\"noHash\":\"value\"}";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        Exception exception = assertThrows(IllegalArgumentException.class, 
+            () -> JwtExtractor.extractPayloadHash(payload));
+        assertTrue(exception.getMessage().contains("does not contain 'hash' field"));
     }
 
     @Test
     void extractPayloadHash_emptyPayload_throwsException() {
         String payload = "{}";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        Exception exception = assertThrows(IllegalArgumentException.class, 
+            () -> JwtExtractor.extractPayloadHash(payload));
+        assertTrue(exception.getMessage().contains("does not contain 'hash' field"));
     }
 
     @Test
     void extractPayloadHash_nullPayload_throwsException() {
         String payload = null;
-        assertThrows(NullPointerException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        Exception exception = assertThrows(IllegalArgumentException.class, 
+            () -> JwtExtractor.extractPayloadHash(payload));
+        assertTrue(exception.getMessage().contains("Failed to extract hash from payload"));
     }
 
     @Test
     void extractPayloadHash_invalidJson_throwsException() {
         String payload = "invalid json";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        Exception exception = assertThrows(IllegalArgumentException.class, 
+            () -> JwtExtractor.extractPayloadHash(payload));
+        assertTrue(exception.getMessage().contains("Failed to extract hash from payload"));
     }
 }

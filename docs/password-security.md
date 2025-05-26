@@ -4,7 +4,7 @@
 
 This document describes the implementation of Argon2 password hashing in the Webank Pending Registration Service. Argon2 is the winner of the Password Hashing Competition (PHC) and provides better security than older algorithms like bcrypt, PBKDF2, and scrypt.
 
-This implementation also includes proper CORS (Cross-Origin Resource Sharing) configuration to ensure secure API access from frontend applications.
+This implementation replaces multiple insecure SHA-256 hash implementations with Argon2 for enhanced security, particularly for authentication-related functionality such as OTP validation, device registration, and JWT token validation. It also includes proper CORS (Cross-Origin Resource Sharing) configuration to ensure secure API access from frontend applications.
 
 ## Technical Implementation
 
@@ -26,6 +26,8 @@ The implementation relies on the following dependencies:
     <version>1.77</version>
 </dependency>
 ```
+
+These dependencies provide a cryptographically strong implementation of the Argon2 algorithm that is memory-hard, making it resistant to specialized hardware attacks.
 
 ### 2. Configuration
 
@@ -68,9 +70,18 @@ For existing password hashes, we implemented a seamless migration strategy:
 2. When a user successfully authenticates with an old hash, their password is automatically rehashed using Argon2.
 3. The `passwordMigrationNeeded` flag in the User entity identifies accounts that still need migration.
 
-## Usage Examples
+### 3. Components Using Argon2
 
-### Encoding a Password
+The following components have been updated to use Argon2 password hashing:
+
+1. **OtpServiceImpl**: Uses Argon2 for secure OTP validation
+2. **EmailOtpServiceImpl**: Uses Argon2 for email OTP validation
+3. **DeviceRegServiceImpl**: Uses Argon2 for device registration validation
+4. **JwtValidator**: Uses Argon2 for JWT payload verification
+
+### 4. Usage Examples
+
+#### Encoding a Password/Hash
 
 ```java
 @Autowired
@@ -81,12 +92,29 @@ public String encodePassword(String rawPassword) {
 }
 ```
 
-### Validating a Password
+#### Validating a Password/Hash
 
 ```java
 public boolean validatePassword(String rawPassword, String encodedPassword) {
     return passwordEncoder.matches(rawPassword, encodedPassword);
 }
+```
+
+#### OTP Validation Example
+
+```java
+// Generate a canonicalized JSON payload
+String otpJson = String.format(
+    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
+    otp, devicePub.toJSONString(), phoneNumber
+);
+String canonical = new JsonCanonicalizer(otpJson).getEncodedString();
+
+// Encode with Argon2
+String otpHash = passwordEncoder.encode(canonical);
+
+// Later verify with Argon2
+boolean isValid = passwordEncoder.matches(canonical, entity.getOtpHash());
 ```
 
 ## Security Considerations
@@ -99,7 +127,9 @@ public boolean validatePassword(String rawPassword, String encodedPassword) {
 
 4. **Algorithm Variants**: The implementation uses Argon2id, which combines the security benefits of Argon2i (resistance against side-channel attacks) and Argon2d (resistance against GPU cracking).
 
-5. **CORS Security**: The application implements CORS (Cross-Origin Resource Sharing) at both the Spring MVC level and Spring Security level to ensure secure cross-origin communication. Only authorized frontend origins are allowed to access the API endpoints.
+5. **Migration Strategy**: A backward compatibility layer has been implemented in key components like `JwtValidator` to handle legacy SHA-256 hashes while gradually moving to Argon2.
+
+6. **CORS Security**: The application implements CORS (Cross-Origin Resource Sharing) at both the Spring MVC level and Spring Security level to ensure secure cross-origin communication. Only authorized frontend origins are allowed to access the API endpoints.
 
 ## CORS Configuration
 

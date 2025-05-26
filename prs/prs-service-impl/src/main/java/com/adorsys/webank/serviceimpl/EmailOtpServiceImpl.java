@@ -12,6 +12,7 @@ import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import java.nio.charset.*;
@@ -26,6 +27,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImpl.class);
     private final PersonalInfoRepository personalInfoRepository;
     private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private final PasswordEncoder passwordEncoder;
 
     @Resource
     private JavaMailSender mailSender;
@@ -36,8 +38,9 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository) {
+    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository, PasswordEncoder passwordEncoder) {
         this.personalInfoRepository = personalInfoRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -165,37 +168,27 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, accountId);
-        boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
+        String otpPayload = generateOtpPayload(inputOtp, accountId);
+        boolean isValid = passwordEncoder.matches(otpPayload, personalInfo.getEmailOtpHash());
         log.debug("OTP hash validation result: {}", isValid);
         return isValid;
     }
 
     String computeOtpHash(String emailOtp, String accountId) {
-        log.debug("Computing OTP hash");
+        log.debug("Computing OTP hash using Argon2");
+        String otpPayload = generateOtpPayload(emailOtp, accountId);
+        return passwordEncoder.encode(otpPayload);
+    }
+    
+    private String generateOtpPayload(String emailOtp, String accountId) {
         String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
                 emailOtp, accountId, salt);
-        log.trace("Hash input: {}", input);
-        return computeHash(canonicalizeJson(input));
+        return canonicalizeJson(input);
     }
 
     public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
-    }
-
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = String.format("%02x", b);
-            hexString.append(hex);
-        }
-        return hexString.toString();
+        log.debug("Using Argon2 password encoder for hash computation");
+        return passwordEncoder.encode(input);
     }
 
     String canonicalizeJson(String json) {
