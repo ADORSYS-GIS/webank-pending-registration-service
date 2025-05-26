@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 @EnableRepository
 @EnablePrsServiceimpl
+@EnableSecurity
 @SpringBootApplication
 @ComponentScan(basePackages = "com.adorsys.webank" , basePackageClasses = OtpServiceApi.class)
 public class Main {

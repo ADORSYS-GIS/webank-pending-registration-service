@@ -8,8 +8,10 @@ package com.adorsys.webank;
 
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 @Configuration
 @ComponentScan(basePackageClasses= {ServiceimplBasePackage.class})
+@Import(SecurityConfig.class)
 public class ServiceimplConfiguration {
 }

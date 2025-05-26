@@ -82,6 +82,21 @@
             <version>3.4.3</version>
         </dependency>
 
+        <!-- Spring Security dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+            
+        <!-- Bouncy Castle provider (for the Argon2 implementation) -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.77</version>
+        </dependency>
+
+
+
     </dependencies>
 
 </project>
