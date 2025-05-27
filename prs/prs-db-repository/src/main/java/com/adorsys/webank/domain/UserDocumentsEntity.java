@@ -19,19 +19,19 @@ public class UserDocumentsEntity {
     private String accountId;
 
 
-    @Column(name = "front_id", nullable = true)
+    @Column(name = "front_id", nullable = true, columnDefinition = "TEXT")
     private String frontID;
 
 
-    @Column(name = "back_id", nullable = true)
+    @Column(name = "back_id", nullable = true, columnDefinition = "TEXT")
     private String backID;
 
 
-    @Column(name = "selfie_id", nullable = true)
+    @Column(name = "selfie_id", nullable = true, columnDefinition = "TEXT")
     private String selfieID;
 
 
-    @Column(name = "tax_id", nullable = true)
+    @Column(name = "tax_id", nullable = true, columnDefinition = "TEXT")
     private String taxID;
 
     @Enumerated(EnumType.STRING)

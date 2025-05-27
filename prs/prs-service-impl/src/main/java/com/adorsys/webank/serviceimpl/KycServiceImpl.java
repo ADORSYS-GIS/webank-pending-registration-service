@@ -32,15 +32,35 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Document for accountId: {}", AccountId);
 
-            UserDocumentsEntity userDocuments = UserDocumentsEntity.builder()
-                    .accountId(AccountId)
-                    .frontID(kycDocumentRequest.getFrontId())
-                    .backID(kycDocumentRequest.getBackId())
-                    .selfieID(kycDocumentRequest.getSelfieId())
-                    .taxID(kycDocumentRequest.getTaxId())
-                    .build();
+            // Check if document already exists
+            Optional<UserDocumentsEntity> existingDocOpt = repository.findByAccountId(AccountId);
+            UserDocumentsEntity userDocuments;
 
+            if (existingDocOpt.isPresent()) {
+                // Update existing document
+                userDocuments = existingDocOpt.get();
+                userDocuments.setFrontID(kycDocumentRequest.getFrontId());
+                userDocuments.setBackID(kycDocumentRequest.getBackId());
+                userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
+                userDocuments.setTaxID(kycDocumentRequest.getTaxId());
+                userDocuments.setStatus(UserDocumentsStatus.PENDING);
+                log.debug("Updating existing UserDocumentsEntity: {}", userDocuments);
+            } else {
+                // Create new document
+                userDocuments = UserDocumentsEntity.builder()
+                        .accountId(AccountId)
+                        .frontID(kycDocumentRequest.getFrontId())
+                        .backID(kycDocumentRequest.getBackId())
+                        .selfieID(kycDocumentRequest.getSelfieId())
+                        .taxID(kycDocumentRequest.getTaxId())
+                        .status(UserDocumentsStatus.PENDING)
+                        .build();
+                log.debug("Creating new UserDocumentsEntity: {}", userDocuments);
+            }
+
+            // Save to DB
             repository.save(userDocuments);
+            log.info("KYC Document saved successfully for accountId: {}", AccountId);
             return "KYC Document sent successfully and saved";
         } catch (Exception e) {
             log.error("Failed to send KYC Document for accountId: {}", AccountId, e);
@@ -199,6 +219,7 @@ public class KycServiceImpl implements KycServiceApi {
         response.setSelfie(documents.getSelfieID());
         response.setTaxDocument(documents.getTaxID());
 
+        response.setRejectionReason(info.getRejectionReason());
         return response;
     }
 }

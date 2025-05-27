@@ -19,6 +19,6 @@ public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new JwtValidationException("Authorization header must start with 'Bearer '");
         }
-        return kyctatusUpdateServiceApi.updateKycStatus(accountId, status, kycInfoRequest.getIdNumber(),  kycInfoRequest.getExpiryDate());
+        return kyctatusUpdateServiceApi.updateKycStatus(accountId, status, kycInfoRequest.getIdNumber(),  kycInfoRequest.getExpiryDate(), kycInfoRequest.getRejectionReason());
     }
 }
