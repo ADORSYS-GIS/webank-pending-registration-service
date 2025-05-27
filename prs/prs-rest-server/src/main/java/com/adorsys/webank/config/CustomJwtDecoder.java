@@ -33,6 +33,15 @@ public class CustomJwtDecoder implements JwtDecoder {
             Instant issuedAt = claims.containsKey("iat") ? Instant.ofEpochSecond(((Number) claims.get("iat")).longValue()) : null;
             Instant expiresAt = claims.containsKey("exp") ? Instant.ofEpochSecond(((Number) claims.get("exp")).longValue()) : null;
 
+            //claims should be something like this:
+            /* {
+                "sub": "user123",
+                "phone": "1234567890",
+                "deviceCertified": true,
+                "kycCertified": false,
+                "roles": ["DEVICE_CERTIFIED"]
+                "any other field that will be use for authorization or in the future in security context"
+              } */
             return new Jwt(
                 token,
                 issuedAt,

@@ -23,16 +23,16 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthe
 
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         List<GrantedAuthority> authorities = new ArrayList<>();
-        Map<String, Object> headers = jwt.getHeaders();
+        Map<String, Object> claims = jwt.getClaims();
 
-        // Map custom header claims to roles
-        if (Boolean.TRUE.equals(headers.get("deviceCertified"))) {
+        // Map custom claims to roles
+        if (Boolean.TRUE.equals(claims.get("deviceCertified"))) {
             authorities.add(new SimpleGrantedAuthority("ROLE_DEVICE_CERTIFIED"));
         }
-        if (Boolean.TRUE.equals(headers.get("accountCertified"))) {
+        if (Boolean.TRUE.equals(claims.get("accountCertified"))) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ACCOUNT_CERTIFIED"));
         }
-        if (Boolean.TRUE.equals(headers.get("kycCertified"))) {
+        if (Boolean.TRUE.equals(claims.get("kycCertified"))) {
             authorities.add(new SimpleGrantedAuthority("ROLE_KYC_CERTIFIED"));
         }
 
