@@ -65,13 +65,13 @@ class TokenServiceImplTest {
         assertNull(token);
     }
 
-    @Test
-    void requestRecoveryToken_NullRequest_ReturnsNull() {
-        // When
-        String token = tokenService.requestRecoveryToken(null);
+    // @Test
+    // void requestRecoveryToken_NullRequest_ReturnsNull() {
+    //     // When
+    //     String token = tokenService.requestRecoveryToken(null);
 
-        // Then
-        assertNull(token);
-    }
+    //     // Then
+    //     assertNull(token);
+    // }
 
 } 

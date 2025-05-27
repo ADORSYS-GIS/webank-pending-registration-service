@@ -2,13 +2,14 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
-import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
 import com.nimbusds.jose.jwk.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
 import com.adorsys.webank.security.CertGeneratorHelper;
 import java.util.*;
+import com.adorsys.error.ResourceNotFoundException;
+import com.adorsys.error.ValidationException;
 
 @Service
 public class KycCertServiceImpl implements KycCertServiceApi {
@@ -24,6 +25,9 @@ public class KycCertServiceImpl implements KycCertServiceApi {
 
     @Override
     public String getCert(JWK publicKey, String accountId) {
+        if (accountId == null || accountId.isEmpty()) {
+            throw new ValidationException("Account ID is required");
+        }
         Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isPresent()) {
@@ -39,13 +43,15 @@ public class KycCertServiceImpl implements KycCertServiceApi {
                     return "Your certificate is: " + certificate;
                 } catch (Exception e) {
                     log.error("Error generating certificate: ", e);
-                    return "null";
+                    throw new ResourceNotFoundException("Error generating certificate");
                 }
             } else if (status == PersonalInfoStatus.REJECTED) {
                 return "REJECTED";
             } else if (status == PersonalInfoStatus.PENDING) {
                 return "null";
             }
+        } else {
+            throw new ResourceNotFoundException("No KYC certificate found for account ID: " + accountId);
         }
 
         return null;

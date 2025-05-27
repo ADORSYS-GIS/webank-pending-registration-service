@@ -1,4 +1,3 @@
-
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
@@ -8,6 +7,9 @@ import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.adorsys.error.DeviceValidationException;
+import com.adorsys.error.NonceValidationException;
+import com.adorsys.error.ValidationException;
 import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
@@ -48,39 +50,66 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private Long expirationTimeMs;
 
     @Override
-    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
+    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest request) {
+        if (publicKey == null) {
+            throw new ValidationException("Public key is required");
+        }
+        if (request.getTimeStamp() == null || request.getTimeStamp().isEmpty()) {
+            throw new ValidationException("Timestamp is required");
+        }
         return generateNonce(salt);
     }
 
     @Override
-    public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
-        String initiationNonce = deviceValidateRequest.getInitiationNonce();
+    public String validateDeviceRegistration(JWK publicKey, DeviceValidateRequest request) {
+        if (publicKey == null) {
+            throw new ValidationException("Public key is required");
+        }
+        if (request.getInitiationNonce() == null || request.getInitiationNonce().isEmpty()) {
+            throw new ValidationException("Initiation nonce is required");
+        }
+        if (request.getPowHash() == null || request.getPowHash().isEmpty()) {
+            throw new ValidationException("PoW hash is required");
+        }
+        if (request.getPowNonce() == null || request.getPowNonce().isEmpty()) {
+            throw new ValidationException("PoW nonce is required");
+        }
+        String initiationNonce = request.getInitiationNonce();
         String nonce = generateNonce(salt);
-        String powNonce = deviceValidateRequest.getPowNonce();
-        String newPowHash = deviceValidateRequest.getPowHash();
+        String powNonce = request.getPowNonce();
+        String newPowHash = request.getPowHash();
         String powHash;
         try {
             // Make a JSON object out of initiationNonce, devicePub, powNonce
-            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
+            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + publicKey.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
             JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
             String hashInput = jc.getEncodedString();
             powHash = calculateSHA256(hashInput);
 
             if (!initiationNonce.equals(nonce)) {
-                return "Error: Registration time elapsed, please try again";
+                throw new NonceValidationException("Registration time elapsed, please try again");
             } else if (!powHash.equals(newPowHash)) {
-                return "Error: Verification of PoW failed";
+                throw new DeviceValidationException("Verification of PoW failed");
             }
 
         } catch (NoSuchAlgorithmException e) {
             logger.error("Error calculating SHA-256 hash", e);
-            return "Error: Unable to hash the parameters";
+            throw new DeviceValidationException("Unable to hash the parameters");
+        } catch (IOException e) {
+            logger.error("Error processing JSON canonicalization", e);
+            throw new DeviceValidationException("Error processing JSON data");
         }
-        JsonCanonicalizer jc = new JsonCanonicalizer(devicePub.toJSONString());
-        String devicePublicKey = jc.getEncodedString();
-        logger.warn(devicePublicKey);
-        return generateDeviceCertificate(devicePublicKey);
+        try {
+            JsonCanonicalizer jc = new JsonCanonicalizer(publicKey.toJSONString());
+            String devicePublicKey = jc.getEncodedString();
+            logger.warn(devicePublicKey);
+            return generateDeviceCertificate(devicePublicKey);
+        } catch (IOException e) {
+            logger.error("Error processing device public key JSON", e);
+            throw new DeviceValidationException("Error processing device public key");
+        }
     }
+
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
@@ -128,7 +157,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             // Parse the server's private key from the JWK JSON string
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
             if (serverPrivateKey.getD() == null) {
-                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
+                throw new DeviceValidationException("Private key 'd' (private) parameter is missing");
             }
 
             // Signer using server's private key
@@ -137,14 +166,14 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             // Parse the server's public key
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
+            // Compute SHA-256 hash of the server's public JWK to use as `kid`
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
             String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
 
             // Create JWT Header
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                    .keyID(kid) // Set 'kid' as the SHA-256 of server public JWK
+                    .keyID(kid)
                     .type(JOSEObjectType.JWT)
                     .build();
 
@@ -155,11 +184,11 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
             logger.info(String.valueOf(issuedAt));
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer("https://webank.com")  // Fixed issuer format
-                    .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
-                    .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject())) // Fix JSON structure
+                    .issuer(issuer)
+                    .audience(deviceJwk.getKeyID())
+                    .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject()))
                     .issueTime(new Date(issuedAt * 1000))
-                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000)) // Convert to milliseconds
+                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000))
                     .build();
 
             // Create JWT token
@@ -171,8 +200,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             return dev;
 
         } catch (Exception e) {
-            throw new IllegalStateException("Error generating device certificate", e);
+            throw new DeviceValidationException("Error generating device certificate: " + e.getMessage());
         }
     }
-
 }

@@ -13,12 +13,14 @@ import org.springframework.beans.factory.annotation.*;
 import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.domain.PersonalInfoStatus;
+
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.time.format.*;
 import java.util.Optional;
+
+import com.adorsys.error.ValidationException;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
@@ -51,13 +53,14 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     @Override
     public String sendEmailOtp(String accountId, String email) {
+        if (accountId == null || accountId.isEmpty()) {
+            throw new ValidationException("Account ID is required");
+        }
+        if (email == null || email.isEmpty()) {
+            throw new ValidationException("Email is required");
+        }
         log.info("Initiating OTP send process for email: {}, accountId: {}", email, accountId);
         validateEmailFormat(email);
-
-        if (accountId == null || accountId.trim().isEmpty()) {
-            log.error("Invalid accountId: {}", accountId);
-            throw new IllegalArgumentException("Account ID cannot be null or empty");
-        }
 
         try {
             String otp = generateOtp();
@@ -83,7 +86,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             log.debug("PersonalInfoEntity saved: {}", personalInfo);
 
             sendOtpEmail(email, otp);
-            return "OTP sent successfully to " + email;
+            return "Email OTP sent successfully";
         } catch (Exception e) {
             log.error("Failed to send OTP to {} for accountId: {}", email, accountId, e);
             throw new FailedToSendOTPException("Failed to send Webank email OTP: " + e.getMessage());
@@ -91,7 +94,16 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     @Override
-    public String validateEmailOtp(String email, String otpInput, String accountId) {
+    public String validateEmailOtp(String email, String otp, String accountId) {
+        if (email == null || email.isEmpty()) {
+            throw new ValidationException("Email is required");
+        }
+        if (otp == null || otp.isEmpty()) {
+            throw new ValidationException("OTP is required");
+        }
+        if (accountId == null || accountId.isEmpty()) {
+            throw new ValidationException("Account ID is required");
+        }
         log.info("Validating OTP for email: {}, accountId: {}", email, accountId);
         try {
             PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
@@ -99,22 +111,22 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
             validateOtpExpiration(personalInfo);
 
-            if (validateOtpHash(otpInput, accountId, personalInfo)) {
+            if (validateOtpHash(otp, accountId, personalInfo)) {
                 personalInfo.setEmail(email);
                 personalInfoRepository.save(personalInfo);
                 log.info("OTP verified successfully for email: {}", email);
-                return "Webank email verified successfully";
+                return "Email OTP validated successfully";
             }
 
             personalInfoRepository.save(personalInfo);
             log.warn("Invalid OTP entered for email: {}", email);
-            return "Invalid Webank OTP";
+            throw new ValidationException("Invalid OTP");
         } catch (IllegalArgumentException e) {
             log.error("Validation error for accountId: {}: {}", accountId, e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("Error validating OTP for accountId: {}", accountId, e);
-            return "Webank OTP validation error";
+            throw new FailedToSendOTPException("Webank OTP validation error: " + e.getMessage());
         }
     }
 
@@ -129,7 +141,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (LocalDateTime.now().isAfter(expiration)) {
             personalInfoRepository.save(personalInfo);
             log.warn("OTP expired for accountId: {}", personalInfo.getAccountId());
-            throw new IllegalArgumentException("Webank OTP expired");
+            throw new FailedToSendOTPException("Webank OTP expired");
         }
     }
 

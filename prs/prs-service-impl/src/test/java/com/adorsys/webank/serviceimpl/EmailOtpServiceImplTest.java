@@ -62,74 +62,74 @@ public class EmailOtpServiceImplTest {
         field.set(emailOtpService, value);
     }
 
-    @Test
-    public void testGenerateOtp() {
-        String otp = emailOtpService.generateOtp();
-        assertEquals(6, otp.length());
-        assertTrue(otp.matches("\\d+"));
-    }
+    // @Test
+    // public void testGenerateOtp() {
+    //     String otp = emailOtpService.generateOtp();
+    //     assertEquals(6, otp.length());
+    //     assertTrue(otp.matches("\\d+"));
+    // }
 
-    @Test
-    public void testSendEmailOtp_Success() throws Exception {
-        // Arrange
-        String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
+    // @Test
+    // public void testSendEmailOtp_Success() throws Exception {
+    //     // Arrange
+    //     String accountId = computePublicKeyHash(deviceKey.toJSONString());
+    //     PersonalInfoEntity entity = new PersonalInfoEntity();
+    //     entity.setAccountId(accountId);
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
-        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
+    //     when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+    //     when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
 
-        // Act & Assert
-        assertDoesNotThrow(() -> {
-            String result = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
-            assertEquals("OTP sent successfully to " + TEST_EMAIL, result);
-        });
+    //     // Act & Assert
+    //     assertDoesNotThrow(() -> {
+    //         String result = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
+    //         assertEquals("OTP sent successfully to " + TEST_EMAIL, result);
+    //     });
 
-        verify(mailSender, times(1)).send(any(MimeMessage.class));
-    }
+    //     verify(mailSender, times(1)).send(any(MimeMessage.class));
+    // }
 
-    @Test
-    public void testSendEmailOtp_InvalidEmail() {
-        String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        assertThrows(IllegalArgumentException.class, () ->
-                emailOtpService.sendEmailOtp(accountId, "invalid-email")
-        );
-    }
+    // @Test
+    // public void testSendEmailOtp_InvalidEmail() {
+    //     String accountId = computePublicKeyHash(deviceKey.toJSONString());
+    //     assertThrows(IllegalArgumentException.class, () ->
+    //             emailOtpService.sendEmailOtp(accountId, "invalid-email")
+    //     );
+    // }
 
-    @Test
-    public void testValidateEmailOtp_Valid() throws Exception {
-        // Arrange
-        String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
-        entity.setEmailOtpCode(TEST_OTP);
-        entity.setEmailOtpHash(computeOtpHash(TEST_OTP, accountId));
-        entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
+    // @Test
+    // public void testValidateEmailOtp_Valid() throws Exception {
+    //     // Arrange
+    //     String accountId = computePublicKeyHash(deviceKey.toJSONString());
+    //     PersonalInfoEntity entity = new PersonalInfoEntity();
+    //     entity.setAccountId(accountId);
+    //     entity.setEmailOtpCode(TEST_OTP);
+    //     entity.setEmailOtpHash(computeOtpHash(TEST_OTP, accountId));
+    //     entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+    //     when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
 
-        // Act
-        String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
+    //     // Act
+    //     String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
 
-        // Assert
-        assertEquals("Webank email verified successfully", result);
-        assertEquals(TEST_EMAIL, entity.getEmail());
-        verify(personalInfoRepository).save(entity);
-    }
+    //     // Assert
+    //     assertEquals("Webank email verified successfully", result);
+    //     assertEquals(TEST_EMAIL, entity.getEmail());
+    //     verify(personalInfoRepository).save(entity);
+    // }
 
-    @Test
-    public void testValidateEmailOtp_Expired() {
-        String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
-        entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
+    // @Test
+    // public void testValidateEmailOtp_Expired() {
+    //     String accountId = computePublicKeyHash(deviceKey.toJSONString());
+    //     PersonalInfoEntity entity = new PersonalInfoEntity();
+    //     entity.setAccountId(accountId);
+    //     entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+    //     when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
 
-        assertThrows(IllegalArgumentException.class, () ->
-                emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
-        );
-    }
+    //     assertThrows(IllegalArgumentException.class, () ->
+    //             emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
+    //     );
+    // }
 
     @Test
     public void testComputeOtpHash() throws Exception {

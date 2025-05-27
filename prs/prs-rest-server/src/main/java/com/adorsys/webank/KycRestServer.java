@@ -3,6 +3,7 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.*;
 import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.error.JwtValidationException;
 import org.slf4j.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,12 +27,12 @@ public class KycRestServer implements KycRestApi {
             log.info("jwtToken from sending info is: {}, for accountId: {}", jwtToken, kycInfoRequest.getAccountId());
             JwtValidator.validateAndExtract(jwtToken, kycInfoRequest.getIdNumber(), kycInfoRequest.getExpiryDate(), kycInfoRequest.getAccountId());
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
@@ -42,12 +43,12 @@ public class KycRestServer implements KycRestApi {
             log.info("jwtToken from sending location is: {}, for accountId: {}", jwtToken, kycLocationRequest.getAccountId());
             JwtValidator.validateAndExtract(jwtToken, kycLocationRequest.getLocation(), kycLocationRequest.getAccountId());
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.sendKycLocation(kycLocationRequest);
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
@@ -58,12 +59,12 @@ public class KycRestServer implements KycRestApi {
             log.info("jwtToken from user sending email is  : {}", jwtToken);
             JwtValidator.validateAndExtract(jwtToken);
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.sendKycEmail(kycEmailRequest);
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
@@ -78,12 +79,12 @@ public class KycRestServer implements KycRestApi {
                     kycDocumentRequest.getAccountId());
 
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
@@ -95,12 +96,12 @@ public class KycRestServer implements KycRestApi {
             JwtValidator.validateAndExtract(jwtToken);
 
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.getPendingKycRecords();
         } catch (Exception e) {
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
@@ -112,18 +113,18 @@ public class KycRestServer implements KycRestApi {
             JwtValidator.validateAndExtract(jwtToken, DocumentUniqueId);
 
             if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
 
             return kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
         } catch (Exception e) {
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
     }
 
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
+            throw new JwtValidationException("Authorization header must start with 'Bearer '");
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }

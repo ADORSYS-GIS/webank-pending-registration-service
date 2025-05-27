@@ -3,6 +3,7 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.PendingOtpDto;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.PendingOtpServiceApi;
+import com.adorsys.error.JwtValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,16 +29,15 @@ public class PendingOtpListRestServer implements PendingOtpListRestApi {
             jwtToken = extractJwtFromHeader(authorizationHeader);
             JwtValidator.validateAndExtract(jwtToken);
             log.info("Success");
-
         } catch (Exception e) {
-            throw new IllegalArgumentException("An error occurred");
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
         // Delegate to the service to retrieve pending OTP records.
         return pendingOtpServiceApi.fetchPendingOtpEntries();
     }
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
+            throw new JwtValidationException("Authorization header must start with 'Bearer '");
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }

@@ -6,7 +6,8 @@ import com.adorsys.webank.service.*;
 import org.slf4j.*;
 import org.springframework.transaction.annotation.*;
 import org.springframework.stereotype.Service;
-
+import com.adorsys.error.ResourceNotFoundException;
+import com.adorsys.error.ValidationException;
 
 import java.util.*;
 @Service
@@ -22,11 +23,21 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
     @Override
     @Transactional
     public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
+        if (accountId == null || accountId.isEmpty()) {
+            throw new ValidationException("Account ID is required");
+        }
+        if (idNumber == null || idNumber.isEmpty()) {
+            throw new ValidationException("ID number is required");
+        }
+        if (expiryDate == null || expiryDate.isEmpty()) {
+            throw new ValidationException("Expiry date is required");
+        }
+
         Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isEmpty()) {
             log.warn("No record found for accountId {}", accountId);
-            return "Failed: No record found for accountId " + accountId;
+            throw new ResourceNotFoundException("No record found for accountId " + accountId);
         }
 
         PersonalInfoEntity personalInfo = personalInfoOpt.get();
@@ -34,12 +45,12 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
         // Validate document details
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
             log.error("Document ID mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getDocumentUniqueId(), idNumber);
-            return "Failed: Document ID mismatch";
+            throw new ValidationException("Document ID mismatch");
         }
 
         if (!personalInfo.getExpirationDate().equals(expiryDate)) {
             log.error("Document expiry date mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getExpirationDate(), expiryDate);
-            return "Failed: Document expiry date mismatch";
+            throw new ValidationException("Document expiry date mismatch");
         }
 
         // If all validations pass
