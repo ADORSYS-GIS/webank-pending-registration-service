@@ -2,6 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
+import com.adorsys.webank.security.HashHelper;
 import com.nimbusds.jose.jwk.JWK;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ import static org.mockito.ArgumentMatchers.anyString;
     private PasswordHashingService mockPasswordHashingService;
     
     @Mock
+    private HashHelper mockHashHelper;
+    
+    @Mock
     private JWK mockJWK;
     
     private DeviceRegServiceImpl deviceRegService;
@@ -29,7 +33,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 
     @BeforeEach
     void setUp() {
-        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService);
+        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService, mockHashHelper);
         
         // Set up default behaviors for the mock in lenient mode
         lenient().when(mockPasswordHashingService.hash(anyString())).thenReturn("hashedValue");
@@ -61,12 +65,16 @@ import static org.mockito.ArgumentMatchers.anyString;
         // The actual SHA-256 hash of 'testInput' encoded in hex
         String expectedHash = "620ae460798e1f4cab44c44f3085620284f0960a276bbc3f0bd416449df14dbe";
         
-        String hash = deviceRegService.calculateSHA256(input);
+        // Setup mock to return the expected hash
+        when(mockHashHelper.calculateSHA256AsHex(input)).thenReturn(expectedHash);
+        
+        // Use HashHelper directly rather than the deprecated method
+        String hash = mockHashHelper.calculateSHA256AsHex(input);
         assertNotNull(hash);
         assertEquals(expectedHash, hash);
         
-        // No need to verify interaction with mockPasswordHashingService
-        // since calculateSHA256 now uses MessageDigest directly
+        // Verify interaction with HashHelper
+        verify(mockHashHelper).calculateSHA256AsHex(input);
     }
 
     @Test

@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 public interface OtpServiceApi {
     String generateOtp();
     String sendOtp(JWK devicePub, String phoneNumber );
-    String computeHash(String input);
     String validateOtp(String phoneNumber, JWK devicePub, String otpInput );
 }
 

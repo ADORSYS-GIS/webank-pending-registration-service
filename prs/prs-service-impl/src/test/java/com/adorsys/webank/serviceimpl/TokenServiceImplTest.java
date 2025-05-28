@@ -1,8 +1,8 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.TokenRequest;
+import com.adorsys.webank.security.HashHelper;
 import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,17 +11,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Date;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class TokenServiceImplTest {
 
     @InjectMocks
     private TokenServiceImpl tokenService;
+    
+    @Mock
+    private HashHelper hashHelper;
 
     private static final String TEST_OLD_ACCOUNT_ID = "old-account-id";
     private static final String TEST_NEW_ACCOUNT_ID = "new-account-id";
@@ -37,10 +38,14 @@ class TokenServiceImplTest {
         ReflectionTestUtils.setField(tokenService, "SERVER_PUBLIC_KEY_JSON", TEST_PUBLIC_KEY);
         ReflectionTestUtils.setField(tokenService, "issuer", TEST_ISSUER);
         ReflectionTestUtils.setField(tokenService, "expirationTimeMs", TEST_EXPIRATION_TIME_MS);
+        
+        // Configure HashHelper mock to return a key ID when requested
+        // Using lenient mode to avoid 'unnecessary stubbing' errors in tests that don't use this mock
+        lenient().when(hashHelper.computeKeyId(any(ECKey.class))).thenReturn("mock-key-id");
     }
 
     @Test
-    void requestRecoveryToken_Success() {
+    void requestRecoveryTokenSuccess() {
         // Given
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
 
@@ -53,7 +58,7 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void requestRecoveryToken_InvalidPrivateKey_ReturnsNull() {
+    void requestRecoveryTokenInvalidPrivateKeyReturnsNull() {
         // Given
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
         ReflectionTestUtils.setField(tokenService, "SERVER_PRIVATE_KEY_JSON", "invalid-key");
@@ -66,7 +71,7 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void requestRecoveryToken_NullRequest_ReturnsNull() {
+    void requestRecoveryTokenNullRequestReturnsNull() {
         // When
         String token = tokenService.requestRecoveryToken(null);
 

@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.security.HashHelper;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.service.EmailOtpServiceApi;
 import jakarta.annotation.Resource;
@@ -32,6 +33,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     // Field declarations
     private final PersonalInfoRepository personalInfoRepository;
     private final PasswordHashingService passwordHashingService;
+    private final HashHelper hashHelper;
     
     @Resource
     private JavaMailSender mailSender;
@@ -180,6 +182,12 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     public String computeHash(String input) {
+        // Use the centralized HashHelper for deterministic hashing when needed
+        if (input.startsWith("public_key:")) {
+            // For public key hashing, use SHA-256 for deterministic results
+            return hashHelper.calculateSHA256AsHex(input);
+        }
+        // For password/sensitive data, continue using Argon2 via passwordHashingService
         return passwordHashingService.hash(input);
     }
 

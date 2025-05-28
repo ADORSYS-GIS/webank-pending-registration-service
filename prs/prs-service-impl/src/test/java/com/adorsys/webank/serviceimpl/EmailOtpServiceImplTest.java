@@ -2,6 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.security.HashHelper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
@@ -37,6 +38,9 @@ public class EmailOtpServiceImplTest {
     
     @Mock
     private PasswordHashingService passwordHashingService;
+    
+    @Mock
+    private HashHelper hashHelper;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
@@ -48,12 +52,17 @@ public class EmailOtpServiceImplTest {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
         
         // Create EmailOtpService with mocked dependencies
-        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService);
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService, hashHelper);
         
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
         mailSenderField.setAccessible(true);
         mailSenderField.set(emailOtpService, mailSender);
+        
+        // Inject hashHelper using reflection
+        Field hashHelperField = EmailOtpServiceImpl.class.getDeclaredField("hashHelper");
+        hashHelperField.setAccessible(true);
+        hashHelperField.set(emailOtpService, hashHelper);
         
         // Inject fromEmail using reflection
         setField("fromEmail", "no-reply@test.com");
@@ -61,6 +70,9 @@ public class EmailOtpServiceImplTest {
         // Setup default behavior for passwordHashingService in lenient mode
         lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
         lenient().when(passwordHashingService.verify(anyString(), anyString())).thenReturn(true);
+        
+        // Setup default behavior for hashHelper in lenient mode
+        lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
     }
 
     private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
@@ -77,7 +89,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_Success() throws Exception {
+    public void testSendEmailOtpSuccess() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
@@ -96,7 +108,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_InvalidEmail() {
+    public void testSendEmailOtpInvalidEmail() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.sendEmailOtp(accountId, "invalid-email")
@@ -104,7 +116,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Valid() throws Exception {
+    public void testValidateEmailOtpValid() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
@@ -125,7 +137,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Expired() {
+    public void testValidateEmailOtpExpired() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
         entity.setAccountId(accountId);
@@ -169,6 +181,4 @@ public class EmailOtpServiceImplTest {
     private String computeOtpHash(String otp, String accountId) {
         return "hashedOtp";  // Return a predictable value for tests
     }
-
-
 }

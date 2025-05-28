@@ -15,14 +15,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.adorsys.webank.security.HashHelper;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 
@@ -31,6 +29,7 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private final PasswordHashingService passwordHashingService;
+    private final HashHelper hashHelper;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -112,9 +111,10 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
      */
     private String validateProofOfWork(String hashInput, String powJSON, String providedHash) {
         try {
-            String calculatedHash = calculateSHA256(hashInput);
+            String calculatedHash = hashHelper.calculateSHA256AsHex(hashInput);
+            log.debug("Calculated hash: {}", calculatedHash);
+            log.debug("Provided hash: {}", providedHash);
             log.debug("PoW Verification - Input JSON: {}", powJSON);
-            log.debug("PoW Verification - Calculated Hash: {}", calculatedHash);
             log.debug("PoW Verification - Provided Hash: {}", providedHash);
             
             if (!calculatedHash.equals(providedHash)) {
@@ -122,7 +122,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
                 return "Error: Verification of PoW failed";
             }
             return null;
-        } catch (NoSuchAlgorithmException e) {
+        } catch (Exception e) {
             log.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to verify proof of work";
         }
@@ -131,21 +131,11 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
      * Calculates an actual SHA-256 hash of the input and returns it as a hex string
      * Used for deterministic hashing needed in Proof of Work verification
      * This matches the frontend's CryptoJS.SHA256().toString(CryptoJS.enc.Hex) approach
+     * @deprecated Use hashHelper.calculateSHA256AsHex instead
      */
+    @Deprecated
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-        
-        // Convert byte array to hex string to match frontend's encoding
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        return hexString.toString();
+        return hashHelper.calculateSHA256AsHex(input);
     }
 
     public String generateNonce() {
@@ -217,11 +207,9 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
      * @throws ParseException If the key cannot be parsed
      * @throws NoSuchAlgorithmException If SHA-256 algorithm is not available
      */
-    private String generateKeyId() throws ParseException, NoSuchAlgorithmException {
+    private String generateKeyId() throws ParseException {
         ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        return hashHelper.computeKeyId(serverPublicKey);
     }
     
     /**

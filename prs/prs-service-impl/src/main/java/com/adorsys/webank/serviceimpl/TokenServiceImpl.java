@@ -1,8 +1,8 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.TokenRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.TokenServiceApi;
+import com.adorsys.webank.security.HashHelper;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -12,22 +12,19 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.Date;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class TokenServiceImpl implements TokenServiceApi {
-
-    private static final Logger log = LoggerFactory.getLogger(TokenServiceImpl.class);
+    private final HashHelper hashHelper;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -66,10 +63,8 @@ public class TokenServiceImpl implements TokenServiceApi {
             // Parse the server's public key
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
-            String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+            // Compute SHA-256 hash of the server's public JWK to use as `kid`
+            String kid = hashHelper.computeKeyId(serverPublicKey);
 
             // Create JWT Header
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
