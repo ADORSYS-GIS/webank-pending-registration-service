@@ -23,7 +23,7 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
 
     @Override
     @Transactional
-    public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate) {
+    public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason) {
         if (accountId == null || accountId.isEmpty()) {
             throw new ValidationException("Account ID is required");
         }
@@ -62,7 +62,7 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
                 // Set rejection fields if status is REJECTED
                 if (kycStatus == PersonalInfoStatus.REJECTED) {
                     if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
-                        return "Failed: Rejection reason is required when status is REJECTED";
+                        throw new ValidationException("Rejection reason is required when status is REJECTED");
                     }
                     personalInfo.setRejectionReason(rejectionReason);
                 } else {

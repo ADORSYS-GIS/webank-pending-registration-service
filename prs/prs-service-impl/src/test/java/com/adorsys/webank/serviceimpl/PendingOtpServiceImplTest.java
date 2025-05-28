@@ -4,12 +4,14 @@ import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.dto.PendingOtpDto;
 import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.error.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,46 +24,84 @@ class PendingOtpServiceImplTest {
     private OtpRequestRepository otpRequestRepository;
 
     @InjectMocks
-    private PendingOtpServiceImpl pendingOtpServiceImpl;
+    private PendingOtpServiceImpl pendingOtpService;
 
-    private OtpEntity otpEntity1;
-    private OtpEntity otpEntity2;
+    private static final String TEST_PHONE_1 = "+1234567890";
+    private static final String TEST_PHONE_2 = "+0987654321";
+    private static final String TEST_OTP_1 = "111111";
+    private static final String TEST_OTP_2 = "222222";
 
     @BeforeEach
     void setUp() {
-        // Create mocked OtpEntity objects with desired behavior.
-        otpEntity1 = mock(OtpEntity.class);
-        when(otpEntity1.getPhoneNumber()).thenReturn("1234567890");
-        when(otpEntity1.getOtpCode()).thenReturn("111111");
-        when(otpEntity1.getStatus()).thenReturn(OtpStatus.PENDING);
-
-        otpEntity2 = mock(OtpEntity.class);
-        when(otpEntity2.getPhoneNumber()).thenReturn("0987654321");
-        when(otpEntity2.getOtpCode()).thenReturn("222222");
-        when(otpEntity2.getStatus()).thenReturn(OtpStatus.PENDING);
+        // No additional setup needed
     }
 
     @Test
-    void testGetPendingOtps() {
-        // Stub the repository to return the mocked OtpEntity objects.
+    void testFetchPendingOtpEntries_Success() {
+        // Arrange
+        OtpEntity otpEntity1 = createOtpEntity(TEST_PHONE_1, TEST_OTP_1, OtpStatus.PENDING);
+        OtpEntity otpEntity2 = createOtpEntity(TEST_PHONE_2, TEST_OTP_2, OtpStatus.PENDING);
         List<OtpEntity> otpList = List.of(otpEntity1, otpEntity2);
+        
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(otpList);
 
-        // Act: call the service method.
-        List<PendingOtpDto> result = pendingOtpServiceImpl.fetchPendingOtpEntries();
+        // Act
+        List<PendingOtpDto> result = pendingOtpService.fetchPendingOtpEntries();
 
-        // Assert: ensure proper mapping from OtpEntity to PendingOtpDto.
+        // Assert
+        assertNotNull(result);
         assertEquals(2, result.size());
 
+        // Verify first DTO
         PendingOtpDto dto1 = result.get(0);
+        assertEquals(TEST_PHONE_1, dto1.getPhoneNumber());
+        assertEquals(TEST_OTP_1, dto1.getOtpCode());
+        assertEquals(OtpStatus.PENDING.name(), dto1.getStatus());
+
+        // Verify second DTO
         PendingOtpDto dto2 = result.get(1);
+        assertEquals(TEST_PHONE_2, dto2.getPhoneNumber());
+        assertEquals(TEST_OTP_2, dto2.getOtpCode());
+        assertEquals(OtpStatus.PENDING.name(), dto2.getStatus());
 
-        assertEquals("1234567890", dto1.getPhoneNumber());
-        assertEquals("111111", dto1.getOtpCode());
-        assertEquals("PENDING", dto1.getStatus());
+        verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
+    }
 
-        assertEquals("0987654321", dto2.getPhoneNumber());
-        assertEquals("222222", dto2.getOtpCode());
-        assertEquals("PENDING", dto2.getStatus());
+    @Test
+    void testFetchPendingOtpEntries_EmptyList() {
+        // Arrange
+        when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(Collections.emptyList());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
+            pendingOtpService.fetchPendingOtpEntries()
+        );
+        assertEquals("No pending OTP entries found", exception.getMessage());
+        verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
+    }
+
+    @Test
+    void testFetchPendingOtpEntries_NoPendingEntries() {
+        // Arrange
+        OtpEntity otpEntity1 = createOtpEntity(TEST_PHONE_1, TEST_OTP_1, OtpStatus.COMPLETE);
+        OtpEntity otpEntity2 = createOtpEntity(TEST_PHONE_2, TEST_OTP_2, OtpStatus.INCOMPLETE);
+        List<OtpEntity> otpList = List.of(otpEntity1, otpEntity2);
+        
+        when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(Collections.emptyList());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
+            pendingOtpService.fetchPendingOtpEntries()
+        );
+        assertEquals("No pending OTP entries found", exception.getMessage());
+        verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
+    }
+
+    private OtpEntity createOtpEntity(String phoneNumber, String otpCode, OtpStatus status) {
+        OtpEntity entity = new OtpEntity();
+        entity.setPhoneNumber(phoneNumber);
+        entity.setOtpCode(otpCode);
+        entity.setStatus(status);
+        return entity;
     }
 }

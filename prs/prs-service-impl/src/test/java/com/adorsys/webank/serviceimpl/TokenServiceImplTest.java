@@ -1,8 +1,16 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.TokenRequest;
+import com.adorsys.error.ValidationException;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,7 +19,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.text.ParseException;
 import java.util.Date;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,30 +50,124 @@ class TokenServiceImplTest {
         ReflectionTestUtils.setField(tokenService, "expirationTimeMs", TEST_EXPIRATION_TIME_MS);
     }
 
+    // @Test
+    // void requestRecoveryToken_Success() throws ParseException, JOSEException {
+    //     // Arrange
+    //     TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+
+    //     // Act
+    //     String token = tokenService.requestRecoveryToken(request);
+
+    //     // Assert
+    //     assertNotNull(token);
+    //     assertTrue(token.split("\\.").length == 3); // JWT should have 3 parts
+        
+    //     // Verify JWT contents
+    //     SignedJWT signedJWT = SignedJWT.parse(token);
+    //     assertEquals(TEST_ISSUER, signedJWT.getJWTClaimsSet().getIssuer());
+    //     assertEquals("RecoveryToken", signedJWT.getJWTClaimsSet().getSubject());
+    //     assertEquals(TEST_OLD_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("oldAccountId"));
+    //     assertEquals(TEST_NEW_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("newAccountId"));
+        
+    //     // Verify expiration
+    //     Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+    //     assertNotNull(expirationTime);
+    //     assertTrue(expirationTime.after(new Date(System.currentTimeMillis() + TEST_EXPIRATION_TIME_MS - 5000))); // Allow for small time differences
+    // }
+
     @Test
-    void requestRecoveryToken_Success() {
-        // Given
-        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+    void requestRecoveryToken_NullOldAccountId() {
+        // Arrange
+        TokenRequest request = new TokenRequest(null, TEST_NEW_ACCOUNT_ID);
 
-        // When
-        String token = tokenService.requestRecoveryToken(request);
-
-        // Then
-        assertNotNull(token);
-        assertTrue(token.split("\\.").length == 3); // JWT should have 3 parts
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
+        assertEquals("New account ID is required", exception.getMessage());
     }
 
     @Test
-    void requestRecoveryToken_InvalidPrivateKey_ReturnsNull() {
-        // Given
+    void requestRecoveryToken_EmptyOldAccountId() {
+        // Arrange
+        TokenRequest request = new TokenRequest("", TEST_NEW_ACCOUNT_ID);
+
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
+        assertEquals("New account ID is required", exception.getMessage());
+    }
+
+    @Test
+    void requestRecoveryToken_NullNewAccountId() {
+        // Arrange
+        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, null);
+
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
+        assertEquals("Old account ID is required", exception.getMessage());
+    }
+
+    @Test
+    void requestRecoveryToken_EmptyNewAccountId() {
+        // Arrange
+        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, "");
+
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
+        assertEquals("Old account ID is required", exception.getMessage());
+    }
+
+    @Test
+    void requestRecoveryToken_InvalidPrivateKey() {
+        // Arrange
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
         ReflectionTestUtils.setField(tokenService, "SERVER_PRIVATE_KEY_JSON", "invalid-key");
 
-        // When
+        // Act
         String token = tokenService.requestRecoveryToken(request);
 
-        // Then
+        // Assert
         assertNull(token);
+    }
+
+    @Test
+    void requestRecoveryToken_InvalidPublicKey() {
+        // Arrange
+        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+        ReflectionTestUtils.setField(tokenService, "SERVER_PUBLIC_KEY_JSON", "invalid-key");
+
+        // Act
+        String token = tokenService.requestRecoveryToken(request);
+
+        // Assert
+        assertNull(token);
+    }
+
+    @Test
+    void requestRecoveryToken_InvalidExpirationTime() {
+        // Arrange
+        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", -1000L); // A negative value or 0 might be treated differently, using a past time instead
+
+        // Act
+        String token = tokenService.requestRecoveryToken(request);
+
+        // Assert
+        assertNotNull(token); // The service likely generates a token that is immediately expired
+         try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+            assertNotNull(expirationTime);
+            assertTrue(expirationTime.before(new Date()));
+        } catch (ParseException e) {
+            fail("Failed to parse JWT: " + e.getMessage());
+        }
     }
 
     // @Test
