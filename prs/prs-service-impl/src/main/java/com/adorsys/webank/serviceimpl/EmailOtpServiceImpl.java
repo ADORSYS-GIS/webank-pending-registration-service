@@ -10,10 +10,8 @@ import jakarta.mail.internet.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
-import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.domain.PersonalInfoStatus;
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
@@ -151,15 +149,15 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             helper.setTo(toEmail);
             helper.setSubject("Webank Verification Code");
             helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
-
-            ByteArrayResource resource = new ByteArrayResource("This is a sample attachment".getBytes());
-            helper.addAttachment("webank_otp_info.txt", resource);
+            
+            // Remove attachment to simplify email delivery and avoid issues
 
             mailSender.send(message);
             log.info("OTP email sent successfully to {}", toEmail);
         } catch (MessagingException e) {
-            log.error("Failed to send email to {}", toEmail, e);
-            throw new FailedToSendOTPException("Failed to send Webank email with attachment: " + e.getMessage());
+            log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
+            log.error("Detailed error:", e);
+            throw new FailedToSendOTPException("Failed to send Webank email: " + e.getMessage());
         }
     }
 

@@ -1,7 +1,7 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.dto.response.KycResponse;
+import com.adorsys.webank.dto.response.*;
 import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
 import org.slf4j.*;
@@ -24,7 +24,7 @@ public class KycRestServer implements KycRestApi {
     }
 
     @Override
-    public ResponseEntity<KycResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
+    public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
         try {
             String jwtToken = extractJwtFromHeader(authorizationHeader);
             log.info("jwtToken from sending info is: {}, for accountId: {}", jwtToken, kycInfoRequest.getAccountId());
@@ -33,21 +33,17 @@ public class KycRestServer implements KycRestApi {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            String result = kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
-            KycResponse response = new KycResponse();
-            response.setKycId("kyc_info_" + System.currentTimeMillis());
-            response.setStatus(KycResponse.KycStatus.PENDING);
-            response.setSubmittedAt(LocalDateTime.now());
-            response.setMessage(result);
-            
+            KycInfoResponse response = kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            log.error("Error processing KYC info request: {}", e.getMessage());
+            KycInfoResponse errorResponse = createInfoErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
     @Override
-    public ResponseEntity<KycResponse> sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
+    public ResponseEntity<KycLocationResponse> sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
         try {
             String jwtToken = extractJwtFromHeader(authorizationHeader);
             log.info("jwtToken from sending location is: {}, for accountId: {}", jwtToken, kycLocationRequest.getAccountId());
@@ -56,44 +52,36 @@ public class KycRestServer implements KycRestApi {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            String result = kycServiceApi.sendKycLocation(kycLocationRequest);
-            KycResponse response = new KycResponse();
-            response.setKycId("kyc_location_" + System.currentTimeMillis());
-            response.setStatus(KycResponse.KycStatus.PENDING);
-            response.setSubmittedAt(LocalDateTime.now());
-            response.setMessage(result);
-            
+            KycLocationResponse response = kycServiceApi.sendKycLocation(kycLocationRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            log.error("Error processing KYC location request: {}", e.getMessage());
+            KycLocationResponse errorResponse = createLocationErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
     @Override
-    public ResponseEntity<KycResponse> sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
+    public ResponseEntity<KycEmailResponse> sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
         try {
             String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from user sending email is  : {}", jwtToken);
+            log.info("jwtToken from user sending email is: {}", jwtToken);
             JwtValidator.validateAndExtract(jwtToken);
             if (!certValidator.validateJWT(jwtToken)) {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            String result = kycServiceApi.sendKycEmail(kycEmailRequest);
-            KycResponse response = new KycResponse();
-            response.setKycId("kyc_email_" + System.currentTimeMillis());
-            response.setStatus(KycResponse.KycStatus.PENDING);
-            response.setSubmittedAt(LocalDateTime.now());
-            response.setMessage(result);
-            
+            KycEmailResponse response = kycServiceApi.sendKycEmail(kycEmailRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            log.error("Error processing KYC email request: {}", e.getMessage());
+            KycEmailResponse errorResponse = createEmailErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
     @Override
-    public ResponseEntity<KycResponse> sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
+    public ResponseEntity<KycDocumentResponse> sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
         try {
             String jwtToken = extractJwtFromHeader(authorizationHeader);
             log.info("jwtToken from sending document is: {}, for accountId: {}", jwtToken, kycDocumentRequest.getAccountId());
@@ -106,16 +94,12 @@ public class KycRestServer implements KycRestApi {
                 throw new SecurityException("Invalid or unauthorized JWT.");
             }
 
-            String result = kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
-            KycResponse response = new KycResponse();
-            response.setKycId("kyc_doc_" + System.currentTimeMillis());
-            response.setStatus(KycResponse.KycStatus.PENDING);
-            response.setSubmittedAt(LocalDateTime.now());
-            response.setMessage(result);
-            
+            KycDocumentResponse response = kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            log.error("Error processing KYC document request: {}", e.getMessage());
+            KycDocumentResponse errorResponse = createDocumentErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
@@ -133,6 +117,7 @@ public class KycRestServer implements KycRestApi {
             List<UserInfoResponse> results = kycServiceApi.getPendingKycRecords();
             return ResponseEntity.ok(results);
         } catch (Exception e) {
+            log.error("Error retrieving pending KYC records: {}", e.getMessage());
             throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
         }
     }
@@ -151,6 +136,7 @@ public class KycRestServer implements KycRestApi {
             List<UserInfoResponse> results = kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
             return ResponseEntity.ok(results);
         } catch (Exception e) {
+            log.error("Error finding KYC records by document ID: {}", e.getMessage());
             throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
         }
     }
@@ -162,9 +148,36 @@ public class KycRestServer implements KycRestApi {
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }
     
-    private KycResponse createErrorResponse(String message) {
-        KycResponse response = new KycResponse();
-        response.setKycId("error_" + System.currentTimeMillis());
+    private KycDocumentResponse createDocumentErrorResponse(String message) {
+        KycDocumentResponse response = new KycDocumentResponse();
+        response.setKycId("error_doc_" + System.currentTimeMillis());
+        response.setStatus(KycResponse.KycStatus.REJECTED);
+        response.setSubmittedAt(LocalDateTime.now());
+        response.setMessage("Error: " + message);
+        return response;
+    }
+    
+    private KycInfoResponse createInfoErrorResponse(String message) {
+        KycInfoResponse response = new KycInfoResponse();
+        response.setKycId("error_info_" + System.currentTimeMillis());
+        response.setStatus(KycResponse.KycStatus.REJECTED);
+        response.setSubmittedAt(LocalDateTime.now());
+        response.setMessage("Error: " + message);
+        return response;
+    }
+    
+    private KycLocationResponse createLocationErrorResponse(String message) {
+        KycLocationResponse response = new KycLocationResponse();
+        response.setKycId("error_loc_" + System.currentTimeMillis());
+        response.setStatus(KycResponse.KycStatus.REJECTED);
+        response.setSubmittedAt(LocalDateTime.now());
+        response.setMessage("Error: " + message);
+        return response;
+    }
+    
+    private KycEmailResponse createEmailErrorResponse(String message) {
+        KycEmailResponse response = new KycEmailResponse();
+        response.setKycId("error_email_" + System.currentTimeMillis());
         response.setStatus(KycResponse.KycStatus.REJECTED);
         response.setSubmittedAt(LocalDateTime.now());
         response.setMessage("Error: " + message);

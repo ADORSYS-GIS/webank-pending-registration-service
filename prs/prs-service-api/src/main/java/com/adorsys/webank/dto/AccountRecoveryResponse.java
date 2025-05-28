@@ -1,12 +1,10 @@
 package com.adorsys.webank.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Setter
-@Getter
+@Data
 @NoArgsConstructor
 @Schema(description = "Account recovery response")
 public class AccountRecoveryResponse {

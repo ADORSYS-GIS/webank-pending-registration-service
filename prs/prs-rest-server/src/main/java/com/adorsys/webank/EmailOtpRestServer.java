@@ -43,7 +43,6 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
         String result = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
         
         EmailResponse response = new EmailResponse();
-        response.setOperationId("email_otp_" + System.currentTimeMillis());
         response.setStatus(EmailResponse.EmailStatus.SUCCESS);
         response.setTimestamp(LocalDateTime.now());
         response.setMessage(result);
@@ -77,7 +76,6 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
         );
         
         EmailResponse response = new EmailResponse();
-        response.setOperationId("email_validation_" + System.currentTimeMillis());
         response.setStatus(EmailResponse.EmailStatus.SUCCESS);
         response.setTimestamp(LocalDateTime.now());
         response.setMessage(result);
@@ -97,7 +95,6 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     
     private EmailResponse createErrorResponse(String message) {
         EmailResponse response = new EmailResponse();
-        response.setOperationId("error_" + System.currentTimeMillis());
         response.setStatus(EmailResponse.EmailStatus.FAILED);
         response.setTimestamp(LocalDateTime.now());
         response.setMessage("Error: " + message);

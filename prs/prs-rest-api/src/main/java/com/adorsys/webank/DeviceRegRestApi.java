@@ -3,6 +3,7 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.dto.response.DeviceResponse;
+import com.adorsys.webank.dto.response.DeviceValidationResponse;
 import com.adorsys.webank.dto.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,7 +28,7 @@ public interface DeviceRegRestApi {
 
     @Operation(
         summary = "Initialize device registration", 
-        description = "Starts the device registration process by generating a unique device identifier"
+        description = "Starts the device registration process by generating a unique nonce for device validation"
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -38,7 +39,7 @@ public interface DeviceRegRestApi {
                 schema = @Schema(implementation = DeviceResponse.class),
                 examples = @ExampleObject(
                     name = "successful-init",
-                    value = "{\"deviceId\":\"dev_123456789\",\"status\":\"INITIALIZED\",\"timestamp\":\"2025-01-20T15:30:00\",\"message\":\"Device registration initialized successfully\"}"
+                    value = "{\"status\":\"INITIALIZED\",\"timestamp\":\"2025-01-20T15:30:00\",\"message\":\"Device registration initialized. Use the following nonce for validation: abc123def456\"}"
                 )
             )
         ),
@@ -60,7 +61,7 @@ public interface DeviceRegRestApi {
         )
     })
     @PostMapping(value = "/init", consumes = "application/json", produces = "application/json")
-    ResponseEntity<DeviceResponse> initDeviceRegistration(
+    ResponseEntity<DeviceResponse> initiateDeviceRegistration(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody DeviceRegInitRequest request
@@ -68,7 +69,7 @@ public interface DeviceRegRestApi {
 
     @Operation(
         summary = "Validate device", 
-        description = "Validates a device during the registration process"
+        description = "Validates a device during the registration process using proof of work and returns a device certificate"
     )
     @ApiResponses(value = {
         @ApiResponse(
@@ -76,10 +77,10 @@ public interface DeviceRegRestApi {
             description = "Device validated successfully",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = DeviceResponse.class),
+                schema = @Schema(implementation = DeviceValidationResponse.class),
                 examples = @ExampleObject(
                     name = "successful-validation",
-                    value = "{\"deviceId\":\"dev_123456789\",\"status\":\"VALIDATED\",\"timestamp\":\"2025-01-20T15:30:00\",\"message\":\"Device validated successfully\"}"
+                    value = "{\"status\":\"VALIDATED\",\"timestamp\":\"2025-01-20T15:30:00\",\"certificate\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6IjEyMzQ1Njc4OTAiLCJ0eXAiOiJKV1QifQ...\",\"message\":\"Device successfully validated and certificate issued\"}"
                 )
             )
         ),
@@ -109,7 +110,7 @@ public interface DeviceRegRestApi {
         )
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<DeviceResponse> validateDevice(
+    ResponseEntity<DeviceValidationResponse> validateDeviceRegistration(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody DeviceValidateRequest request

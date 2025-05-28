@@ -1,19 +1,36 @@
 package com.adorsys.webank;
 
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.dto.response.KycResponse;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
 import com.adorsys.webank.dto.response.ErrorResponse;
-import io.swagger.v3.oas.annotations.*;
+import com.adorsys.webank.dto.response.KycDocumentResponse;
+import com.adorsys.webank.dto.response.KycEmailResponse;
+import com.adorsys.webank.dto.response.KycInfoResponse;
+import com.adorsys.webank.dto.response.KycLocationResponse;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.*;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.*;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.util.List;
 
 @Tag(name = "KYC Management", description = "APIs for Know Your Customer (KYC) verification processes")
 @RequestMapping("/api/prs/kyc")
@@ -31,10 +48,10 @@ public interface KycRestApi {
             description = "KYC documents successfully submitted",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = KycResponse.class),
+                schema = @Schema(implementation = KycDocumentResponse.class),
                 examples = @ExampleObject(
                     name = "success",
-                    value = "{\"kycId\":\"kyc_doc_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC documents submitted successfully\",\"verificationDetails\":null}"
+                    value = "{\"kycId\":\"kyc_doc_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC documents submitted successfully\",\"documentStatuses\":[{\"documentType\":\"FRONT_ID\",\"status\":\"PENDING\",\"notes\":null}],\"accountId\":\"ACC_123456\"}"
                 )
             )
         ),
@@ -60,7 +77,7 @@ public interface KycRestApi {
         )
     })
     @PostMapping(value = "/documents", consumes = "application/json", produces = "application/json")
-    ResponseEntity<KycResponse> sendKycDocument(
+    ResponseEntity<KycDocumentResponse> sendKycDocument(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycDocumentRequest kycDocumentRequest
@@ -78,10 +95,10 @@ public interface KycRestApi {
             description = "KYC information successfully submitted",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = KycResponse.class),
+                schema = @Schema(implementation = KycInfoResponse.class),
                 examples = @ExampleObject(
                     name = "success",
-                    value = "{\"kycId\":\"kyc_info_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC information submitted successfully\",\"verificationDetails\":null}"
+                    value = "{\"kycId\":\"kyc_info_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC information submitted successfully\",\"accountId\":\"ACC_123456\",\"idNumber\":\"ID123456789\",\"expiryDate\":\"2025-12-31\",\"verificationStatus\":\"PENDING\",\"rejectionReason\":null}"
                 )
             )
         ),
@@ -107,7 +124,7 @@ public interface KycRestApi {
         )
     })
     @PostMapping(value = "/info", consumes = "application/json", produces = "application/json")
-    ResponseEntity<KycResponse> sendKycinfo(
+    ResponseEntity<KycInfoResponse> sendKycinfo(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycInfoRequest kycInfoRequest
@@ -125,10 +142,10 @@ public interface KycRestApi {
             description = "KYC location successfully submitted",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = KycResponse.class),
+                schema = @Schema(implementation = KycLocationResponse.class),
                 examples = @ExampleObject(
                     name = "success",
-                    value = "{\"kycId\":\"kyc_loc_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC location submitted successfully\",\"verificationDetails\":null}"
+                    value = "{\"kycId\":\"kyc_loc_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"KYC location submitted successfully\",\"accountId\":\"ACC_123456\",\"location\":\"123 Main St, Apartment 4B, New York, NY 10001\",\"verificationStatus\":\"PENDING\",\"notes\":null}"
                 )
             )
         ),
@@ -154,7 +171,7 @@ public interface KycRestApi {
         )
     })
     @PostMapping(value = "/location", consumes = "application/json", produces = "application/json")
-    ResponseEntity<KycResponse> sendKyclocation(
+    ResponseEntity<KycLocationResponse> sendKyclocation(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycLocationRequest kycLocationRequest
@@ -172,10 +189,10 @@ public interface KycRestApi {
             description = "KYC email successfully processed",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = KycResponse.class),
+                schema = @Schema(implementation = KycEmailResponse.class),
                 examples = @ExampleObject(
                     name = "success",
-                    value = "{\"kycId\":\"kyc_email_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"Email verification sent to user@example.com\",\"verificationDetails\":null}"
+                    value = "{\"kycId\":\"kyc_email_123456\",\"status\":\"PENDING\",\"submittedAt\":\"2025-01-20T15:30:00\",\"message\":\"Email verification sent to user@example.com\",\"accountId\":\"ACC_123456\",\"email\":\"user@example.com\",\"verificationStatus\":\"VERIFICATION_SENT\",\"verifiedAt\":null}"
                 )
             )
         ),
@@ -201,7 +218,7 @@ public interface KycRestApi {
         )
     })
     @PostMapping(value = "/email", consumes = "application/json", produces = "application/json")
-    ResponseEntity<KycResponse> sendKycEmail(
+    ResponseEntity<KycEmailResponse> sendKycEmail(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycEmailRequest kycEmailRequest

@@ -10,30 +10,34 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Standard error response")
+@Schema(description = "Standard error response for API errors")
 public class ErrorResponse {
     
-    @Schema(description = "Error code", example = "INVALID_OTP", required = true)
+    @Schema(description = "Error code", example = "INVALID_REQUEST", required = true)
     private String code;
     
-    @Schema(description = "Human-readable error message", example = "The provided OTP is invalid or has expired", required = true)
+    @Schema(description = "Error message", example = "Invalid request parameters", required = true)
     private String message;
     
-    @Schema(description = "Detailed error information for debugging", example = "OTP validation failed: code does not match")
+    @Schema(description = "Detailed error description", example = "Phone number format is invalid")
     private String details;
     
     @Schema(description = "Timestamp when the error occurred", example = "2025-01-20T15:30:00")
-    private LocalDateTime timestamp = LocalDateTime.now();
+    private LocalDateTime timestamp;
     
-    @Schema(description = "Request path that caused the error", example = "/api/prs/otp/validate")
+    @Schema(description = "API endpoint path where the error occurred", example = "/api/prs/otp/send")
     private String path;
     
-    // Factory methods
-    public static ErrorResponse of(String code, String message) {
-        return new ErrorResponse(code, message, null, LocalDateTime.now(), null);
+    public ErrorResponse(String code, String message) {
+        this.code = code;
+        this.message = message;
+        this.timestamp = LocalDateTime.now();
     }
     
-    public static ErrorResponse of(String code, String message, String details) {
-        return new ErrorResponse(code, message, details, LocalDateTime.now(), null);
+    public ErrorResponse(String code, String message, String details) {
+        this.code = code;
+        this.message = message;
+        this.details = details;
+        this.timestamp = LocalDateTime.now();
     }
 } 

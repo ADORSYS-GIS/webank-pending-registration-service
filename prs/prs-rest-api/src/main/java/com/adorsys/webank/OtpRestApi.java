@@ -4,7 +4,7 @@ import com.adorsys.webank.dto.OtpRequest;
 import com.adorsys.webank.dto.OtpValidationRequest;
 import com.adorsys.webank.dto.response.ErrorResponse;
 import com.adorsys.webank.dto.response.OtpResponse;
-import com.adorsys.webank.dto.response.ValidationResponse;
+import com.adorsys.webank.dto.response.OtpValidationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -91,7 +91,7 @@ public interface OtpRestApi {
             description = "OTP validation result",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = ValidationResponse.class),
+                schema = @Schema(implementation = OtpValidationResponse.class),
                 examples = {
                     @ExampleObject(
                         name = "valid-otp",
@@ -138,7 +138,7 @@ public interface OtpRestApi {
         )
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<ValidationResponse> validateOtp(
+    ResponseEntity<OtpValidationResponse> validateOtp(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody OtpValidationRequest request

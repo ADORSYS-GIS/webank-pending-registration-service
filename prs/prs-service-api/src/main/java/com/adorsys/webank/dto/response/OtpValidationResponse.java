@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "Validation response for OTP or other validation operations")
-public class ValidationResponse {
+public class OtpValidationResponse {
     
     @Schema(description = "Indicates if validation was successful", example = "true", required = true)
     private boolean valid;

@@ -18,5 +18,4 @@ public class OtpRequest {
             required = true,
             pattern = "^\\+[1-9]\\d{1,14}$")
     private String phoneNumber;
-
 }
