@@ -50,16 +50,17 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Override
     public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
-        // Extract request parameters
+        // Extract initiation nonce first - we need this for initial validation
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
-        String powNonce = deviceValidateRequest.getPowNonce();
-        String newPowHash = deviceValidateRequest.getPowHash();
 
         // Step 1: Validate the nonce timestamp
         String nonceValidationError = validateNonceTimestamp(initiationNonce);
         if (nonceValidationError != null) {
             return nonceValidationError;
         }
+        
+        String powNonce = deviceValidateRequest.getPowNonce();
+        String newPowHash = deviceValidateRequest.getPowHash();
         
         // Step 2: Create and canonicalize the PoW JSON
         String powJSON = String.format(

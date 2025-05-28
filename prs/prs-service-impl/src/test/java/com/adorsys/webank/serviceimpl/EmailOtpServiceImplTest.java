@@ -174,11 +174,13 @@ public class EmailOtpServiceImplTest {
         assertEquals("{\"a\":1,\"b\":2}", canonical);
     }
 
-    private String computePublicKeyHash(String publicKeyJson) {
+    private String computePublicKeyHash(String unused) {
+        // Parameter not used in test but kept for method signature clarity
         return "hashValue";  // Return a predictable value for tests
     }
 
-    private String computeOtpHash(String otp, String accountId) {
+    private String computeOtpHash(String unused1, String unused2) {
+        // Parameters not used in test but kept for method signature clarity
         return "hashedOtp";  // Return a predictable value for tests
     }
 }
