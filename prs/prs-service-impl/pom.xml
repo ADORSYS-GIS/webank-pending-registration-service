@@ -81,6 +81,19 @@
             <artifactId>spring-boot-starter-mail</artifactId>
             <version>3.4.3</version>
         </dependency>
+        
+        <!-- Spring Security for Argon2 password encoding -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- BouncyCastle for Argon2 implementation -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>1.70</version>
+        </dependency>
 
     </dependencies>
 

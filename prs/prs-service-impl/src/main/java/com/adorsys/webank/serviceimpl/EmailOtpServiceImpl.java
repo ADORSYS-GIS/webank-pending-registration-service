@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.*;
 import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.time.format.*;
@@ -30,14 +28,14 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     @Resource
     private JavaMailSender mailSender;
 
-    @Value("${otp.salt}")
-    private String salt;
+    private final PasswordHashingService passwordHashingService;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository) {
+    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository, PasswordHashingService passwordHashingService) {
         this.personalInfoRepository = personalInfoRepository;
+        this.passwordHashingService = passwordHashingService;
     }
 
     @Override
@@ -165,38 +163,26 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, accountId);
-        boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
+        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\"}",
+                inputOtp, accountId);
+        boolean isValid = passwordHashingService.verify(canonicalizeJson(input), personalInfo.getEmailOtpHash());
         log.debug("OTP hash validation result: {}", isValid);
         return isValid;
     }
 
     String computeOtpHash(String emailOtp, String accountId) {
         log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-                emailOtp, accountId, salt);
+        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\"}",
+                emailOtp, accountId);
         log.trace("Hash input: {}", input);
-        return computeHash(canonicalizeJson(input));
+        return passwordHashingService.hash(canonicalizeJson(input));
     }
 
     public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
+        return passwordHashingService.hash(input);
     }
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = String.format("%02x", b);
-            hexString.append(hex);
-        }
-        return hexString.toString();
-    }
+    // bytesToHex method is no longer needed with the centralized hashing service
 
     String canonicalizeJson(String json) {
         try {

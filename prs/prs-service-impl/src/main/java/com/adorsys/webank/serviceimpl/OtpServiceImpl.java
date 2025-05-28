@@ -4,16 +4,12 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
 import jakarta.transaction.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
 
-import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.util.*;
@@ -25,13 +21,12 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
+    private final PasswordHashingService passwordHashingService;
 
-    @Value("${otp.salt}")
-    private String salt;
-
-    // Constructor
-    public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
+    // Constructor with PasswordHashingService dependency
+    public OtpServiceImpl(OtpRequestRepository otpRequestRepository, PasswordHashingService passwordHashingService) {
         this.otpRequestRepository = otpRequestRepository;
+        this.passwordHashingService = passwordHashingService;
     }
 
 
@@ -79,10 +74,10 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             // Generate OTP hash
             String otpJSON = String.format(
-                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
-                    otp, devicePub.toJSONString(), phoneNumber, salt
+                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
+                    otp, devicePub.toJSONString(), phoneNumber
             );
-            String otpHash = computeHash(new JsonCanonicalizer(otpJSON).getEncodedString());
+            String otpHash = passwordHashingService.hash(new JsonCanonicalizer(otpJSON).getEncodedString());
 
             // Set hash and save
             otpRequest.setOtpHash(otpHash);
@@ -119,16 +114,15 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             String otpJSON = "{\"otp\":\"" + otpInput + "\","
                     + "\"devicePub\":" + devicePub.toJSONString() + ","
-                    + "\"phoneNumber\":\"" + phoneNumber + "\","
-                    + "\"salt\":\"" + salt + "\"}";
+                    + "\"phoneNumber\":\"" + phoneNumber + "\"}";
 
             JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
             String input = jc.getEncodedString();
             log.info(input);
-            String newOtpHash = computeHash(input);
-            log.info("OTP newOtpHash:{}", newOtpHash);
+            String newOtpHash = new JsonCanonicalizer(input).getEncodedString();
+            log.info("Input for OTP validation:{}", newOtpHash);
 
-            if (newOtpHash.equals(otpEntity.getOtpHash())) {
+            if (passwordHashingService.verify(newOtpHash, otpEntity.getOtpHash())) {
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";
@@ -145,17 +139,11 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
+        return passwordHashingService.hash(input);
     }
 
     private String computePublicKeyHash(String devicePublicKey) {
-        return computeHash(devicePublicKey);
+        return passwordHashingService.hash(devicePublicKey);
     }
 
 }

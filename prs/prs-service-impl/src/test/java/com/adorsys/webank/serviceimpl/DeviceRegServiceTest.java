@@ -2,34 +2,38 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.nimbusds.jose.jwk.JWK;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @ExtendWith(MockitoExtension.class)class DeviceRegServiceTest {
 
-    @InjectMocks
-    private DeviceRegServiceImpl deviceRegService;
-
+    @Mock
+    private PasswordHashingService mockPasswordHashingService;
+    
     @Mock
     private JWK mockJWK;
+    
+    private DeviceRegServiceImpl deviceRegService;
 
 
     @BeforeEach
     void setUp() {
-        String testSalt = "testSalt";
-        ReflectionTestUtils.setField(deviceRegService, "salt", testSalt);
+        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService);
+        
+        // Set up default behaviors for the mock in lenient mode
+        lenient().when(mockPasswordHashingService.hash(anyString())).thenReturn("hashedValue");
+        lenient().when(mockPasswordHashingService.verify(anyString(), anyString())).thenReturn(false);
     }
 
     @Test
@@ -40,7 +44,7 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void testValidateDeviceRegistration_ErrorOnNonceMismatch() throws IOException {
+    void testValidateDeviceRegistrationErrorOnNonceMismatch() throws IOException {
         DeviceValidateRequest request = mock(DeviceValidateRequest.class);
         when(request.getInitiationNonce()).thenReturn("invalidNonce");
         when(request.getPowNonce()).thenReturn("testNonce");
@@ -51,16 +55,28 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void testCalculateSHA256_ValidInput() throws NoSuchAlgorithmException {
+    void testCalculateSHA256ValidInput() throws NoSuchAlgorithmException {
         String input = "testInput";
+        
+        // The actual SHA-256 hash of 'testInput' encoded in hex
+        String expectedHash = "620ae460798e1f4cab44c44f3085620284f0960a276bbc3f0bd416449df14dbe";
+        
         String hash = deviceRegService.calculateSHA256(input);
         assertNotNull(hash);
-        assertEquals(64, hash.length()); // SHA-256 hash length
+        assertEquals(expectedHash, hash);
+        
+        // No need to verify interaction with mockPasswordHashingService
+        // since calculateSHA256 now uses MessageDigest directly
     }
 
     @Test
-    void testGenerateNonce_NullSaltThrowsException() {
-        assertThrows(HashComputationException.class, () -> DeviceRegServiceImpl.generateNonce(null));
+    void testGenerateNonceGeneratesHash() {
+        String expectedHash = "hashValue";
+        when(mockPasswordHashingService.hash(anyString())).thenReturn(expectedHash);
+        
+        String nonce = deviceRegService.generateNonce();
+        assertEquals(expectedHash, nonce);
+        verify(mockPasswordHashingService).hash(anyString());
     }
 
 

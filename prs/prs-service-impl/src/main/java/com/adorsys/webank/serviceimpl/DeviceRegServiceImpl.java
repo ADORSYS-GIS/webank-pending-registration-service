@@ -3,7 +3,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
+
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -32,8 +32,7 @@ import java.util.Date;
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
 
-    @Value("${otp.salt}")
-    private String salt;
+    private final PasswordHashingService passwordHashingService;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -46,48 +45,91 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
+    
+    public DeviceRegServiceImpl(PasswordHashingService passwordHashingService) {
+        this.passwordHashingService = passwordHashingService;
+    }
 
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
-        return generateNonce(salt);
+        return generateNonce();
     }
 
     @Override
     public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
-        String nonce = generateNonce(salt);
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
-        String powHash;
-        try {
-            // Make a JSON object out of initiationNonce, devicePub, powNonce
-            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
-            JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
-            String hashInput = jc.getEncodedString();
-            powHash = calculateSHA256(hashInput);
 
-            if (!initiationNonce.equals(nonce)) {
+        // Make a JSON object out of initiationNonce, devicePub, powNonce
+        String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
+        JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
+        String hashInput = jc.getEncodedString();
+
+        // Extract timestamp from nonce and verify it's within allowed window (e.g., 15 minutes)
+        LocalDateTime currentTime = LocalDateTime.now();
+        
+        try {
+            // We need to validate the timestamp encoded in the nonce
+            // For each 15-minute window, we'll check if the nonce could have been generated in that window
+            boolean validNonce = false;
+            
+            // Check current and previous time window
+            LocalDateTime timeToCheck = currentTime.minusMinutes(0);
+            int flattenedMinute = timeToCheck.getMinute() / 15 * 15;
+            LocalDateTime flattenedTimestamp = timeToCheck.withMinute(flattenedMinute).withSecond(0).withNano(0);
+            String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            
+            // Check if the provided initiationNonce verifies against this timestamp
+            if (passwordHashingService.verify(timestampString, initiationNonce)) {
+                validNonce = true;
+            }
+            
+            if (!validNonce) {
                 return "Error: Registration time elapsed, please try again";
-            } else if (!powHash.equals(newPowHash)) {
+            }
+        } catch (Exception e) {
+            logger.error("Error validating nonce timestamp", e);
+            return "Error: Unable to validate registration time";
+        }
+        
+        try {
+            // Calculate the actual SHA-256 hash for PoW verification
+            String calculatedHash = calculateSHA256(hashInput);
+            
+            // Log both hashes to help diagnose the issue
+            logger.info("PoW Verification - Input JSON: {}", powJSON);
+            logger.info("PoW Verification - Calculated Hash: {}", calculatedHash);
+            logger.info("PoW Verification - Provided Hash: {}", newPowHash);
+            
+            if (!calculatedHash.equals(newPowHash)) {
+                logger.warn("PoW Verification Failed - Hashes don't match");
                 return "Error: Verification of PoW failed";
             }
-
+            
+            logger.info("PoW Verification Successful");
         } catch (NoSuchAlgorithmException e) {
             logger.error("Error calculating SHA-256 hash", e);
-            return "Error: Unable to hash the parameters";
+            return "Error: Unable to verify proof of work";
         }
-        JsonCanonicalizer jc = new JsonCanonicalizer(devicePub.toJSONString());
-        String devicePublicKey = jc.getEncodedString();
+
+        JsonCanonicalizer pubJc = new JsonCanonicalizer(devicePub.toJSONString());
+        String devicePublicKey = pubJc.getEncodedString();
         logger.warn(devicePublicKey);
         return generateDeviceCertificate(devicePublicKey);
     }
+    /**
+     * Calculates an actual SHA-256 hash of the input and returns it as a hex string
+     * Used for deterministic hashing needed in Proof of Work verification
+     * This matches the frontend's CryptoJS.SHA256().toString(CryptoJS.enc.Hex) approach
+     */
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-        // Convert byte array to hexadecimal string
+        byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+        
+        // Convert byte array to hex string to match frontend's encoding
         StringBuilder hexString = new StringBuilder();
-        for (byte b : hashBytes) {
+        for (byte b : hash) {
             String hex = Integer.toHexString(0xff & b);
             if (hex.length() == 1) {
                 hexString.append('0');
@@ -97,30 +139,18 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         return hexString.toString();
     }
 
-    public static String generateNonce(String salt) {
-        if (salt == null) {
-            throw new HashComputationException("Salt cannot be null");
-        }
+    public String generateNonce() {
         LocalDateTime timestamp = LocalDateTime.now();
 
         // Flatten the timestamp to the nearest previous 15-minute interval
-        int flattenedMinute = (timestamp.getMinute() / 15) * 15;
+        int flattenedMinute = timestamp.getMinute() / 15 * 15;
 
         LocalDateTime flattenedTimestamp = timestamp.withMinute(flattenedMinute).withSecond(0).withNano(0);
 
-        try {
-            String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            String input = timestampString + salt;
-
-            // Compute SHA-256 hash
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-            // Convert hash to Base64
-            return Base64.getEncoder().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
+        String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        
+        // Use the PasswordHashingService to generate a secure hash
+        return passwordHashingService.hash(timestampString);
     }
 
     String generateDeviceCertificate(String deviceJwkJson) {
@@ -153,7 +183,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
             // Create JWT Payload
             long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
-            logger.info(String.valueOf(issuedAt));
+
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .issuer("https://webank.com")  // Fixed issuer format
                     .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
