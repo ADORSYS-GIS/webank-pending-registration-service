@@ -5,6 +5,7 @@ import com.adorsys.webank.dto.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import jakarta.persistence.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
@@ -33,12 +34,13 @@ public class KycServiceImpl implements KycServiceApi {
             log.info("Processing KYC Document for accountId: {}", AccountId);
 
             // Check if document already exists
-            Optional<UserDocumentsEntity> existingDocOpt = repository.findByAccountId(AccountId);
+            Optional<UserDocumentsProjection> existingDocOpt = repository.findByAccountId(AccountId);
             UserDocumentsEntity userDocuments;
 
             if (existingDocOpt.isPresent()) {
                 // Update existing document
-                userDocuments = existingDocOpt.get();
+                userDocuments = new UserDocumentsEntity();
+                userDocuments.setAccountId(AccountId);
                 userDocuments.setFrontID(kycDocumentRequest.getFrontId());
                 userDocuments.setBackID(kycDocumentRequest.getBackId());
                 userDocuments.setSelfieID(kycDocumentRequest.getSelfieId());
@@ -77,11 +79,12 @@ public class KycServiceImpl implements KycServiceApi {
         try {
             log.info("Processing KYC Info for accountId: {}", AccountId);
 
-            Optional<PersonalInfoEntity> existingInfoOpt = inforepository.findByAccountId(AccountId);
+            Optional<PersonalInfoProjection> existingInfoOpt = inforepository.findByAccountId(AccountId);
             PersonalInfoEntity personalInfoEntity;
 
             if (existingInfoOpt.isPresent()) {
-                personalInfoEntity = existingInfoOpt.get();
+                personalInfoEntity = new PersonalInfoEntity();
+                personalInfoEntity.setAccountId(AccountId);
                 personalInfoEntity.setDocumentUniqueId(kycInfoRequest.getIdNumber());
                 personalInfoEntity.setExpirationDate(kycInfoRequest.getExpiryDate());
                 personalInfoEntity.setStatus(PersonalInfoStatus.PENDING);
@@ -115,9 +118,10 @@ public class KycServiceImpl implements KycServiceApi {
             log.info("Processing KYC Location update for accountId: {}", kycLocationRequest.getAccountId());
 
             String accountId = kycLocationRequest.getAccountId();
-            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoAccountId(accountId);
+            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
             if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = existingInfo.get();
+                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+                personalInfo.setAccountId(accountId);
                 personalInfo.setLocation(kycLocationRequest.getLocation());
                 inforepository.save(personalInfo);
                 log.info("KYC Location updated successfully for accountId: {}", accountId);
@@ -141,10 +145,11 @@ public class KycServiceImpl implements KycServiceApi {
             log.info("Processing KYC Email update for accountId: {}", kycEmailRequest.getAccountId());
 
             String accountId = kycEmailRequest.getAccountId();
-            Optional<PersonalInfoEntity> existingInfo = getPersonalInfoAccountId(accountId);
+            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
 
             if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = existingInfo.get();
+                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+                personalInfo.setAccountId(accountId);
                 personalInfo.setEmail(kycEmailRequest.getEmail());
                 inforepository.save(personalInfo);
                 log.info("KYC Email updated successfully for accountId: {}", accountId);
@@ -159,19 +164,19 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
-    public Optional<PersonalInfoEntity> getPersonalInfoAccountId(String accountId) {
+    public Optional<PersonalInfoProjection> getPersonalInfoAccountId(String accountId) {
         return inforepository.findByAccountId(accountId);
     }
 
     @Override
     public List<UserInfoResponse> getPendingKycRecords() {
         // Get all personal info records with pending status
-        List<PersonalInfoEntity> pendingPersonalInfos = inforepository.findByStatus(PersonalInfoStatus.PENDING);
+        List<PersonalInfoProjection> pendingPersonalInfos = inforepository.findByStatus(PersonalInfoStatus.PENDING);
         List<UserInfoResponse> responses = new ArrayList<>();
 
-        for (PersonalInfoEntity info : pendingPersonalInfos) {
+        for (PersonalInfoProjection info : pendingPersonalInfos) {
             // For each pending personal info, check if there's a matching document
-            Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(info.getAccountId());
+            Optional<UserDocumentsProjection> documentsOpt = repository.findByAccountId(info.getAccountId());
 
             // Only add to response if user document exists and is pending
             if (documentsOpt.isPresent() && documentsOpt.get().getStatus() == UserDocumentsStatus.PENDING) {
@@ -186,16 +191,16 @@ public class KycServiceImpl implements KycServiceApi {
     public List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId) {
         log.info("Finding KYC records for documentUniqueId: {}", documentUniqueId);
 
-        List<PersonalInfoEntity> personalInfoList = inforepository.findByDocumentUniqueId(documentUniqueId);
+        List<PersonalInfoProjection> personalInfoList = inforepository.findByDocumentUniqueId(documentUniqueId);
         List<UserInfoResponse> responseList = new ArrayList<>();
 
-        for (PersonalInfoEntity personalInfo : personalInfoList) {
+        for (PersonalInfoProjection personalInfo : personalInfoList) {
             try {
-                log.info("Processing PersonalInfoEntity: {}", personalInfo);
-                Optional<UserDocumentsEntity> documentsOpt = repository.findByAccountId(personalInfo.getAccountId());
+                log.info("Processing PersonalInfoProjection: {}", personalInfo);
+                Optional<UserDocumentsProjection> documentsOpt = repository.findByAccountId(personalInfo.getAccountId());
                 responseList.add(mapToUserInfoResponse(personalInfo, documentsOpt));
             } catch (Exception e) {
-                log.error("Error processing PersonalInfoEntity: {}", personalInfo, e);
+                log.error("Error processing PersonalInfoProjection: {}", personalInfo, e);
             }
         }
 
@@ -203,9 +208,7 @@ public class KycServiceImpl implements KycServiceApi {
         return responseList;
     }
 
-    private UserInfoResponse mapToUserInfoResponse(PersonalInfoEntity info, Optional<UserDocumentsEntity> documentsOpt) {
-        UserDocumentsEntity documents = documentsOpt.orElseGet(UserDocumentsEntity::new);
-
+    private UserInfoResponse mapToUserInfoResponse(PersonalInfoProjection info, Optional<UserDocumentsProjection> documentsOpt) {
         UserInfoResponse response = new UserInfoResponse();
         response.setAccountId(info.getAccountId());
         response.setIdNumber(info.getDocumentUniqueId());
@@ -214,10 +217,13 @@ public class KycServiceImpl implements KycServiceApi {
         response.setEmail(info.getEmail());
         response.setStatus(info.getStatus().name());
 
-        response.setFrontID(documents.getFrontID());
-        response.setBackID(documents.getBackID());
-        response.setSelfie(documents.getSelfieID());
-        response.setTaxDocument(documents.getTaxID());
+        if (documentsOpt.isPresent()) {
+            UserDocumentsProjection documents = documentsOpt.get();
+            response.setFrontID(documents.getFrontID());
+            response.setBackID(documents.getBackID());
+            response.setSelfie(documents.getSelfieID());
+            response.setTaxDocument(documents.getTaxID());
+        }
 
         response.setRejectionReason(info.getRejectionReason());
         return response;

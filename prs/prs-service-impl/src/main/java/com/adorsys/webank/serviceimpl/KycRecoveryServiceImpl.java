@@ -3,12 +3,13 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import org.slf4j.*;
 import org.springframework.transaction.annotation.*;
 import org.springframework.stereotype.Service;
 
-
 import java.util.*;
+
 @Service
 public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
@@ -22,14 +23,14 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
     @Override
     @Transactional
     public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
+        Optional<PersonalInfoProjection> personalInfoOpt = inforepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isEmpty()) {
             log.warn("No record found for accountId {}", accountId);
             return "Failed: No record found for accountId " + accountId;
         }
 
-        PersonalInfoEntity personalInfo = personalInfoOpt.get();
+        PersonalInfoProjection personalInfo = personalInfoOpt.get();
 
         // Validate document details
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
