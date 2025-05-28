@@ -58,8 +58,8 @@ class AccountRecoveryValidationRequestServiceImplTest {
         // Assert
         assertNotNull(response, "Response should not be null");
         String oldAccountId = "oldAccountId";
-        assertEquals(oldAccountId, response.getOldAccountId(), "Old account ID should match");
-        assertEquals(newKycCertificate, response.getNewKycCertificate(), "New KYC certificate should match");
+        assertEquals(oldAccountId, response.getAccountId(), "Account ID should match");
+        assertEquals(newKycCertificate, response.getKycCertificate(), "KYC certificate should match");
         assertEquals("Account recovery successful", response.getMessage(), "Message should indicate success");
 
         verify(certGeneratorHelper, times(1)).generateCertificate(anyString());
@@ -75,8 +75,8 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Assert
         assertNotNull(response, "Response should not be null");
-        assertNull(response.getOldAccountId(), "Old account ID should be null");
-        assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
+        assertNull(response.getAccountId(), "Account ID should be null");
+        assertNull(response.getKycCertificate(), "KYC certificate should be null");
         assertEquals("Invalid RecoveryJWT format", response.getMessage(), "Message should indicate invalid JWT format");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -92,8 +92,8 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Assert
         assertNotNull(response, "Response should not be null");
-        assertNull(response.getOldAccountId(), "Old account ID should be null");
-        assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
+        assertNull(response.getAccountId(), "Account ID should be null");
+        assertNull(response.getKycCertificate(), "KYC certificate should be null");
         assertEquals("Claiming account ID mismatch", response.getMessage(), "Message should indicate account ID mismatch");
 
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
