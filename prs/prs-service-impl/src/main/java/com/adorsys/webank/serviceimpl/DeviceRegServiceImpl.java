@@ -1,32 +1,26 @@
 
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.DeviceRegInitRequest;
-import com.adorsys.webank.dto.DeviceValidateRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.adorsys.webank.service.DeviceRegServiceApi;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import org.erdtman.jcs.JsonCanonicalizer;
+import com.adorsys.webank.config.*;
+import com.adorsys.webank.dto.*;
+import com.adorsys.webank.exceptions.*;
+import com.adorsys.webank.service.*;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.ECKey;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import com.nimbusds.jose.crypto.*;
+import com.nimbusds.jose.jwk.*;
+import com.nimbusds.jwt.*;
+import org.erdtman.jcs.*;
+import org.slf4j.*;
+import java.text.ParseException;
+import org.springframework.beans.factory.annotation.*;
+import org.springframework.stereotype.*;
 
-import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
+import java.io.*;
+import java.nio.charset.*;
+import java.security.*;
+import java.time.*;
+import java.time.format.*;
+import java.util.*;
 
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
@@ -48,17 +42,20 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private Long expirationTimeMs;
 
     @Override
-    public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
+    public String initiateDeviceRegistration( DeviceRegInitRequest regInitRequest) {
         return generateNonce(salt);
     }
 
     @Override
-    public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
+    public String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException, ParseException {
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
         String nonce = generateNonce(salt);
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
         String powHash;
+
+
+        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
         try {
             // Make a JSON object out of initiationNonce, devicePub, powNonce
             String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";

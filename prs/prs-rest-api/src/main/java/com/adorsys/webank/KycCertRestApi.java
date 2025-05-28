@@ -23,5 +23,5 @@ public interface KycCertRestApi {
     })
     @GetMapping(value = "/cert/{accountId}", produces = "application/json")
     String getCert(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-                   @PathVariable("accountId") String accountId);
+                   @PathVariable("accountId") String accountId) throws java.text.ParseException;
 }

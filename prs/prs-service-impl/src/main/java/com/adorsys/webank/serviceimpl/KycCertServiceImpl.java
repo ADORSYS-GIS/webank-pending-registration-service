@@ -9,6 +9,8 @@ import org.slf4j.*;
 import org.springframework.stereotype.*;
 import com.adorsys.webank.security.CertGeneratorHelper;
 import java.util.*;
+import com.adorsys.webank.config.SecurityUtils;
+import java.text.ParseException;
 
 @Service
 public class KycCertServiceImpl implements KycCertServiceApi {
@@ -23,13 +25,15 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     }
 
     @Override
-    public String getCert(JWK publicKey, String accountId) {
+    public String getCert(String accountId) throws ParseException {
         Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
+            ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+
             try {
                 // Convert publicKey to a valid JSON string
-                String publicKeyJson = publicKey.toJSONString();
+                String publicKeyJson = devicePub.toJSONString();
                 String certificate = certGeneratorHelper.generateCertificate(publicKeyJson);
                 log.info("Certificate generated: {}", certificate);
                 return "Your certificate is: " + certificate;

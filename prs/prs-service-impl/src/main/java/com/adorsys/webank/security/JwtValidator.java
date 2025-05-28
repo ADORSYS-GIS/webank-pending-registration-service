@@ -44,9 +44,10 @@ public class JwtValidator {
 
         validatePayloadHash(jwsObject.getPayload().toString(), concatenatedPayload);
         logger.info("Payload hash validation passed");
-
         return jwk;
+
     }
+
 
     private static String concatenatePayloads(String... params) {
         logger.debug("Concatenating payload parameters");
@@ -130,5 +131,27 @@ public class JwtValidator {
             throw new IllegalArgumentException("Error extracting claim: " + claimKey, e);
         }
     }
+
+    /**
+     * Extracts the device JWK from an already-validated JWT token.
+     * This method assumes the JWT has already been validated by Spring Security.
+     *
+     * @param jwtToken The validated JWT token
+     * @return The device public key as a JSON string
+     * @throws IllegalArgumentException if extraction fails
+     */
+    public static String extractDeviceJwk(String jwtToken) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(jwtToken);
+            Object jwkObject = signedJWT.getHeader().toJSONObject().get("jwk");
+            if (jwkObject == null) {
+                throw new IllegalArgumentException("Missing 'jwk' in JWT header");
+            }
+            return new ObjectMapper().writeValueAsString(jwkObject);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to extract device JWK from JWT", e);
+        }
+    }
+
 
 }

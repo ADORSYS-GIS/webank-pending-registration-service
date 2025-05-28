@@ -4,19 +4,18 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
 import jakarta.transaction.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
-
+import java.text.ParseException;
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.util.*;
+import com.adorsys.webank.config.SecurityUtils;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -44,11 +43,12 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(JWK devicePub, String phoneNumber) {
+    public String sendOtp(String phoneNumber) throws ParseException {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
 
+        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
         try {
             String otp = generateOtp();
             String devicePublicKey = devicePub.toJSONString();
@@ -99,7 +99,10 @@ public class OtpServiceImpl implements OtpServiceApi {
 
 
     @Override
-    public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
+    public String validateOtp(String phoneNumber,String otpInput) throws ParseException {
+
+        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);

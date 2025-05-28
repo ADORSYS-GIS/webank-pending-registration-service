@@ -51,7 +51,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>com.adorsys.webank</groupId>
+            <artifactId>prs-middleware</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
