@@ -1,24 +1,22 @@
-
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
-
 import com.adorsys.webank.service.DeviceRegServiceApi;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import org.erdtman.jcs.JsonCanonicalizer;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
+import java.text.ParseException;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,9 +27,9 @@ import java.util.Collections;
 import java.util.Date;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
-    private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
-
     private final PasswordHashingService passwordHashingService;
 
     @Value("${server.private.key}")
@@ -45,10 +43,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
-    
-    public DeviceRegServiceImpl(PasswordHashingService passwordHashingService) {
-        this.passwordHashingService = passwordHashingService;
-    }
 
     @Override
     public String initiateDeviceRegistration(JWK publicKey, DeviceRegInitRequest regInitRequest) {
@@ -57,66 +51,81 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Override
     public String validateDeviceRegistration(JWK devicePub, DeviceValidateRequest deviceValidateRequest) throws IOException {
+        // Extract request parameters
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
 
-        // Make a JSON object out of initiationNonce, devicePub, powNonce
-        String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
-        JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
-        String hashInput = jc.getEncodedString();
-
-        // Extract timestamp from nonce and verify it's within allowed window (e.g., 15 minutes)
-        LocalDateTime currentTime = LocalDateTime.now();
+        // Step 1: Validate the nonce timestamp
+        String nonceValidationError = validateNonceTimestamp(initiationNonce);
+        if (nonceValidationError != null) {
+            return nonceValidationError;
+        }
         
+        // Step 2: Create and canonicalize the PoW JSON
+        String powJSON = String.format(
+                "{\"initiationNonce\":\"%s\",\"devicePub\":%s,\"powNonce\":\"%s\"}", 
+                initiationNonce, devicePub.toJSONString(), powNonce);
+        String hashInput = new JsonCanonicalizer(powJSON).getEncodedString();
+        
+        // Step 3: Verify the proof of work
+        String powValidationError = validateProofOfWork(hashInput, powJSON, newPowHash);
+        if (powValidationError != null) {
+            return powValidationError;
+        }
+        
+        // Step 4: Generate the device certificate
+        String devicePublicKey = new JsonCanonicalizer(devicePub.toJSONString()).getEncodedString();
+        return generateDeviceCertificate(devicePublicKey);
+    }
+    
+    /**
+     * Validates if the nonce timestamp is within the acceptable time window
+     * @param initiationNonce The nonce to validate
+     * @return Error message if validation fails, null if validation succeeds
+     */
+    private String validateNonceTimestamp(String initiationNonce) {
         try {
-            // We need to validate the timestamp encoded in the nonce
-            // For each 15-minute window, we'll check if the nonce could have been generated in that window
-            boolean validNonce = false;
-            
-            // Check current and previous time window
+            LocalDateTime currentTime = LocalDateTime.now();
             LocalDateTime timeToCheck = currentTime.minusMinutes(0);
             int flattenedMinute = timeToCheck.getMinute() / 15 * 15;
             LocalDateTime flattenedTimestamp = timeToCheck.withMinute(flattenedMinute).withSecond(0).withNano(0);
             String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             
-            // Check if the provided initiationNonce verifies against this timestamp
-            if (passwordHashingService.verify(timestampString, initiationNonce)) {
-                validNonce = true;
-            }
-            
-            if (!validNonce) {
+            if (!passwordHashingService.verify(timestampString, initiationNonce)) {
+                log.warn("Nonce validation failed: Registration time elapsed");
                 return "Error: Registration time elapsed, please try again";
             }
+            return null;
         } catch (Exception e) {
-            logger.error("Error validating nonce timestamp", e);
+            log.error("Error validating nonce timestamp", e);
             return "Error: Unable to validate registration time";
         }
-        
+    }
+    
+    /**
+     * Validates the proof of work hash
+     * @param hashInput Canonicalized input for hashing
+     * @param powJSON Original JSON for logging purposes
+     * @param providedHash Hash provided by the client
+     * @return Error message if validation fails, null if validation succeeds
+     */
+    private String validateProofOfWork(String hashInput, String powJSON, String providedHash) {
         try {
-            // Calculate the actual SHA-256 hash for PoW verification
             String calculatedHash = calculateSHA256(hashInput);
+            log.debug("PoW Verification - Input JSON: {}", powJSON);
+            log.debug("PoW Verification - Calculated Hash: {}", calculatedHash);
+            log.debug("PoW Verification - Provided Hash: {}", providedHash);
             
-            // Log both hashes to help diagnose the issue
-            logger.info("PoW Verification - Input JSON: {}", powJSON);
-            logger.info("PoW Verification - Calculated Hash: {}", calculatedHash);
-            logger.info("PoW Verification - Provided Hash: {}", newPowHash);
-            
-            if (!calculatedHash.equals(newPowHash)) {
-                logger.warn("PoW Verification Failed - Hashes don't match");
+            if (!calculatedHash.equals(providedHash)) {
+                log.warn("PoW Verification Failed - Hash mismatch");
                 return "Error: Verification of PoW failed";
             }
-            
-            logger.info("PoW Verification Successful");
+            return null;
         } catch (NoSuchAlgorithmException e) {
-            logger.error("Error calculating SHA-256 hash", e);
+            log.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to verify proof of work";
         }
-
-        JsonCanonicalizer pubJc = new JsonCanonicalizer(devicePub.toJSONString());
-        String devicePublicKey = pubJc.getEncodedString();
-        logger.warn(devicePublicKey);
-        return generateDeviceCertificate(devicePublicKey);
     }
     /**
      * Calculates an actual SHA-256 hash of the input and returns it as a hex string
@@ -153,56 +162,95 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         return passwordHashingService.hash(timestampString);
     }
 
+    /**
+     * Generates a signed JWT certificate for a device
+     * @param deviceJwkJson The device's public key in JWK format
+     * @return A signed JWT containing the device certificate
+     */
     String generateDeviceCertificate(String deviceJwkJson) {
         try {
-            // Parse the server's private key from the JWK JSON string
-            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-            if (serverPrivateKey.getD() == null) {
-                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
-            }
-
-            // Signer using server's private key
+            log.debug("Generating device certificate");
+            
+            // Step 1: Parse server keys and create signer
+            ECKey serverPrivateKey = parseServerPrivateKey();
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
-
-            // Parse the server's public key
-            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
-
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
-            String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-
-            // Create JWT Header
-            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                    .keyID(kid) // Set 'kid' as the SHA-256 of server public JWK
-                    .type(JOSEObjectType.JWT)
-                    .build();
-
-            // Parse device's public JWK
+            
+            // Step 2: Generate key ID and create JWT header
+            String kid = generateKeyId();
+            JWSHeader header = createJwtHeader(kid);
+            
+            // Step 3: Parse device public key and create claims
             JWK deviceJwk = JWK.parse(deviceJwkJson);
-
-            // Create JWT Payload
-            long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
-
-            JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer("https://webank.com")  // Fixed issuer format
-                    .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
-                    .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject())) // Fix JSON structure
-                    .issueTime(new Date(issuedAt * 1000))
-                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000)) // Convert to milliseconds
-                    .build();
-
-            // Create JWT token
+            JWTClaimsSet claimsSet = createJwtClaims(deviceJwk);
+            
+            // Step 4: Sign and serialize the JWT
             SignedJWT signedJWT = new SignedJWT(header, claimsSet);
             signedJWT.sign(signer);
-
-            String dev = signedJWT.serialize();
-            logger.info(dev);
-            return dev;
-
+            
+            String jwt = signedJWT.serialize();
+            log.debug("Device certificate generated successfully");
+            return jwt;
+            
         } catch (Exception e) {
+            log.error("Failed to generate device certificate", e);
             throw new IllegalStateException("Error generating device certificate", e);
         }
+    }
+    
+    /**
+     * Parses the server's private key from the JWK JSON string
+     * @return The server's ECKey private key
+     * @throws ParseException If the key cannot be parsed
+     */
+    private ECKey parseServerPrivateKey() throws ParseException {
+        ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
+        if (serverPrivateKey.getD() == null) {
+            log.error("Server private key is missing 'd' parameter");
+            throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
+        }
+        return serverPrivateKey;
+    }
+    
+    /**
+     * Generates a key ID by hashing the server's public key
+     * @return Base64URL-encoded key ID
+     * @throws ParseException If the key cannot be parsed
+     * @throws NoSuchAlgorithmException If SHA-256 algorithm is not available
+     */
+    private String generateKeyId() throws ParseException, NoSuchAlgorithmException {
+        ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    }
+    
+    /**
+     * Creates a JWT header with the specified key ID
+     * @param kid The key ID to include in the header
+     * @return A JWSHeader object
+     */
+    private JWSHeader createJwtHeader(String kid) {
+        return new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .keyID(kid)
+                .type(JOSEObjectType.JWT)
+                .build();
+    }
+    
+    /**
+     * Creates JWT claims using the device's public key
+     * @param deviceJwk The device's public key
+     * @return A JWTClaimsSet object
+     */
+    private JWTClaimsSet createJwtClaims(JWK deviceJwk) {
+        long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
+        
+        return new JWTClaimsSet.Builder()
+                .issuer(issuer)  // Use the configured issuer from properties
+                .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
+                .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject()))
+                .issueTime(new Date(issuedAt * 1000))
+                .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000))
+                .build();
     }
 
 }

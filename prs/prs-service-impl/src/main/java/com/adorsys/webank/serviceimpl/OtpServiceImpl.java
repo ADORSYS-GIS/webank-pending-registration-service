@@ -1,33 +1,27 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.nimbusds.jose.jwk.*;
-import jakarta.transaction.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.webank.service.OtpServiceApi;
+import com.nimbusds.jose.jwk.JWK;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.springframework.stereotype.Service;
 
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class OtpServiceImpl implements OtpServiceApi {
-
-    private static final Logger log = LoggerFactory.getLogger(OtpServiceImpl.class);
-
-    // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
     private final PasswordHashingService passwordHashingService;
-
-    // Constructor with PasswordHashingService dependency
-    public OtpServiceImpl(OtpRequestRepository otpRequestRepository, PasswordHashingService passwordHashingService) {
-        this.otpRequestRepository = otpRequestRepository;
-        this.passwordHashingService = passwordHashingService;
-    }
 
 
     @Override
@@ -77,14 +71,15 @@ public class OtpServiceImpl implements OtpServiceApi {
                     "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
                     otp, devicePub.toJSONString(), phoneNumber
             );
-            String otpHash = passwordHashingService.hash(new JsonCanonicalizer(otpJSON).getEncodedString());
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+            String otpHash = passwordHashingService.hash(canonicalJson);
 
             // Set hash and save
             otpRequest.setOtpHash(otpHash);
             otpRequest.setOtpCode(otp);
             otpRequestRepository.save(otpRequest);
 
-            log.info("OTP code for {}  is  {}",   phoneNumber, otpRequest.getOtpCode());
+            log.info("OTP sent successfully to phone number: {}", phoneNumber);
             return otpHash;
         } catch (Exception e) {
             log.error("Failed to send OTP to {}", phoneNumber, e);
@@ -112,17 +107,18 @@ public class OtpServiceImpl implements OtpServiceApi {
                 return "OTP expired. Request a new one.";
             }
 
-            String otpJSON = "{\"otp\":\"" + otpInput + "\","
-                    + "\"devicePub\":" + devicePub.toJSONString() + ","
-                    + "\"phoneNumber\":\"" + phoneNumber + "\"}";
+            String otpJSON = String.format(
+                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
+                    otpInput, devicePub.toJSONString(), phoneNumber
+            );
+            
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+            
+            if (log.isDebugEnabled()) {
+                log.debug("OTP validation input: {}", canonicalJson);
+            }
 
-            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String input = jc.getEncodedString();
-            log.info(input);
-            String newOtpHash = new JsonCanonicalizer(input).getEncodedString();
-            log.info("Input for OTP validation:{}", newOtpHash);
-
-            if (passwordHashingService.verify(newOtpHash, otpEntity.getOtpHash())) {
+            if (passwordHashingService.verify(canonicalJson, otpEntity.getOtpHash())) {
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";

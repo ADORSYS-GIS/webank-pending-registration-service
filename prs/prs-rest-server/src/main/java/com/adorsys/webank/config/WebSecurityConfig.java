@@ -1,5 +1,6 @@
 package com.adorsys.webank.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,10 +14,26 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.Collections;
 
+/**
+ * Web security configuration for the Webank application.
+ * Handles CORS configuration and security settings.
+ */
 @Configuration
 @EnableWebSecurity
+@Slf4j
 public class WebSecurityConfig {
 
+    /**
+     * Configures security settings for the application.
+     * - Disables CSRF for token-based authentication
+     * - Enables CORS with configured settings
+     * - Allows all requests without authentication for now
+     * - Disables form login and HTTP Basic authentication
+     *
+     * @param http The HttpSecurity to modify
+     * @return The built SecurityFilterChain
+     * @throws Exception If configuration fails
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // Disable CSRF as we're handling token-based authentication
@@ -34,6 +51,14 @@ public class WebSecurityConfig {
         return http.build();
     }
 
+    /**
+     * Configures CORS settings to allow the frontend to communicate with the API.
+     * - Sets allowed origins, methods, and headers
+     * - Enables credentials
+     * - Sets a max age for preflight requests
+     *
+     * @return A configured CorsConfigurationSource
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

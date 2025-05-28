@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import lombok.Getter;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -10,56 +11,55 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class PasswordHashingService {
-
+    // Constants for Argon2 configuration
+    private static final int SALT_LENGTH = 16;
+    private static final int HASH_LENGTH = 32;
+    private static final int PARALLELISM = 1;
+    private static final int MEMORY = 4096; // 4MB
+    private static final int ITERATIONS = 2;
+    
+    @Getter
     private final PasswordEncoder passwordEncoder;
 
     public PasswordHashingService() {
-        // Configure Argon2 with appropriate parameters
-        // - saltLength: 16 bytes of salt (recommended minimum)
-        // - hashLength: 32 bytes for the hash output
-        // - parallelism: 1 for minimal resource usage (can be increased based on server capabilities)
-        // - memory: 4096 (4MB) - adjust based on server resources
-        // - iterations: 2 - adjust based on server resources and security needs
+        // Configure Argon2 with proper security parameters
         this.passwordEncoder = new Argon2PasswordEncoder(
-                16,  // salt length
-                32,  // hash length
-                1,   // parallelism
-                4096, // memory cost
-                2    // iterations
+            SALT_LENGTH,  // salt length
+            HASH_LENGTH,  // hash length
+            PARALLELISM,  // parallelism
+            MEMORY,       // memory cost
+            ITERATIONS    // iterations
         );
     }
 
     /**
-     * Hashes the input string using Argon2.
-     * Argon2PasswordEncoder automatically generates and incorporates a random salt for each hash.
+     * Hashes the provided input using Argon2.
      *
-     * @param input The string to be hashed
-     * @return The hashed string with the salt embedded
+     * @param input The input to hash (password, token, etc.)
+     * @return The Argon2 hash with salt included
      */
     public String hash(String input) {
         return passwordEncoder.encode(input);
     }
 
     /**
-     * Verifies if the raw input matches the encoded hash.
-     * Argon2PasswordEncoder automatically extracts the salt from the encoded hash for verification.
+     * Verifies if the provided input matches the stored hash.
      *
-     * @param rawInput The raw input to check
-     * @param encodedHash The encoded hash to compare against
+     * @param input The input to verify (password, token, etc.)
+     * @param hash  The stored hash to verify against
      * @return true if the input matches the hash, false otherwise
      */
-    public boolean verify(String rawInput, String encodedHash) {
-        return passwordEncoder.matches(rawInput, encodedHash);
+    public boolean verify(String input, String hash) {
+        return passwordEncoder.matches(input, hash);
     }
 
     /**
-     * Validates if a hash needs upgrading based on the current encoder settings.
-     * Useful for handling password upgrades if the encoding parameters change.
+     * Checks if a hash needs to be upgraded based on current encoder settings.
      *
-     * @param encodedHash The hash to check
+     * @param hash The hash to check
      * @return true if the hash needs upgrading, false otherwise
      */
-    public boolean needsUpgrade(String encodedHash) {
-        return passwordEncoder.upgradeEncoding(encodedHash);
+    public boolean needsUpgrade(String hash) {
+        return passwordEncoder.upgradeEncoding(hash);
     }
 }
