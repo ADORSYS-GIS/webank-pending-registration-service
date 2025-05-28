@@ -51,8 +51,11 @@ import static org.mockito.ArgumentMatchers.anyString;
     void testValidateDeviceRegistrationErrorOnNonceMismatch() throws IOException {
         DeviceValidateRequest request = mock(DeviceValidateRequest.class);
         when(request.getInitiationNonce()).thenReturn("invalidNonce");
-        when(request.getPowNonce()).thenReturn("testNonce");
-        when(request.getPowHash()).thenReturn("testHash");
+        
+        // These stubs are not used because the method returns early on nonce validation
+        // Using lenient() to prevent Mockito from reporting them as unnecessary
+        lenient().when(request.getPowNonce()).thenReturn("testNonce");
+        lenient().when(request.getPowHash()).thenReturn("testHash");
 
         String result = deviceRegService.validateDeviceRegistration(mockJWK, request);
         assertTrue(result.contains("Error: Registration time elapsed"));
