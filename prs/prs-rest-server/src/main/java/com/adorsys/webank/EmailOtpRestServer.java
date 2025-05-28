@@ -5,7 +5,7 @@ import com.adorsys.webank.dto.EmailOtpValidationRequest;
 import com.adorsys.webank.security.CertValidator;
 import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.EmailOtpServiceApi;
-import com.nimbusds.jose.jwk.JWK;
+import com.adorsys.error.JwtValidationException;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -16,7 +16,6 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     public EmailOtpRestServer(EmailOtpServiceApi emailOtpService , CertValidator certValidator) {
         this.emailOtpService = emailOtpService;
         this.certValidator = certValidator;
-
     }
 
     @Override
@@ -29,10 +28,10 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             JwtValidator.validateAndExtract(jwtToken, email, request.getAccountId());
 
             if (!certValidator.validateJWT(jwtToken)) {
-                return "Invalid or unauthorized JWT.";
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
         return emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
     }
@@ -48,12 +47,11 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
             String accountId = request.getAccountId();
             JwtValidator.validateAndExtract(jwtToken, email, otpInput, accountId);
 
-
             if (!certValidator.validateJWT(jwtToken)) {
-                return "Invalid or unauthorized JWT.";
+                throw new JwtValidationException("Invalid or unauthorized JWT");
             }
         } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
 
         return emailOtpService.validateEmailOtp(
@@ -66,9 +64,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null ||
                 !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException(
-                    "Authorization header must start with 'Bearer '"
-            );
+            throw new JwtValidationException("Authorization header must start with 'Bearer '");
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }

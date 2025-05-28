@@ -6,6 +6,7 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.adorsys.error.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -38,11 +39,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     @BeforeEach
     void setUp() throws JOSEException {
         MockitoAnnotations.openMocks(this);
-
-        // Generate a test public key
         publicKey = generateTestPublicKey();
-
-        // Generate a valid recovery JWT
         recoveryJwt = generateValidRecoveryJwt();
     }
 
@@ -57,8 +54,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Assert
         assertNotNull(response, "Response should not be null");
-        String oldAccountId = "oldAccountId";
-        assertEquals(oldAccountId, response.getOldAccountId(), "Old account ID should match");
+        assertEquals("oldAccountId", response.getOldAccountId(), "Old account ID should match");
         assertEquals(newKycCertificate, response.getNewKycCertificate(), "New KYC certificate should match");
         assertEquals("Account recovery successful", response.getMessage(), "Message should indicate success");
 
@@ -66,19 +62,55 @@ class AccountRecoveryValidationRequestServiceImplTest {
     }
 
     @Test
+    void testProcessRecovery_NullNewAccountId() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, null, recoveryJwt)
+        );
+        assertEquals("New account ID is required", exception.getMessage());
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testProcessRecovery_EmptyNewAccountId() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, "", recoveryJwt)
+        );
+        assertEquals("New account ID is required", exception.getMessage());
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testProcessRecovery_NullRecoveryJwt() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, newAccountId, null)
+        );
+        assertEquals("Recovery JWT is required", exception.getMessage());
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testProcessRecovery_EmptyRecoveryJwt() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, newAccountId, "")
+        );
+        assertEquals("Recovery JWT is required", exception.getMessage());
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
     void testProcessRecovery_InvalidRecoveryJwtFormat() {
         // Arrange
         String invalidRecoveryJwt = "invalid.jwt.format";
 
-        // Act
-        AccountRecoveryResponse response = accountRecoveryService.processRecovery(publicKey, newAccountId, invalidRecoveryJwt);
-
-        // Assert
-        assertNotNull(response, "Response should not be null");
-        assertNull(response.getOldAccountId(), "Old account ID should be null");
-        assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
-        assertEquals("Invalid RecoveryJWT format", response.getMessage(), "Message should indicate invalid JWT format");
-
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, newAccountId, invalidRecoveryJwt)
+        );
+        assertEquals("Invalid RecoveryJWT format", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
@@ -87,16 +119,25 @@ class AccountRecoveryValidationRequestServiceImplTest {
         // Arrange
         String mismatchedRecoveryJwt = generateMismatchedRecoveryJwt(newAccountId);
 
-        // Act
-        AccountRecoveryResponse response = accountRecoveryService.processRecovery(publicKey, newAccountId, mismatchedRecoveryJwt);
-
-        // Assert
-        assertNotNull(response, "Response should not be null");
-        assertNull(response.getOldAccountId(), "Old account ID should be null");
-        assertNull(response.getNewKycCertificate(), "New KYC certificate should be null");
-        assertEquals("Claiming account ID mismatch", response.getMessage(), "Message should indicate account ID mismatch");
-
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, newAccountId, mismatchedRecoveryJwt)
+        );
+        assertEquals("Claiming account ID mismatch", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testProcessRecovery_CertificateGenerationError() throws Exception {
+        // Arrange
+        when(certGeneratorHelper.generateCertificate(anyString())).thenThrow(new RuntimeException("Certificate generation failed"));
+
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () ->
+            accountRecoveryService.processRecovery(publicKey, newAccountId, recoveryJwt)
+        );
+        assertTrue(exception.getMessage().contains("An unexpected error occurred"));
+        verify(certGeneratorHelper, times(1)).generateCertificate(anyString());
     }
 
     private JWK generateTestPublicKey() throws JOSEException {
@@ -116,9 +157,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         return signedJWT.serialize();
     }
 
-
     private String generateMismatchedRecoveryJwt(String newAccountId) throws JOSEException {
-        this.newAccountId = newAccountId;
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .claim("TimeStamp", System.currentTimeMillis())
                 .claim("newAccountId", "wrongAccountId")

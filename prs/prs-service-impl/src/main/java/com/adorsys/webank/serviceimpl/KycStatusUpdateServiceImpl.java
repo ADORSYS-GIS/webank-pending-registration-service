@@ -6,6 +6,8 @@ import com.adorsys.webank.service.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
 import org.springframework.transaction.annotation.*;
+import com.adorsys.error.ResourceNotFoundException;
+import com.adorsys.error.ValidationException;
 
 import java.util.*;
 
@@ -22,8 +24,20 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     @Override
     @Transactional
     public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason) {
-        log.info("Updating KYC status for accountId {} to {} with rejection reason: {}",
-                accountId, newStatus, rejectionReason);
+        if (accountId == null || accountId.isEmpty()) {
+            throw new ValidationException("Account ID is required");
+        }
+        if (newStatus == null || newStatus.isEmpty()) {
+            throw new ValidationException("Status is required");
+        }
+        if (idNumber == null || idNumber.isEmpty()) {
+            throw new ValidationException("ID number is required");
+        }
+        if (expiryDate == null || expiryDate.isEmpty()) {
+            throw new ValidationException("Expiry date is required");
+        }
+
+        log.info("Updating KYC status for accountId {} to {}", accountId, newStatus);
 
         Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
         if (personalInfoOpt.isPresent()) {
@@ -32,12 +46,12 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
             // Validate document details
             if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
                 log.error("Document ID mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getDocumentUniqueId(), idNumber);
-                return "Failed: Document ID mismatch";
+                throw new ValidationException("Document ID mismatch");
             }
 
             if (!personalInfo.getExpirationDate().equals(expiryDate)) {
                 log.error("Document expiry date mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getExpirationDate(), expiryDate);
-                return "Failed: Document expiry date mismatch";
+                throw new ValidationException("Document expiry date mismatch");
             }
 
             try {
@@ -48,7 +62,7 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
                 // Set rejection fields if status is REJECTED
                 if (kycStatus == PersonalInfoStatus.REJECTED) {
                     if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
-                        return "Failed: Rejection reason is required when status is REJECTED";
+                        throw new ValidationException("Rejection reason is required when status is REJECTED");
                     }
                     personalInfo.setRejectionReason(rejectionReason);
                 } else {
@@ -62,11 +76,11 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
                 return "KYC status for " + accountId + " updated to " + newStatus;
             } catch (IllegalArgumentException e) {
                 log.error("Invalid KYC status value: {}", newStatus);
-                return "Failed: Invalid KYC status value '" + newStatus + "'";
+                throw new ValidationException("Invalid KYC status value '" + newStatus + "'");
             }
         } else {
             log.warn("No record found for accountId {}", accountId);
-            return "Failed: No record found for accountId " + accountId;
+            throw new ResourceNotFoundException("No record found for accountId " + accountId);
         }
     }
 }

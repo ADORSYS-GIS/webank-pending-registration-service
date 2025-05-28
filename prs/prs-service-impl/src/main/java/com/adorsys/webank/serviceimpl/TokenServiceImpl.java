@@ -1,7 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.TokenRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.service.TokenServiceApi;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -17,10 +16,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.adorsys.error.ValidationException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Date;
 
@@ -44,6 +43,12 @@ public class TokenServiceImpl implements TokenServiceApi {
     @Override
     @Transactional
     public String requestRecoveryToken(TokenRequest tokenRequest) {
+        if (tokenRequest.getOldAccountId() == null || tokenRequest.getOldAccountId().isEmpty()) {
+            throw new ValidationException("Old account ID is required");
+        }
+        if (tokenRequest.getNewAccountId() == null || tokenRequest.getNewAccountId().isEmpty()) {
+            throw new ValidationException("New account ID is required");
+        }
         try {
             return generateToken(tokenRequest.getOldAccountId(), tokenRequest.getNewAccountId());
         } catch (Exception e) {
@@ -66,7 +71,7 @@ public class TokenServiceImpl implements TokenServiceApi {
             // Parse the server's public key
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
+            // Compute SHA-256 hash of the server's public JWK to use as `kid`
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
             String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
