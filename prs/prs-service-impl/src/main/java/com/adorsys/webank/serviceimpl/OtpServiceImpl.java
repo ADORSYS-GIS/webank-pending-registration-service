@@ -1,39 +1,29 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
-import com.nimbusds.jose.jwk.*;
-import jakarta.transaction.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.stereotype.*;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.webank.security.HashHelper;
+import com.adorsys.webank.service.OtpServiceApi;
+import com.nimbusds.jose.jwk.JWK;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.springframework.stereotype.Service;
 
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class OtpServiceImpl implements OtpServiceApi {
-
-    private static final Logger log = LoggerFactory.getLogger(OtpServiceImpl.class);
-
-    // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
-    @Value("${otp.salt}")
-    private String salt;
-
-    // Constructor
-    public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
-        this.otpRequestRepository = otpRequestRepository;
-    }
-
+    private final PasswordHashingService passwordHashingService;
+    private final HashHelper hashHelper;
 
     @Override
     public String generateOtp() {
@@ -52,7 +42,9 @@ public class OtpServiceImpl implements OtpServiceApi {
         try {
             String otp = generateOtp();
             String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
+            // Use deterministic hash for lookup key
+            String publicKeyHash = hashHelper.calculateSHA256AsHex(devicePublicKey);
+            log.debug("Generated public key hash for storage: {}", publicKeyHash);
 
             // 1. First try to update existing record if found
             int updatedRows = otpRequestRepository.updateOtpByPublicKeyHash(
@@ -79,31 +71,33 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             // Generate OTP hash
             String otpJSON = String.format(
-                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
-                    otp, devicePub.toJSONString(), phoneNumber, salt
+                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
+                    otp, devicePub.toJSONString(), phoneNumber
             );
-            String otpHash = computeHash(new JsonCanonicalizer(otpJSON).getEncodedString());
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+            String otpHash = passwordHashingService.hash(canonicalJson);
 
             // Set hash and save
             otpRequest.setOtpHash(otpHash);
             otpRequest.setOtpCode(otp);
             otpRequestRepository.save(otpRequest);
 
-            log.info("OTP code for {}  is  {}",   phoneNumber, otpRequest.getOtpCode());
+            log.info("OTP sent successfully to phone number: {}, with otp: {}", phoneNumber, otp);
             return otpHash;
         } catch (Exception e) {
             log.error("Failed to send OTP to {}", phoneNumber, e);
-            throw new FailedToSendOTPException("Failed to send OTP");
+            throw new FailedToSendOTPException("Failed to send OTP", e);
         }
     }
-
 
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
         try {
             String devicePublicKey = devicePub.toJSONString();
-            String publicKeyHash = computePublicKeyHash(devicePublicKey);
-
+            // Use deterministic hash for lookup key - must match the hash used in sendOtp
+            String publicKeyHash = hashHelper.calculateSHA256AsHex(devicePublicKey);
+            log.debug("Generated public key hash for lookup: {}", publicKeyHash);
+            
             Optional<OtpEntity> otpEntityOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
             if (otpEntityOpt.isEmpty()) {
                 return "No OTP request found for this public key";
@@ -117,18 +111,18 @@ public class OtpServiceImpl implements OtpServiceApi {
                 return "OTP expired. Request a new one.";
             }
 
-            String otpJSON = "{\"otp\":\"" + otpInput + "\","
-                    + "\"devicePub\":" + devicePub.toJSONString() + ","
-                    + "\"phoneNumber\":\"" + phoneNumber + "\","
-                    + "\"salt\":\"" + salt + "\"}";
+            String otpJSON = String.format(
+                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
+                    otpInput, devicePub.toJSONString(), phoneNumber
+            );
+            
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+            
+            if (log.isDebugEnabled()) {
+                log.debug("OTP validation input: {}", canonicalJson);
+            }
 
-            JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
-            String input = jc.getEncodedString();
-            log.info(input);
-            String newOtpHash = computeHash(input);
-            log.info("OTP newOtpHash:{}", newOtpHash);
-
-            if (newOtpHash.equals(otpEntity.getOtpHash())) {
+            if (passwordHashingService.verify(canonicalJson, otpEntity.getOtpHash())) {
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";
@@ -141,21 +135,6 @@ public class OtpServiceImpl implements OtpServiceApi {
             log.error("Error validating OTP", e);
             return "Error validating the OTP";
         }
-    }
-
-    @Override
-    public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
-        }
-    }
-
-    private String computePublicKeyHash(String devicePublicKey) {
-        return computeHash(devicePublicKey);
     }
 
 }

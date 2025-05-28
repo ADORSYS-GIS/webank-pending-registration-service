@@ -2,27 +2,27 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.security.HashHelper;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import com.nimbusds.jose.jwk.Curve;
 import jakarta.mail.internet.MimeMessage;
-import org.erdtman.jcs.JsonCanonicalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.lang.reflect.Field;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 public class EmailOtpServiceImplTest {
@@ -34,26 +34,45 @@ public class EmailOtpServiceImplTest {
     @Mock
     private JavaMailSender mailSender;
 
-    @InjectMocks
     private EmailOtpServiceImpl emailOtpService;
+    
+    @Mock
+    private PasswordHashingService passwordHashingService;
+    
+    @Mock
+    private HashHelper hashHelper;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
     private static final String TEST_OTP = "123456";
-    private static final String TEST_SALT = "test-salt";
+
 
     @BeforeEach
     public void setUp() throws Exception {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-
+        
+        // Create EmailOtpService with mocked dependencies
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService, hashHelper);
+        
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
         mailSenderField.setAccessible(true);
         mailSenderField.set(emailOtpService, mailSender);
-
-        // Inject salt and fromEmail using reflection
-        setField("salt", TEST_SALT);
+        
+        // Inject hashHelper using reflection
+        Field hashHelperField = EmailOtpServiceImpl.class.getDeclaredField("hashHelper");
+        hashHelperField.setAccessible(true);
+        hashHelperField.set(emailOtpService, hashHelper);
+        
+        // Inject fromEmail using reflection
         setField("fromEmail", "no-reply@test.com");
+        
+        // Setup default behavior for passwordHashingService in lenient mode
+        lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
+        lenient().when(passwordHashingService.verify(anyString(), anyString())).thenReturn(true);
+        
+        // Setup default behavior for hashHelper in lenient mode
+        lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
     }
 
     private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
@@ -70,7 +89,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_Success() throws Exception {
+    public void testSendEmailOtpSuccess() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
@@ -89,7 +108,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_InvalidEmail() {
+    public void testSendEmailOtpInvalidEmail() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.sendEmailOtp(accountId, "invalid-email")
@@ -97,7 +116,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Valid() throws Exception {
+    public void testValidateEmailOtpValid() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
@@ -118,7 +137,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Expired() {
+    public void testValidateEmailOtpExpired() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoEntity entity = new PersonalInfoEntity();
         entity.setAccountId(accountId);
@@ -134,19 +153,18 @@ public class EmailOtpServiceImplTest {
     @Test
     public void testComputeOtpHash() throws Exception {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        String inputJson = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-                TEST_OTP, accountId, TEST_SALT);
-
-        String canonicalJson = new JsonCanonicalizer(inputJson).getEncodedString();
-        String expectedHash = bytesToHex(MessageDigest.getInstance("SHA-256")
-                .digest(canonicalJson.getBytes()));
-
+        String expectedHash = "hashedValue";  // This should match the value returned by our mock
+        
+        // Configure mock to return the expected value
+        when(passwordHashingService.hash(anyString())).thenReturn(expectedHash);
+        
         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
-
+        
         log.info("Expected: " + expectedHash);
         log.info("Actual:   " + actualHash);
-
+        
         assertEquals(expectedHash, actualHash);
+        verify(passwordHashingService).hash(anyString());  // Verify the mock was called
     }
 
     @Test
@@ -156,19 +174,13 @@ public class EmailOtpServiceImplTest {
         assertEquals("{\"a\":1,\"b\":2}", canonical);
     }
 
-    private String computePublicKeyHash(String publicKeyJson) {
-        return emailOtpService.computeHash(publicKeyJson);
+    private String computePublicKeyHash(String unused) {
+        // Parameter not used in test but kept for method signature clarity
+        return "hashValue";  // Return a predictable value for tests
     }
 
-    private String computeOtpHash(String otp, String accountId) {
-        return emailOtpService.computeOtpHash(otp, accountId);
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) {
-            hex.append(String.format("%02x", b));
-        }
-        return hex.toString();
+    private String computeOtpHash(String unused1, String unused2) {
+        // Parameters not used in test but kept for method signature clarity
+        return "hashedOtp";  // Return a predictable value for tests
     }
 }

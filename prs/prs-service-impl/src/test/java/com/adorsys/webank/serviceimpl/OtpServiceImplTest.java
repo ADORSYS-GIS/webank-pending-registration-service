@@ -3,8 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.repository.OtpRequestRepository;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.ECDSAVerifier;
+import com.adorsys.webank.security.HashHelper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
@@ -12,19 +11,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 public class OtpServiceImplTest {
@@ -32,8 +29,12 @@ public class OtpServiceImplTest {
     @Mock
     private OtpRequestRepository otpRequestRepository;
 
-    @Spy
-    @InjectMocks
+    @Mock
+    private PasswordHashingService passwordHashingService;
+    
+    @Mock
+    private HashHelper hashHelper;
+    
     private OtpServiceImpl otpService;
 
     private ECKey devicePublicKey;
@@ -43,19 +44,27 @@ public class OtpServiceImplTest {
     void setUp() throws Exception {
         // Generate test EC keys for server and device
         devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
-
-        ReflectionTestUtils.setField(otpService, "salt", "test-salt");
+        
+        // Create service with mocked dependencies
+        otpService = spy(new OtpServiceImpl(otpRequestRepository, passwordHashingService, hashHelper));
+        
+        // Configure default behavior for password hashing service in lenient mode
+        lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
+        lenient().when(passwordHashingService.verify(anyString(), anyString())).thenReturn(false);
+        
+        // Configure default behavior for hash helper in lenient mode
+        lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
     }
 
     @Test
-    void generateOtp_ReturnsFiveDigitNumber() {
+    void generateOtpReturnsFiveDigitNumber() {
         String otp = otpService.generateOtp();
         assertEquals(5, otp.length());
         assertTrue(otp.matches("\\d{5}"));
     }
 
     @Test
-    void sendOtp_ValidPhoneNumber_SavesOtpRequestAndReturnsHash() {
+    void sendOtpValidPhoneNumberSavesOtpRequestAndReturnsHash() {
         // Stub generateOtp to return fixed value
         doReturn("12345").when(otpService).generateOtp();
 
@@ -74,15 +83,16 @@ public class OtpServiceImplTest {
     }
 
     @Test
-    void sendOtp_InvalidPhoneNumber_ThrowsException() {
+    void sendOtpInvalidPhoneNumberThrowsException() {
         assertThrows(IllegalArgumentException.class, () -> otpService.sendOtp(devicePublicKey, "invalid"));
     }
 
     @Test
-    void validateOtp_ExpiredOtp_ReturnsExpiredMessage() {
+    void validateOtpExpiredOtpReturnsExpiredMessage() {
         OtpEntity expiredRequest = createTestOtpRequest("12345", 6); // Created 6 minutes ago
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(expiredRequest));
+        // No need to configure verification behavior as OTP should be expired before verification
 
         String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
@@ -91,10 +101,11 @@ public class OtpServiceImplTest {
     }
 
     @Test
-    void validateOtp_InvalidOtp_ReturnsInvalidMessage() {
+    void validateOtpInvalidOtpReturnsInvalidMessage() {
         OtpEntity request = createTestOtpRequest("12345", 0);
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(request));
+        when(passwordHashingService.verify(anyString(), anyString())).thenReturn(false); // Configure mock to return false for verification
 
         String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
