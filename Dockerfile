@@ -7,18 +7,10 @@ WORKDIR /app
 # Copy full source (or adjust if using pre-built artifacts)
 COPY . .
 
-# OPTIONAL: Ensure dependencies are available
-# RUN mvn -pl prs/prs-rest-server -am clean package -Pnative -DskipTests
-
 # Build native executable
-RUN native-image \
-    --no-fallback \
-    --enable-url-protocols=http,https \
-    -H:Name=prs-rest-server \
-    -cp prs/prs-rest-server/target/classes:$(echo prs/prs-rest-server/target/dependency/*.jar | tr ' ' ':')
+RUN ./mvnw -Pnative clean native:compile
 
 # Native Runtime Stage (Distroless)
-
 FROM gcr.io/distroless/base-debian12 AS final
 
 WORKDIR /webank-prs
