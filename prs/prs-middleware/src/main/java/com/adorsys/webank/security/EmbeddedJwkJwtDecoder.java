@@ -1,10 +1,13 @@
 package com.adorsys.webank.security;
 
+import com.nimbusds.jwt.*;
 import lombok.*;
 import lombok.extern.slf4j.*;
 import org.springframework.context.annotation.*;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.*;
+import java.time.Instant;
+import java.util.*;
 
 /**
  * Uses JwtValidator to validate JWTs, and returns Spring Security's Jwt object.
@@ -23,39 +26,43 @@ public class EmbeddedJwkJwtDecoder implements JwtDecoder {
 
         if (token == null || token.isEmpty()) {
             log.error("JWT token is null or empty");
-            throw new org.springframework.security.oauth2.jwt.BadJwtException("JWT token is null or empty");
+            throw new BadJwtException("JWT token is null or empty");
         }
-        log.info("token is {}", token);
+        
         try {
-            log.info("Validating JWT using JwtValidator");
-            com.adorsys.webank.security.JwtValidator.validateAndExtract(token);
+            // Get request parameters from ThreadLocal
+            Map<String, String> requestParams = RequestParameterExtractorFilter.getCurrentRequestParams();
+            String[] params = requestParams.values().toArray(new String[0]);
+            
+            log.info("Validating JWT using JwtValidator with params: {}", Arrays.toString(params));
+            com.adorsys.webank.config.JwtValidator.validateAndExtract(token, params);
             log.info("JWT validated successfully");
 
-            com.nimbusds.jwt.SignedJWT signedJWT = com.nimbusds.jwt.SignedJWT.parse(token);
+            SignedJWT signedJWT = SignedJWT.parse(token);
             log.debug("Parsed SignedJWT: {}", signedJWT);
 
-            com.nimbusds.jwt.JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+            JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
             log.debug("Extracted JWTClaimsSet: {}", claimsSet);
 
-            java.time.Instant expiresAt = claimsSet.getExpirationTime() != null ?
+            Instant expiresAt = claimsSet.getExpirationTime() != null ?
                     claimsSet.getExpirationTime().toInstant() : null;
             log.debug("Token expiration time: {}", expiresAt);
 
-            java.time.Instant issuedAt = claimsSet.getIssueTime() != null ?
+            Instant issuedAt = claimsSet.getIssueTime() != null ?
                     claimsSet.getIssueTime().toInstant() : null;
             log.debug("Token issued time: {}", issuedAt);
 
             String subject = claimsSet.getSubject();
             log.debug("Token subject: {}", subject);
 
-            java.util.Map<String, Object> headers = signedJWT.getHeader().toJSONObject();
+            Map<String, Object> headers = signedJWT.getHeader().toJSONObject();
             log.debug("JWT headers: {}", headers);
 
-            java.util.Map<String, Object> claims = claimsSet.getClaims();
+            Map<String, Object> claims = claimsSet.getClaims();
             log.debug("JWT claims: {}", claims);
 
             log.info("Returning validated Jwt object");
-            return new org.springframework.security.oauth2.jwt.Jwt(
+            return new Jwt(
                     token,
                     issuedAt,
                     expiresAt,
@@ -65,7 +72,7 @@ public class EmbeddedJwkJwtDecoder implements JwtDecoder {
 
         } catch (Exception e) {
             log.error("JWT validation failed", e);
-            throw new org.springframework.security.oauth2.jwt.BadJwtException("Invalid JWT", e);
+            throw new BadJwtException("Invalid JWT", e);
         }
     }
         }

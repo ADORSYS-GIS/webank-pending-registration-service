@@ -19,7 +19,7 @@ This guide is designed for new developers joining the team, offering a clear und
 |----------|---------|
 | `JwtValidator` | Validates JWTs by checking signature, embedded JWK, and payload hash. |
 | `EmbeddedJwkJwtDecoder` | Integrates with Spring Security OAuth2 resource server to decode and validate JWT tokens. |
-| `CertValidator` | Validates certificates (`devJwt`, `accountJwt`) embedded in JWT headers using public key verification. |
+| `CertValidator` | Validates certificates ( `accountJwt`) embedded in JWT headers using public key verification. |
 | `CertValidationFilter` | A Spring filter that enforces certificate validation for specific secured endpoints. |
 | `CustomJwtAuthenticationConverter` | Customizes authority extraction from JWT headers (e.g., grants `ROLE_ACCOUNT_CERTIFIED`). |
 | `SecurityConfig` | Main Spring Security configuration defining access rules, CORS, and JWT integration. |
@@ -44,6 +44,96 @@ Validates the JWT and returns the embedded JWK. Parameters are used to compute t
 ```java
 public static String hashPayload(String input)
 ```
+
+### 2. Payload Validation Solution
+
+#### Problem Statement
+The frontend generates a payload hash using specific parameters in a defined order, which must be validated against the JWT payload hash. For device validation endpoints, the parameters must be concatenated in the order: `initiationNonce`, `powHash`, `powNonce`.
+
+#### Solution Components
+
+1. **EndpointParameterMapper.java**
+   - Maps API endpoints to their required parameters
+   - Defines the exact order of parameters for each endpoint
+   - Example configuration:
+   ```java
+   ENDPOINT_PARAMETERS.put("api/prs/dev/validate", Arrays.asList("initiationNonce", "powHash", "powNonce"));
+   ENDPOINT_PARAMETERS.put("api/prs/otp/send", Arrays.asList("phoneNumber"));
+   ENDPOINT_PARAMETERS.put("api/prs/email-otp/send", Arrays.asList("email", "accountId"));
+   ENDPOINT_PARAMETERS.put("api/prs/kyc/info", Arrays.asList("idNumber", "expiryDate", "accountId"));
+   ```
+
+2. **RequestParameterExtractorFilter.java**
+   - Extracts parameters from both POST and GET requests
+   - Maintains parameter order using `LinkedHashMap`
+   - Parameters are added in the exact order defined in EndpointParameterMapper
+   - Works consistently for all endpoints
+   - Key logic:
+   ```java
+   // Create ordered map to maintain parameter sequence
+   Map<String, String> orderedParams = new LinkedHashMap<>();
+   for (String paramName : requiredParams) {
+       orderedParams.put(paramName, paramValue);
+   }
+   ```
+
+3. **CachingRequestBodyWrapper.java**
+   - Caches request body for POST requests
+   - Allows multiple reads of the request body
+   - Prevents `IllegalStateException` in Spring MVC
+   - Ensures consistent parameter extraction
+
+#### Implementation Steps
+
+1. **Configure Endpoint Parameters**
+   - Add endpoint mappings in `EndpointParameterMapper` with correct parameter order
+   ```java
+   ENDPOINT_PARAMETERS.put("api/prs/dev/validate", Arrays.asList("initiationNonce", "powHash", "powNonce"));
+   ENDPOINT_PARAMETERS.put("api/prs/otp/send", Arrays.asList("phoneNumber"));
+   ENDPOINT_PARAMETERS.put("api/prs/email-otp/send", Arrays.asList("email", "accountId"));
+   ```
+
+2. **Add Request Parameter Filter**
+   - Register `RequestParameterExtractorFilter` in `SecurityConfig`
+   - Ensure it runs before JWT validation
+   ```java
+   @Bean
+   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+       http
+               .addFilterBefore(requestParameterExtractorFilter, UsernamePasswordAuthenticationFilter.class)
+               // ... other configurations
+   }
+   ```
+
+3. **Verify Payload Hash**
+   - Parameters are automatically passed to `JwtValidator.validateAndExtract()`
+   - The validator concatenates parameters in the correct order
+   - The hash is compared against the JWT payload hash
+
+#### Best Practices
+- Always define parameters in `EndpointParameterMapper` with the correct order
+- Use consistent parameter names across frontend and backend
+- Add logging to track parameter extraction and validation
+- Test endpoints with different parameter combinations
+
+#### Common Issues and Solutions
+
+1. **Payload Hash Mismatch**
+   - Verify parameter order in `EndpointParameterMapper`
+   - Check frontend parameter concatenation
+   - Add debug logging to track parameter values
+
+2. **Request Body Reading Error**
+   - Ensure `CachingRequestBodyWrapper` is used
+   - Check filter chain order
+   - Verify request body is not read before the filter
+
+3. **Missing Parameters**
+   - Add required parameters to `EndpointParameterMapper`
+   - Check frontend parameter submission
+   - Add validation in the filter
+
+This solution ensures consistent payload validation across all endpoints while maintaining security and performance.
 
 Computes SHA-256 hash of input data.
 

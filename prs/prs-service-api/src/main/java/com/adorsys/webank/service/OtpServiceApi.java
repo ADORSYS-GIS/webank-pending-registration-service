@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 @Service
 public interface OtpServiceApi {
     String generateOtp();
-    String sendOtp(String phoneNumber ) throws java.text.ParseException;
+    String sendOtp(String phoneNumber ) ;
     String computeHash(String input);
-    String validateOtp(String phoneNumber,  String otpInput ) throws java.text.ParseException;
+    String validateOtp(String phoneNumber,  String otpInput ) ;
 }
 
 

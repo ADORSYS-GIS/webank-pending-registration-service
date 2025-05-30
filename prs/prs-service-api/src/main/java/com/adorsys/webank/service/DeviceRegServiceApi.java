@@ -10,5 +10,5 @@ public interface DeviceRegServiceApi {
 
     String initiateDeviceRegistration(DeviceRegInitRequest regInitRequest);
 
-    String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException, java.text.ParseException;
+    String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException;
 }

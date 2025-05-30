@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.config.*;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
@@ -10,12 +11,11 @@ import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
-import java.text.ParseException;
+
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.util.*;
-import com.adorsys.webank.config.SecurityUtils;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -24,9 +24,9 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
     @Value("${otp.salt}")
     private String salt;
+
 
     // Constructor
     public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
@@ -43,12 +43,13 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(String phoneNumber) throws ParseException {
+    public String sendOtp(String phoneNumber) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
 
-        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
+
         try {
             String otp = generateOtp();
             String devicePublicKey = devicePub.toJSONString();
@@ -99,9 +100,10 @@ public class OtpServiceImpl implements OtpServiceApi {
 
 
     @Override
-    public String validateOtp(String phoneNumber,String otpInput) throws ParseException {
+    public String validateOtp(String phoneNumber,String otpInput) {
 
-        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
+
 
         try {
             String devicePublicKey = devicePub.toJSONString();

@@ -14,9 +14,18 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
 @Component
+
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthenticationToken> {
+
+    private final com.adorsys.webank.config.CertValidator certValidator;
+
+    @Autowired
+    public CustomJwtAuthenticationConverter(com.adorsys.webank.config.CertValidator certValidator) {
+        this.certValidator = certValidator;
+    }
 
     @Override
     public JwtAuthenticationToken convert(Jwt jwt) {
@@ -41,13 +50,25 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthe
         if (accountJwt != null) {
             log.debug("Found accountJwt in header of type: {}", accountJwt.getClass().getName());
             log.debug("AccountJwt value: {}", accountJwt);
-            authorities.add(new SimpleGrantedAuthority("ROLE_ACCOUNT_CERTIFIED"));
+
+            // Validate certificate before granting role
+            try {
+                boolean certValid = certValidator.validateJWT(jwt.getTokenValue());
+                if (certValid) {
+                    authorities.add(new SimpleGrantedAuthority(com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED.getRoleName()));
+                    log.info("Certificate validated successfully, granting {}", com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED);
+                } else {
+                    log.warn("Certificate validation failed, not granting {}", com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED);
+                }
+            } catch (Exception e) {
+                log.error("Error validating certificate", e);
+            }
         } else {
             log.debug("No accountJwt found in headers. Available headers: {}", headers.keySet());
         }
 
         JwtGrantedAuthoritiesConverter defaultConverter = new JwtGrantedAuthoritiesConverter();
-        Collection<GrantedAuthority> defaultAuthorities = defaultConverter.convert(jwt);
+        Collection<? extends GrantedAuthority> defaultAuthorities = defaultConverter.convert(jwt);
         log.debug("Default converted authorities: {}", defaultAuthorities);
 
         authorities.addAll(defaultAuthorities);

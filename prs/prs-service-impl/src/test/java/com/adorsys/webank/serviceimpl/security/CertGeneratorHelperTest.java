@@ -1,6 +1,6 @@
 /**package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.security.CertGeneratorHelper;
+import com.adorsys.webank.config.CertGeneratorHelper;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;

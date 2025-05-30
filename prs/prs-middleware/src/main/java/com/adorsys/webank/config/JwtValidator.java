@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,7 +19,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 
-import static com.adorsys.webank.security.JwtExtractor.extractPayloadHash;
+import static com.adorsys.webank.config.JwtExtractor.extractPayloadHash;
 
 @Service
 public class JwtValidator {
@@ -140,16 +140,18 @@ public class JwtValidator {
      * @return The device public key as a JSON string
      * @throws IllegalArgumentException if extraction fails
      */
-    public static String extractDeviceJwk(String jwtToken) {
+    public static ECKey extractDeviceJwk(String jwtToken) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(jwtToken);
             Object jwkObject = signedJWT.getHeader().toJSONObject().get("jwk");
             if (jwkObject == null) {
                 throw new IllegalArgumentException("Missing 'jwk' in JWT header");
             }
-            return new ObjectMapper().writeValueAsString(jwkObject);
+
+            String jwkJson = new ObjectMapper().writeValueAsString(jwkObject);
+            return ECKey.parse(jwkJson);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to extract device JWK from JWT", e);
+            throw new IllegalArgumentException("Failed to extract or parse device JWK from JWT", e);
         }
     }
 

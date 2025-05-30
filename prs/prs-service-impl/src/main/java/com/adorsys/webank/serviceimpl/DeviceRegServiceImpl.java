@@ -11,17 +11,15 @@ import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jwt.*;
 import org.erdtman.jcs.*;
 import org.slf4j.*;
-import java.text.ParseException;
+import java.io.IOException;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
-
-import java.io.*;
+import java.security.NoSuchAlgorithmException;
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.time.format.*;
 import java.util.*;
-
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private static final Logger logger = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
@@ -29,11 +27,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${otp.salt}")
     private String salt;
 
-    @Value("${server.private.key}")
-    private String SERVER_PRIVATE_KEY_JSON;
-
-    @Value("${server.public.key}")
-    private String SERVER_PUBLIC_KEY_JSON;
+    @Autowired
+    private KeyLoader keyLoader;
 
     @Value("${jwt.issuer}")
     private String issuer;
@@ -47,7 +42,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     }
 
     @Override
-    public String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException, ParseException {
+    public String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException {
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
         String nonce = generateNonce(salt);
         String powNonce = deviceValidateRequest.getPowNonce();
@@ -55,7 +50,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String powHash;
 
 
-        ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
         try {
             // Make a JSON object out of initiationNonce, devicePub, powNonce
             String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
@@ -69,7 +64,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
                 return "Error: Verification of PoW failed";
             }
 
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | IOException e) {
             logger.error("Error calculating SHA-256 hash", e);
             return "Error: Unable to hash the parameters";
         }
@@ -122,28 +117,11 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     String generateDeviceCertificate(String deviceJwkJson) {
         try {
-            // Parse the server's private key from the JWK JSON string
-            ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
-            if (serverPrivateKey.getD() == null) {
-                throw new IllegalStateException("Private key 'd' (private) parameter is missing.");
-            }
-
-            // Signer using server's private key
+            // Load keys using KeyLoader
+            ECKey serverPrivateKey = keyLoader.loadPrivateKey();
+            ECKey serverPublicKey = keyLoader.loadPublicKey();
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
-
-            // Parse the server's public key
-            ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
-
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
-            String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-
-            // Create JWT Header
-            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                    .keyID(kid) // Set 'kid' as the SHA-256 of server public JWK
-                    .type(JOSEObjectType.JWT)
-                    .build();
+            JWSHeader header = JwtUtils.createJwtHeader(serverPublicKey);
 
             // Parse device's public JWK
             JWK deviceJwk = JWK.parse(deviceJwkJson);

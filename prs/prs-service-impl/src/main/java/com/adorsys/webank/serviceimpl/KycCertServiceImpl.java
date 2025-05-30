@@ -1,16 +1,14 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.config.*;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
-import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
 import com.nimbusds.jose.jwk.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
-import com.adorsys.webank.security.CertGeneratorHelper;
+
 import java.util.*;
-import com.adorsys.webank.config.SecurityUtils;
-import java.text.ParseException;
 
 @Service
 public class KycCertServiceImpl implements KycCertServiceApi {
@@ -25,11 +23,11 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     }
 
     @Override
-    public String getCert(String accountId) throws ParseException {
+    public String getCert(String accountId) {
         Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
-            ECKey  devicePub = ECKey.parse(SecurityUtils.extractDeviceJwkFromContext());
+            ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();
 
             try {
                 // Convert publicKey to a valid JSON string

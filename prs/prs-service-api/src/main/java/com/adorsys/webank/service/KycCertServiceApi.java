@@ -5,5 +5,5 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface KycCertServiceApi {
-    String getCert(String accountId) throws java.text.ParseException;
+    String getCert(String accountId);
 }
