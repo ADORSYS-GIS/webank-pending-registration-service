@@ -1,15 +1,24 @@
-# Run stage
-FROM eclipse-temurin:17-jdk-alpine
+# Native Build Stage (GraalVM)
+
+FROM ghcr.io/graalvm/native-image-community:24-muslib AS native-builder
+
+WORKDIR /app
+
+# Copy full source (or adjust if using pre-built artifacts)
+COPY . .
+
+# Build native executable
+RUN ./mvnw -Pnative clean native:compile
+
+# Native Runtime Stage (Distroless)
+FROM gcr.io/distroless/base-debian12 AS final
 
 WORKDIR /webank-prs
 
-# py the JAR file from the webank prs  module
-COPY ./prs/prs-rest-server/target/prs-rest-server-0.0.1-SNAPSHOT.jar /webank-prs/prs-rest-server-0.0.1-SNAPSHOT.jar
-# Expose the port your app runs on
+# Copy native binary
+COPY --from=native-builder /app/prs-rest-server /webank-prs/prs-rest-server
 
-ENV TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+# Set environment variables
 ENV OTP_SALT=${OTP_SALT}
 ENV SERVER_PRIVATE_KEY_JSON=${SERVER_PRIVATE_KEY_JSON}
 ENV SERVER_PUBLIC_KEY_JSON=${SERVER_PUBLIC_KEY_JSON}
@@ -21,5 +30,5 @@ ENV SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
 
 EXPOSE 8080
 
-# Run the application
-CMD ["java", "-jar", "/webank-prs/prs-rest-server-0.0.1-SNAPSHOT.jar"]
+# Run the native binary
+CMD ["/webank-prs/prs-rest-server"]
