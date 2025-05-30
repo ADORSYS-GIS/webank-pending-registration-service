@@ -1,6 +1,6 @@
 # Native Build Stage (GraalVM)
 
-FROM ghcr.io/graalvm/native-image-community:21.3 AS native-builder
+FROM ghcr.io/graalvm/native-image-community:24-muslib AS native-builder
 
 WORKDIR /app
 
