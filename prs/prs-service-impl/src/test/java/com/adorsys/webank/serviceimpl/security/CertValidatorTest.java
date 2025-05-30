@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.security.CertValidator;
+import com.adorsys.webank.config.CertValidator;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -13,7 +13,7 @@ import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import com.adorsys.webank.security.KeyLoader;
+import com.adorsys.webank.config.KeyLoader;
 
 import static org.junit.jupiter.api.Assertions.*;
 

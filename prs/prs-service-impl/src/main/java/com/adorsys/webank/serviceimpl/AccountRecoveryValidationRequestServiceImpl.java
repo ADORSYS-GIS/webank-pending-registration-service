@@ -1,7 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.AccountRecoveryResponse;
-import com.adorsys.webank.security.CertGeneratorHelper;
+import com.adorsys.webank.config.CertGeneratorHelper;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.util.Date;
 
 @Service
 public class AccountRecoveryValidationRequestServiceImpl implements AccountRecoveryValidationRequestServiceApi {

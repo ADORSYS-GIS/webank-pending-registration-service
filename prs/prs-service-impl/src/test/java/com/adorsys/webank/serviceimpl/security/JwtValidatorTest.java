@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.security.JwtValidator;
+import com.adorsys.webank.config.JwtValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.ECDSASigner;

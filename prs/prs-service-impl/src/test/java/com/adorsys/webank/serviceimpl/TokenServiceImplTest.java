@@ -1,77 +1,108 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.TokenRequest;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.Date;
-
+import com.adorsys.webank.config.*;
+import com.adorsys.webank.dto.*;
+import com.nimbusds.jose.jwk.*;
+import com.nimbusds.jose.jwk.gen.*;
+import com.nimbusds.jwt.*;
+import org.junit.jupiter.api.*;
+import org.mockito.*;
+import org.springframework.test.util.*;
+import java.text.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import com.nimbusds.jose.JOSEException;
 
-@ExtendWith(MockitoExtension.class)
-class TokenServiceImplTest {
+
+public class TokenServiceImplTest {
+    private static final Logger LOG = LoggerFactory.getLogger(TokenServiceImplTest.class);
+
+    @Mock
+    private KeyLoader keyLoader;
 
     @InjectMocks
     private TokenServiceImpl tokenService;
 
-    private static final String TEST_OLD_ACCOUNT_ID = "old-account-id";
-    private static final String TEST_NEW_ACCOUNT_ID = "new-account-id";
-    private static final String TEST_PRIVATE_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\",\"d\":\"870MB6gfuTJ4HtUnUvYMyJpr5eUZNP4Bk43bVdj3eAE\"}";
-    private static final String TEST_PUBLIC_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\"}";
-    private static final String TEST_ISSUER = "test-issuer";
-    private static final Long TEST_EXPIRATION_TIME_MS = 3600000L; // 1 hour
+
 
     @BeforeEach
-    void setUp() {
-        // Set up test configuration
-        ReflectionTestUtils.setField(tokenService, "SERVER_PRIVATE_KEY_JSON", TEST_PRIVATE_KEY);
-        ReflectionTestUtils.setField(tokenService, "SERVER_PUBLIC_KEY_JSON", TEST_PUBLIC_KEY);
-        ReflectionTestUtils.setField(tokenService, "issuer", TEST_ISSUER);
-        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", TEST_EXPIRATION_TIME_MS);
-    }
+    public void setup() throws ParseException, JOSEException {
+        MockitoAnnotations.openMocks(this);
+
+        // Generate EC key pair for test
+        ECKey generatedKey = new ECKeyGenerator(Curve.P_256)
+                .keyUse(KeyUse.SIGNATURE)
+                .keyID("123")
+                .generate();
+        
+        ECKey privateKey = generatedKey.toECPrivateKey() != null ? generatedKey : null;
+        ECKey publicKey = generatedKey.toPublicJWK();
+        
+        when(keyLoader.loadPrivateKey()).thenReturn(privateKey);
+        when(keyLoader.loadPublicKey()).thenReturn(publicKey);
+
+
+
+        ReflectionTestUtils.setField(tokenService, "issuer", "webank-test");
+        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", 60000L); // 1 min
+
+}
 
     @Test
-    void requestRecoveryToken_Success() {
-        // Given
-        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+    public void testGenerateRecoveryTokenSuccess() {
+        TokenRequest request = new TokenRequest("newAcc456", "oldAcc123");
 
-        // When
         String token = tokenService.requestRecoveryToken(request);
 
-        // Then
-        assertNotNull(token);
-        assertTrue(token.split("\\.").length == 3); // JWT should have 3 parts
+        assertNotNull(token, "Token should not be null");
+
+        // Parse and validate the token contents
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+
+            assertEquals("webank-test", claims.getIssuer());
+            assertEquals("RecoveryToken", claims.getSubject());
+            assertEquals("oldAcc123", claims.getStringClaim("oldAccountId"));
+            assertEquals("newAcc456", claims.getStringClaim("newAccountId"));
+        } catch (Exception e) {
+            LOG.error("Error parsing JWT token", e);
+            fail("Token should be parsable and contain valid claims");
+        }
     }
 
     @Test
-    void requestRecoveryToken_InvalidPrivateKey_ReturnsNull() {
-        // Given
-        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
-        ReflectionTestUtils.setField(tokenService, "SERVER_PRIVATE_KEY_JSON", "invalid-key");
+    public void testGenerateRecoveryTokenErrorHandling() throws ParseException {
+        // Arrange
+        when(keyLoader.loadPrivateKey()).thenThrow(new RuntimeException("Key load failure"));
+        TokenRequest request = new TokenRequest("acc1", "acc2");
 
-        // When
-        String token = tokenService.requestRecoveryToken(request);
-
-        // Then
-        assertNull(token);
+        // Act & Assert
+        String result = tokenService.requestRecoveryToken(request);
+        assertNull(result, "Token should be null when private key loading fails");
+        verify(keyLoader).loadPrivateKey();
     }
 
     @Test
-    void requestRecoveryToken_NullRequest_ReturnsNull() {
-        // When
-        String token = tokenService.requestRecoveryToken(null);
+    public void testGenerateRecoveryTokenWhenPrivateKeyLoadingFails() throws ParseException {
+        // Arrange
+        when(keyLoader.loadPrivateKey()).thenThrow(new RuntimeException("Key load failure"));
+        TokenRequest request = new TokenRequest("acc1", "acc2");
 
-        // Then
-        assertNull(token);
+        // Act
+        String result = tokenService.requestRecoveryToken(request);
+
+        // Assert
+        assertNull(result, "Token should be null when private key loading fails");
+        verify(keyLoader).loadPrivateKey();
+        verify(keyLoader, never()).loadPublicKey();
     }
+}
 
-} 
+
+
+
+
+

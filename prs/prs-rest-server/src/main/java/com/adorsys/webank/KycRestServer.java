@@ -1,10 +1,10 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
 import org.slf4j.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.*;
 
@@ -12,119 +12,53 @@ import java.util.*;
 public class KycRestServer implements KycRestApi {
     private static final Logger log = LoggerFactory.getLogger(KycRestServer.class);
     private final KycServiceApi kycServiceApi;
-    private final CertValidator certValidator;
 
-    public KycRestServer(KycServiceApi kycServiceApi, CertValidator certValidator) {
+    public KycRestServer(KycServiceApi kycServiceApi) {
         this.kycServiceApi = kycServiceApi;
-        this.certValidator = certValidator;
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending info is: {}, for accountId: {}", jwtToken, kycInfoRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken, kycInfoRequest.getIdNumber(), kycInfoRequest.getExpiryDate(), kycInfoRequest.getAccountId());
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
 
-            return kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
+        log.info("Sending KYC info for accountId: {}", kycInfoRequest.getAccountId());
+        return kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending location is: {}, for accountId: {}", jwtToken, kycLocationRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken, kycLocationRequest.getLocation(), kycLocationRequest.getAccountId());
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            return kycServiceApi.sendKycLocation(kycLocationRequest);
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
+        log.info("Sending KYC location for accountId: {}", kycLocationRequest.getAccountId());
+        return kycServiceApi.sendKycLocation(kycLocationRequest);
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from user sending email is  : {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken);
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            return kycServiceApi.sendKycEmail(kycEmailRequest);
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
+        log.info("Sending KYC email for accountId: {}", kycEmailRequest.getAccountId());
+        return kycServiceApi.sendKycEmail(kycEmailRequest);
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending document is: {}, for accountId: {}", jwtToken, kycDocumentRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken,
-                    kycDocumentRequest.getFrontId(), kycDocumentRequest.getBackId(),
-                    kycDocumentRequest.getSelfieId(), kycDocumentRequest.getTaxId(),
-                    kycDocumentRequest.getAccountId());
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            return kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
+        log.info("Sending KYC document for accountId: {}", kycDocumentRequest.getAccountId());
+        return kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public List<UserInfoResponse> getPendingKycRecords(String authorizationHeader) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from agent doing verification is : {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken);
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            return kycServiceApi.getPendingKycRecords();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
-        }
+        log.info("Agent requesting pending KYC records");
+        return kycServiceApi.getPendingKycRecords();
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public List<UserInfoResponse> findByDocumentUniqueId(String authorizationHeader, String DocumentUniqueId) {
-        try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from agent doing recovery is : {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken, DocumentUniqueId);
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            return kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
-        }
+        log.info("Agent searching for document unique ID: {}", DocumentUniqueId);
+        return kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
     }
 
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
-        }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
-    }
+
 }

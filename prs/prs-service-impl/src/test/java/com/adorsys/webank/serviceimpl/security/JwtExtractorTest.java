@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.security.JwtExtractor;
+import com.adorsys.webank.config.JwtExtractor;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

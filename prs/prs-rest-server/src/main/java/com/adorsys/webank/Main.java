@@ -6,6 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 @EnableRepository
+@EnableMiddleware
 @EnablePrsServiceimpl
 @SpringBootApplication
 @ComponentScan(basePackages = "com.adorsys.webank" , basePackageClasses = OtpServiceApi.class)

@@ -19,7 +19,7 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid phone number")
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request);
+    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request) throws java.text.ParseException;
 
 
     @Operation(summary = "Validate OTP", description = "Validates the received OTP against the stored value")
@@ -28,5 +28,5 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid OTP")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request);
+    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request) throws java.text.ParseException;
 }

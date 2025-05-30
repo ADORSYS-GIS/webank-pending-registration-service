@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import org.json.JSONObject;
 

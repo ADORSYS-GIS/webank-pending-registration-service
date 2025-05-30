@@ -4,6 +4,7 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import jakarta.annotation.*;
 import jakarta.annotation.Resource;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
@@ -12,13 +13,14 @@ import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.core.io.*;
 import org.springframework.mail.javamail.*;
+import org.springframework.stereotype.*;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.domain.PersonalInfoStatus;
+
 import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.time.format.*;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
