@@ -16,7 +16,7 @@ public class ErrorResponse {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private LocalDateTime timestamp;
     
-    public static ErrorResponse of(ErrorCode errorCode, String message) {
+    public static ErrorResponse createErrorResponse(ErrorCode errorCode, String message) {
         return ErrorResponse.builder()
                 .code(errorCode.name())
                 .message(message != null ? message : errorCode.getDefaultMessage())
@@ -25,7 +25,7 @@ public class ErrorResponse {
                 .build();
     }
     
-    public static ErrorResponse of(ErrorCode errorCode) {
-        return of(errorCode, null);
+    public static ErrorResponse createErrorResponse(ErrorCode errorCode) {
+        return createErrorResponse(errorCode, null);
     }
 } 

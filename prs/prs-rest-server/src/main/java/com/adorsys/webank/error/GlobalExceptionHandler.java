@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
         log.error("JWT validation error: ", ex);
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorResponse.of(ErrorCode.INVALID_JWT, ex.getMessage()));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.INVALID_JWT, ex.getMessage()));
     }
 
     @ExceptionHandler(BaseException.class)
@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
         log.error("Base exception occurred: ", ex);
         return ResponseEntity
                 .status(ex.getErrorCode().getHttpStatus())
-                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+                .body(ErrorResponse.createErrorResponse(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -41,7 +41,7 @@ public class GlobalExceptionHandler {
         log.error("Resource not found: ", ex);
         return ResponseEntity
                 .status(ex.getErrorCode().getHttpStatus())
-                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+                .body(ErrorResponse.createErrorResponse(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
         log.error("Validation error: ", ex);
         return ResponseEntity
                 .status(ex.getErrorCode().getHttpStatus())
-                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+                .body(ErrorResponse.createErrorResponse(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
                 .orElse("Invalid request parameters");
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR, message));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.VALIDATION_ERROR, message));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -73,7 +73,7 @@ public class GlobalExceptionHandler {
                 .orElse("Invalid request parameters");
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR, message));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.VALIDATION_ERROR, message));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -81,7 +81,7 @@ public class GlobalExceptionHandler {
         log.error("Missing request parameter: ", ex);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(ErrorCode.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName()));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -89,7 +89,7 @@ public class GlobalExceptionHandler {
         log.error("Invalid request body: ", ex);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(ErrorCode.BAD_REQUEST, "Invalid request body format"));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.BAD_REQUEST, "Invalid request body format"));
     }
 
     @ExceptionHandler(Exception.class)
@@ -97,6 +97,6 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error occurred: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred"));
+                .body(ErrorResponse.createErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, "An unexpected error occurred"));
     }
 } 
