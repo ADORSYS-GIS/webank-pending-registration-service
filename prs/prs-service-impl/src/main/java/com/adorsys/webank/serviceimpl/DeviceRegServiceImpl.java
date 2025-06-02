@@ -3,6 +3,8 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
@@ -23,6 +25,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -30,6 +34,7 @@ import java.util.Date;
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
+    private final ObjectMapper objectMapper;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -62,16 +67,25 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
         
-        // Step 2: Create and canonicalize the PoW JSON
-        String powJSON = String.format(
-                "{\"initiationNonce\":\"%s\",\"devicePub\":%s,\"powNonce\":\"%s\"}", 
-                initiationNonce, devicePub.toJSONString(), powNonce);
-        String hashInput = new JsonCanonicalizer(powJSON).getEncodedString();
+        // Step 2: Create and canonicalize the PoW JSON using ObjectMapper
+        Map<String, Object> powData = new HashMap<>();
+        powData.put("initiationNonce", initiationNonce);
+        powData.put("devicePub", devicePub.toJSONObject());
+        powData.put("powNonce", powNonce);
         
-        // Step 3: Verify the proof of work
-        String powValidationError = validateProofOfWork(hashInput, powJSON, newPowHash);
-        if (powValidationError != null) {
-            return powValidationError;
+        String powJSON;
+        try {
+            powJSON = objectMapper.writeValueAsString(powData);
+            String hashInput = new JsonCanonicalizer(powJSON).getEncodedString();
+        
+            // Step 3: Verify the proof of work
+            String powValidationError = validateProofOfWork(hashInput, powJSON, newPowHash);
+            if (powValidationError != null) {
+                return powValidationError;
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize PoW JSON", e);
+            return "Error processing proof of work";
         }
         
         // Step 4: Generate the device certificate

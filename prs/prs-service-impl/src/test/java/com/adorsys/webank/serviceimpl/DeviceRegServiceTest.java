@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.security.HashHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWK;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)class DeviceRegServiceTest {
 
@@ -26,6 +28,9 @@ import static org.mockito.ArgumentMatchers.anyString;
     private HashHelper mockHashHelper;
     
     @Mock
+    private ObjectMapper mockObjectMapper;
+    
+    @Mock
     private JWK mockJWK;
     
     private DeviceRegServiceImpl deviceRegService;
@@ -33,11 +38,16 @@ import static org.mockito.ArgumentMatchers.anyString;
 
     @BeforeEach
     void setUp() {
-        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService, mockHashHelper);
+        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService, mockHashHelper, mockObjectMapper);
         
         // Set up default behaviors for the mock in lenient mode
         lenient().when(mockPasswordHashingService.hash(anyString())).thenReturn("hashedValue");
         lenient().when(mockPasswordHashingService.verify(anyString(), anyString())).thenReturn(false);
+        try {
+            lenient().when(mockObjectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to set up mock ObjectMapper", e);
+        }
     }
 
     @Test

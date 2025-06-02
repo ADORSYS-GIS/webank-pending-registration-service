@@ -24,11 +24,11 @@ public class PasswordHashingService {
     public PasswordHashingService() {
         // Configure Argon2 with proper security parameters
         this.passwordEncoder = new Argon2PasswordEncoder(
-            SALT_LENGTH,  // salt length
-            HASH_LENGTH,  // hash length
-            PARALLELISM,  // parallelism
-            MEMORY,       // memory cost
-            ITERATIONS    // iterations
+            SALT_LENGTH,
+            HASH_LENGTH,
+            PARALLELISM,
+            MEMORY,
+            ITERATIONS
         );
     }
 

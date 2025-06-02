@@ -6,6 +6,8 @@ import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.security.HashHelper;
 import com.adorsys.webank.service.OtpServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWK;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -24,6 +28,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     private final OtpRequestRepository otpRequestRepository;
     private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
+    private final ObjectMapper objectMapper;
 
     @Override
     public String generateOtp() {
@@ -69,21 +74,28 @@ public class OtpServiceImpl implements OtpServiceApi {
                         .orElseThrow(() -> new FailedToSendOTPException("Failed to fetch updated OTP record"));
             }
 
-            // Generate OTP hash
-            String otpJSON = String.format(
-                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
-                    otp, devicePub.toJSONString(), phoneNumber
-            );
-            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
-            String otpHash = passwordHashingService.hash(canonicalJson);
+            // Generate OTP hash using ObjectMapper
+            Map<String, Object> otpData = new HashMap<>();
+            otpData.put("otp", otp);
+            otpData.put("devicePub", devicePub.toJSONObject());
+            otpData.put("phoneNumber", phoneNumber);
+            
+            try {
+                String otpJSON = objectMapper.writeValueAsString(otpData);
+                String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+                String otpHash = passwordHashingService.hash(canonicalJson);
 
-            // Set hash and save
-            otpRequest.setOtpHash(otpHash);
-            otpRequest.setOtpCode(otp);
-            otpRequestRepository.save(otpRequest);
+                // Set hash and save
+                otpRequest.setOtpHash(otpHash);
+                otpRequest.setOtpCode(otp);
+                otpRequestRepository.save(otpRequest);
 
-            log.info("OTP sent successfully to phone number: {}, with otp: {}", phoneNumber, otp);
-            return otpHash;
+                log.info("OTP sent successfully to phone number: {}, with otp: {}", phoneNumber, otp);
+                return otpHash;
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize OTP data to JSON", e);
+                throw new FailedToSendOTPException("Failed to process OTP data", e);
+            }
         } catch (Exception e) {
             log.error("Failed to send OTP to {}", phoneNumber, e);
             throw new FailedToSendOTPException("Failed to send OTP", e);
@@ -111,25 +123,34 @@ public class OtpServiceImpl implements OtpServiceApi {
                 return "OTP expired. Request a new one.";
             }
 
-            String otpJSON = String.format(
-                    "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\"}",
-                    otpInput, devicePub.toJSONString(), phoneNumber
-            );
+            // Create OTP data for validation using ObjectMapper
+            Map<String, Object> otpData = new HashMap<>();
+            otpData.put("otp", otpInput);
+            otpData.put("devicePub", devicePub.toJSONObject());
+            otpData.put("phoneNumber", phoneNumber);
             
-            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
-            
-            if (log.isDebugEnabled()) {
-                log.debug("OTP validation input: {}", canonicalJson);
-            }
+            try {
+                String otpJSON = objectMapper.writeValueAsString(otpData);
+                String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("OTP validation input: {}", canonicalJson);
+                }
 
-            if (passwordHashingService.verify(canonicalJson, otpEntity.getOtpHash())) {
-                otpEntity.setStatus(OtpStatus.COMPLETE);
-                otpRequestRepository.save(otpEntity);
-                return "Otp Validated Successfully";
-            } else {
+                if (passwordHashingService.verify(canonicalJson, otpEntity.getOtpHash())) {
+                    otpEntity.setStatus(OtpStatus.COMPLETE);
+                    otpRequestRepository.save(otpEntity);
+                    return "Otp Validated Successfully";
+                } else {
+                    otpEntity.setStatus(OtpStatus.INCOMPLETE);
+                    otpRequestRepository.save(otpEntity);
+                    return "Invalid OTP";
+                }
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize OTP validation data to JSON", e);
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
-                return "Invalid OTP";
+                return "Error validating the OTP";
             }
         } catch (Exception e) {
             log.error("Error validating OTP", e);

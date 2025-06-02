@@ -6,6 +6,8 @@ import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.security.HashHelper;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.service.EmailOtpServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -20,6 +22,8 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -34,6 +38,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     private final PersonalInfoRepository personalInfoRepository;
     private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
+    private final ObjectMapper objectMapper;
     
     @Resource
     private JavaMailSender mailSender;
@@ -166,19 +171,37 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\"}",
-                inputOtp, accountId);
-        boolean isValid = passwordHashingService.verify(canonicalizeJson(input), personalInfo.getEmailOtpHash());
-        log.debug("OTP hash validation result: {}", isValid);
-        return isValid;
+        
+        try {
+            Map<String, String> inputData = new HashMap<>();
+            inputData.put("emailOtp", inputOtp);
+            inputData.put("accountId", accountId);
+            
+            String input = objectMapper.writeValueAsString(inputData);
+            boolean isValid = passwordHashingService.verify(canonicalizeJson(input), personalInfo.getEmailOtpHash());
+            log.debug("OTP hash validation result: {}", isValid);
+            return isValid;
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize OTP validation data", e);
+            return false;
+        }
     }
 
     String computeOtpHash(String emailOtp, String accountId) {
         log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\"}",
-                emailOtp, accountId);
-        log.trace("Hash input: {}", input);
-        return passwordHashingService.hash(canonicalizeJson(input));
+        
+        try {
+            Map<String, String> inputData = new HashMap<>();
+            inputData.put("emailOtp", emailOtp);
+            inputData.put("accountId", accountId);
+            
+            String input = objectMapper.writeValueAsString(inputData);
+            log.trace("Hash input: {}", input);
+            return passwordHashingService.hash(canonicalizeJson(input));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize OTP hash data", e);
+            throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
+        }
     }
 
     public String computeHash(String input) {

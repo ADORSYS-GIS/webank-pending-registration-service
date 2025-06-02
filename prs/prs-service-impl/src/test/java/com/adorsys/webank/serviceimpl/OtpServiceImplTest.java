@@ -4,6 +4,7 @@ import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.security.HashHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
@@ -35,6 +36,9 @@ public class OtpServiceImplTest {
     @Mock
     private HashHelper hashHelper;
     
+    @Mock
+    private ObjectMapper objectMapper;
+    
     private OtpServiceImpl otpService;
 
     private ECKey devicePublicKey;
@@ -46,7 +50,7 @@ public class OtpServiceImplTest {
         devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
         
         // Create service with mocked dependencies
-        otpService = spy(new OtpServiceImpl(otpRequestRepository, passwordHashingService, hashHelper));
+        otpService = spy(new OtpServiceImpl(otpRequestRepository, passwordHashingService, hashHelper, objectMapper));
         
         // Configure default behavior for password hashing service in lenient mode
         lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
@@ -54,6 +58,13 @@ public class OtpServiceImplTest {
         
         // Configure default behavior for hash helper in lenient mode
         lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
+        
+        // Configure default behavior for ObjectMapper in lenient mode
+        try {
+            lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to set up mock ObjectMapper", e);
+        }
     }
 
     @Test

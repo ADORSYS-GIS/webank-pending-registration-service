@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.security.HashHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
@@ -41,6 +42,9 @@ public class EmailOtpServiceImplTest {
     
     @Mock
     private HashHelper hashHelper;
+    
+    @Mock
+    private ObjectMapper objectMapper;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
@@ -52,7 +56,7 @@ public class EmailOtpServiceImplTest {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
         
         // Create EmailOtpService with mocked dependencies
-        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService, hashHelper);
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService, hashHelper, objectMapper);
         
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
@@ -73,6 +77,13 @@ public class EmailOtpServiceImplTest {
         
         // Setup default behavior for hashHelper in lenient mode
         lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
+        
+        // Setup default behavior for ObjectMapper in lenient mode
+        try {
+            lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to set up mock ObjectMapper", e);
+        }
     }
 
     private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
