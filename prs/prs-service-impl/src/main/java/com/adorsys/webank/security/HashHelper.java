@@ -97,4 +97,27 @@ public class HashHelper {
             throw new HashComputationException("Failed to compute Key ID: " + e.getMessage());
         }
     }
+    
+    /**
+     * Calculates the SHA-256 hash of the input string and returns it as a hex string.
+     * This is the JWT payload hash method, previously in JwtValidator.
+     * Uses String.format("%02x") for hex conversion, ensuring consistent 2-digit representation.
+     * 
+     * @param input The string to hash
+     * @return The SHA-256 hash of the input as a hex string
+     * @throws NoSuchAlgorithmException If the SHA-256 algorithm is not available
+     */
+    public String hashPayload(String input) throws NoSuchAlgorithmException {
+        log.debug("Hashing payload using SHA-256");
+        MessageDigest digest = MessageDigest.getInstance(SHA_256);
+        byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hashBytes) {
+            hexString.append(String.format("%02x", b));
+        }
+
+        log.debug("Computed hash: {}", hexString);
+        return hexString.toString();
+    }
 }

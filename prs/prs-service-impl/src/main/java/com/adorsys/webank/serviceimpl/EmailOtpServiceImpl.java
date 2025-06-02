@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
@@ -36,9 +37,11 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     
     // Field declarations
     private final PersonalInfoRepository personalInfoRepository;
-    private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
+    
+    // Using default Spring Security recommended parameters
+    private final Argon2PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 4096, 2);
     
     @Resource
     private JavaMailSender mailSender;
@@ -178,7 +181,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             inputData.put("accountId", accountId);
             
             String input = objectMapper.writeValueAsString(inputData);
-            boolean isValid = passwordHashingService.verify(canonicalizeJson(input), personalInfo.getEmailOtpHash());
+            boolean isValid = passwordEncoder.matches(canonicalizeJson(input), personalInfo.getEmailOtpHash());
             log.debug("OTP hash validation result: {}", isValid);
             return isValid;
         } catch (JsonProcessingException e) {
@@ -197,7 +200,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             
             String input = objectMapper.writeValueAsString(inputData);
             log.trace("Hash input: {}", input);
-            return passwordHashingService.hash(canonicalizeJson(input));
+            return passwordEncoder.encode(canonicalizeJson(input));
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
             throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
@@ -210,8 +213,8 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             // For public key hashing, use SHA-256 for deterministic results
             return hashHelper.calculateSHA256AsHex(input);
         }
-        // For password/sensitive data, continue using Argon2 via passwordHashingService
-        return passwordHashingService.hash(input);
+        // For password/sensitive data, continue using Argon2 via passwordEncoder
+        return passwordEncoder.encode(input);
     }
 
     // bytesToHex method is no longer needed with the centralized hashing service

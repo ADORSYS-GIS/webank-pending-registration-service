@@ -16,14 +16,11 @@ import java.security.NoSuchAlgorithmException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 
-@ExtendWith(MockitoExtension.class)class DeviceRegServiceTest {
+@ExtendWith(MockitoExtension.class)
+class DeviceRegServiceTest {
 
-    @Mock
-    private PasswordHashingService mockPasswordHashingService;
-    
     @Mock
     private HashHelper mockHashHelper;
     
@@ -38,11 +35,9 @@ import static org.mockito.ArgumentMatchers.any;
 
     @BeforeEach
     void setUp() {
-        deviceRegService = new DeviceRegServiceImpl(mockPasswordHashingService, mockHashHelper, mockObjectMapper);
+        deviceRegService = new DeviceRegServiceImpl(mockHashHelper, mockObjectMapper);
         
         // Set up default behaviors for the mock in lenient mode
-        lenient().when(mockPasswordHashingService.hash(anyString())).thenReturn("hashedValue");
-        lenient().when(mockPasswordHashingService.verify(anyString(), anyString())).thenReturn(false);
         try {
             lenient().when(mockObjectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
         } catch (Exception e) {
@@ -92,12 +87,16 @@ import static org.mockito.ArgumentMatchers.any;
 
     @Test
     void testGenerateNonceGeneratesHash() {
-        String expectedHash = "hashValue";
-        when(mockPasswordHashingService.hash(anyString())).thenReturn(expectedHash);
-        
+        // Since we can't mock the internal passwordEncoder, we'll test the actual behavior
         String nonce = deviceRegService.generateNonce();
-        assertEquals(expectedHash, nonce);
-        verify(mockPasswordHashingService).hash(anyString());
+        
+        // Verify that the nonce is not null or empty
+        assertNotNull(nonce);
+        assertFalse(nonce.isEmpty());
+        
+        // Test consistency (calling it twice should produce different values because it includes random data)
+        String secondNonce = deviceRegService.generateNonce();
+        assertNotEquals(nonce, secondNonce, "Nonces should be unique");
     }
 
 

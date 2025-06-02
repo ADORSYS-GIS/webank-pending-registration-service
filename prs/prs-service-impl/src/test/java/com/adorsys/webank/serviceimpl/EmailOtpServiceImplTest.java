@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
 
+
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -37,8 +38,7 @@ public class EmailOtpServiceImplTest {
 
     private EmailOtpServiceImpl emailOtpService;
     
-    @Mock
-    private PasswordHashingService passwordHashingService;
+
     
     @Mock
     private HashHelper hashHelper;
@@ -56,7 +56,7 @@ public class EmailOtpServiceImplTest {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
         
         // Create EmailOtpService with mocked dependencies
-        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, passwordHashingService, hashHelper, objectMapper);
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, hashHelper, objectMapper);
         
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
@@ -71,9 +71,7 @@ public class EmailOtpServiceImplTest {
         // Inject fromEmail using reflection
         setField("fromEmail", "no-reply@test.com");
         
-        // Setup default behavior for passwordHashingService in lenient mode
-        lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
-        lenient().when(passwordHashingService.verify(anyString(), anyString())).thenReturn(true);
+        // No need to mock passwordEncoder as it's now an internal implementation detail
         
         // Setup default behavior for hashHelper in lenient mode
         lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
@@ -133,7 +131,11 @@ public class EmailOtpServiceImplTest {
         PersonalInfoEntity entity = new PersonalInfoEntity();
         entity.setAccountId(accountId);
         entity.setEmailOtpCode(TEST_OTP);
-        entity.setEmailOtpHash(computeOtpHash(TEST_OTP, accountId));
+        
+        // We need to use the actual implementation to create a hash that will validate
+        // This requires using the real implementation, not our test stub
+        String realHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
+        entity.setEmailOtpHash(realHash);
         entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
@@ -164,18 +166,18 @@ public class EmailOtpServiceImplTest {
     @Test
     public void testComputeOtpHash() throws Exception {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        String expectedHash = "hashedValue";  // This should match the value returned by our mock
         
-        // Configure mock to return the expected value
-        when(passwordHashingService.hash(anyString())).thenReturn(expectedHash);
-        
+        // Since we can't mock the internal passwordEncoder, we'll test the actual behavior
         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
         
-        log.info("Expected: " + expectedHash);
-        log.info("Actual:   " + actualHash);
+        // Verify that the hash is not null or empty
+        assertNotNull(actualHash);
+        assertFalse(actualHash.isEmpty());
         
-        assertEquals(expectedHash, actualHash);
-        verify(passwordHashingService).hash(anyString());  // Verify the mock was called
+        // Verify that the hash starts with the Argon2id marker
+        assertTrue(actualHash.startsWith("$argon2id$"), "Hash should be an Argon2id hash");
+        
+        log.info("Generated hash: " + actualHash);
     }
 
     @Test
@@ -190,8 +192,5 @@ public class EmailOtpServiceImplTest {
         return "hashValue";  // Return a predictable value for tests
     }
 
-    private String computeOtpHash(String unused1, String unused2) {
-        // Parameters not used in test but kept for method signature clarity
-        return "hashedOtp";  // Return a predictable value for tests
-    }
+    // The computeOtpHash method has been removed since we now use the actual implementation from the service
 }

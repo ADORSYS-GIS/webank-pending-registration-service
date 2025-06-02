@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,9 +32,6 @@ public class OtpServiceImplTest {
     private OtpRequestRepository otpRequestRepository;
 
     @Mock
-    private PasswordHashingService passwordHashingService;
-    
-    @Mock
     private HashHelper hashHelper;
     
     @Mock
@@ -50,11 +48,9 @@ public class OtpServiceImplTest {
         devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
         
         // Create service with mocked dependencies
-        otpService = spy(new OtpServiceImpl(otpRequestRepository, passwordHashingService, hashHelper, objectMapper));
+        otpService = spy(new OtpServiceImpl(otpRequestRepository, hashHelper, objectMapper));
         
-        // Configure default behavior for password hashing service in lenient mode
-        lenient().when(passwordHashingService.hash(anyString())).thenReturn("hashedValue");
-        lenient().when(passwordHashingService.verify(anyString(), anyString())).thenReturn(false);
+
         
         // Configure default behavior for hash helper in lenient mode
         lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
@@ -116,7 +112,8 @@ public class OtpServiceImplTest {
         OtpEntity request = createTestOtpRequest("12345", 0);
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(request));
-        when(passwordHashingService.verify(anyString(), anyString())).thenReturn(false); // Configure mock to return false for verification
+        // Since we can't mock the internal passwordEncoder, we'll mock the repository response
+        // and use a spy to override the behavior we need to test
 
         String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 

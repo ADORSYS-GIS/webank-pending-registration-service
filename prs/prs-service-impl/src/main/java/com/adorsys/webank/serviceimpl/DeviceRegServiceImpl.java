@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.security.HashHelper;
 
@@ -32,9 +33,11 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
-    private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
+    
+    // Using default Spring Security recommended parameters
+    private final Argon2PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 4096, 2);
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -106,7 +109,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             LocalDateTime flattenedTimestamp = timeToCheck.withMinute(flattenedMinute).withSecond(0).withNano(0);
             String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             
-            if (!passwordHashingService.verify(timestampString, initiationNonce)) {
+            if (!passwordEncoder.matches(timestampString, initiationNonce)) {
                 log.warn("Nonce validation failed: Registration time elapsed");
                 return "Error: Registration time elapsed, please try again";
             }
@@ -163,8 +166,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         
-        // Use the PasswordHashingService to generate a secure hash
-        return passwordHashingService.hash(timestampString);
+        // Use the PasswordEncoder to generate a secure hash
+        return passwordEncoder.encode(timestampString);
     }
 
     /**

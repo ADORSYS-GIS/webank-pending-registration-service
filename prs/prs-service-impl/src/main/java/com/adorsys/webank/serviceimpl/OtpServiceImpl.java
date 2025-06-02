@@ -9,6 +9,7 @@ import com.adorsys.webank.service.OtpServiceApi;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWK;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,9 +27,11 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class OtpServiceImpl implements OtpServiceApi {
     private final OtpRequestRepository otpRequestRepository;
-    private final PasswordHashingService passwordHashingService;
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
+    
+    // Using default Spring Security recommended parameters
+    private final Argon2PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 4096, 2);
 
     @Override
     public String generateOtp() {
@@ -83,7 +86,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             try {
                 String otpJSON = objectMapper.writeValueAsString(otpData);
                 String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
-                String otpHash = passwordHashingService.hash(canonicalJson);
+                String otpHash = passwordEncoder.encode(canonicalJson);
 
                 // Set hash and save
                 otpRequest.setOtpHash(otpHash);
@@ -137,7 +140,7 @@ public class OtpServiceImpl implements OtpServiceApi {
                     log.debug("OTP validation input: {}", canonicalJson);
                 }
 
-                if (passwordHashingService.verify(canonicalJson, otpEntity.getOtpHash())) {
+                if (passwordEncoder.matches(canonicalJson, otpEntity.getOtpHash())) {
                     otpEntity.setStatus(OtpStatus.COMPLETE);
                     otpRequestRepository.save(otpEntity);
                     return "Otp Validated Successfully";

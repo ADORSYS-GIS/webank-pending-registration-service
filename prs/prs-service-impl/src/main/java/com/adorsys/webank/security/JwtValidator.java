@@ -12,10 +12,9 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.BadJWTException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 
@@ -25,6 +24,13 @@ import static com.adorsys.webank.security.JwtExtractor.extractPayloadHash;
 public class JwtValidator {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtValidator.class);
+    private static HashHelper hashHelper;
+
+    @Autowired
+    public JwtValidator(HashHelper hashHelper) {
+        JwtValidator.hashHelper = hashHelper;
+        logger.info("JwtValidator initialized with HashHelper");
+    }
 
     public static JWK validateAndExtract(String jwtToken, String... params)
             throws ParseException, JOSEException, BadJOSEException, NoSuchAlgorithmException, JsonProcessingException {
@@ -95,7 +101,7 @@ public class JwtValidator {
             throws NoSuchAlgorithmException, BadJWTException {
         logger.info("Validating payload hash");
         String payloadHash = extractPayloadHash(payload);
-        String expectedHash = hashPayload(concatenatedPayload);
+        String expectedHash = hashHelper.hashPayload(concatenatedPayload);
 
         logger.debug("Extracted payload hash: {}", payloadHash);
         logger.debug("Expected hash: {}", expectedHash);
@@ -105,20 +111,6 @@ public class JwtValidator {
             throw new BadJWTException("Invalid payload hash.");
         }
         logger.info("Payload hash validation successful");
-    }
-
-    public static String hashPayload(String input) throws NoSuchAlgorithmException {
-        logger.info("Hashing payload using SHA-256");
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : hashBytes) {
-            hexString.append(String.format("%02x", b));
-        }
-
-        logger.debug("Computed hash: {}", hexString);
-        return hexString.toString();
     }
 
     public static String extractClaim(String jwtToken, String claimKey) {
