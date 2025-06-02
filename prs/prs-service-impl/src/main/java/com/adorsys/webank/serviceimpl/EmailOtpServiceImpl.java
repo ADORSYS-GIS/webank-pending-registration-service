@@ -149,8 +149,6 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             helper.setTo(toEmail);
             helper.setSubject("Webank Verification Code");
             helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
-            
-            // Remove attachment to simplify email delivery and avoid issues
 
             mailSender.send(message);
             log.info("OTP email sent successfully to {}", toEmail);
