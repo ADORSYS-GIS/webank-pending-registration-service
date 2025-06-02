@@ -15,11 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Optional;
+
 
 import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.model.OtpData;
@@ -45,7 +44,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     @Override
     @Transactional
     public String sendOtp(JWK devicePub, String phoneNumber) {
-        if (phoneNumber == null || !phoneNumber.matches("\+?[1-9]\d{1,14}")) {
+        if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
         String otp = generateOtp();
@@ -99,37 +98,73 @@ public class OtpServiceImpl implements OtpServiceApi {
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP data to JSON", e);
             throw new FailedToSendOTPException("Failed to process OTP data", e);
+        } catch (IOException e) {
+            log.error("Failed to canonicalize JSON for OTP data", e);
+            throw new FailedToSendOTPException("Failed to process OTP data", e);
         }
     }
 
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
+        // 1. Find the OTP request by public key hash
+        String publicKeyHash = calculatePublicKeyHash(devicePub);
+        OtpEntity otpEntity = findOtpRequestByHash(publicKeyHash);
+        
+        // 2. Check if OTP is expired
+        checkOtpExpiration(otpEntity);
+        
+        // 3. Create OTP data POJO for validation
+        OtpData otpData = createOtpDataForValidation(phoneNumber, devicePub, otpInput);
+        
+        // 4. Verify OTP hash
+        return verifyOtpHash(otpData, otpEntity);
+    }
+    
+    /**
+     * Calculate hash from device public key
+     */
+    private String calculatePublicKeyHash(JWK devicePub) {
         String devicePublicKey = devicePub.toJSONString();
-        // Use deterministic hash for lookup key - must match the hash used in sendOtp
         String publicKeyHash = hashHelper.calculateSHA256AsHex(devicePublicKey);
         log.debug("Generated public key hash for lookup: {}", publicKeyHash);
-        
-        Optional<OtpEntity> otpEntityOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
-        if (otpEntityOpt.isEmpty()) {
-            throw new OtpValidationException("No OTP request found for this public key");
-        }
-
-        OtpEntity otpEntity = otpEntityOpt.get();
-        // Check if OTP is expired (5 minutes validity)
+        return publicKeyHash;
+    }
+    
+    /**
+     * Find OTP request by public key hash
+     */
+    private OtpEntity findOtpRequestByHash(String publicKeyHash) {
+        return otpRequestRepository.findByPublicKeyHash(publicKeyHash)
+                .orElseThrow(() -> new OtpValidationException("No OTP request found for this public key"));
+    }
+    
+    /**
+     * Check if OTP is expired (5 minutes validity)
+     */
+    private void checkOtpExpiration(OtpEntity otpEntity) {
         if (otpEntity.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5))) {
             log.warn("OTP expired for id: {}", otpEntity.getId());
             otpEntity.setStatus(OtpStatus.INCOMPLETE); // Using INCOMPLETE as there's no EXPIRED status
             otpRequestRepository.save(otpEntity);
             throw new OtpValidationException("OTP expired. Request a new one.");
         }
-
-        // Create OTP data for validation using structured POJO instead of Map
-        OtpData otpData = OtpData.builder()
+    }
+    
+    /**
+     * Create OTP data object for validation
+     */
+    private OtpData createOtpDataForValidation(String phoneNumber, JWK devicePub, String otpInput) {
+        return OtpData.builder()
                 .otp(otpInput)
                 .devicePub(devicePub)
                 .phoneNumber(phoneNumber)
                 .build();
-        
+    }
+    
+    /**
+     * Verify OTP hash and update entity status
+     */
+    private String verifyOtpHash(OtpData otpData, OtpEntity otpEntity) {
         try {
             String otpJSON = objectMapper.writeValueAsString(otpData);
             String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();

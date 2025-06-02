@@ -2,6 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.security.HashHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -101,9 +102,10 @@ public class OtpServiceImplTest {
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(expiredRequest));
         // No need to configure verification behavior as OTP should be expired before verification
 
-        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
+        OtpValidationException exception = assertThrows(OtpValidationException.class, 
+            () -> otpService.validateOtp(phoneNumber, devicePublicKey, "12345"));
 
-        assertEquals("OTP expired. Request a new one.", result);
+        assertEquals("OTP expired. Request a new one.", exception.getMessage());
         assertEquals(OtpStatus.INCOMPLETE, expiredRequest.getStatus());
     }
 
@@ -115,9 +117,10 @@ public class OtpServiceImplTest {
         // Since we can't mock the internal passwordEncoder, we'll mock the repository response
         // and use a spy to override the behavior we need to test
 
-        String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
+        OtpValidationException exception = assertThrows(OtpValidationException.class, 
+            () -> otpService.validateOtp(phoneNumber, devicePublicKey, "12345"));
 
-        assertEquals("Invalid OTP", result);
+        assertEquals("Invalid OTP", exception.getMessage());
         assertEquals(OtpStatus.INCOMPLETE, request.getStatus());
     }
 
