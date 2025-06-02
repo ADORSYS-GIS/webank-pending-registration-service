@@ -194,7 +194,17 @@ Checks if user has `ROLE_ACCOUNT_CERTIFIED`, then validates the certificate usin
 
 #### Responsibilities
 - Converts JWT into `JwtAuthenticationToken`.
-- Adds custom authorities based on JWT headers (e.g., `ROLE_ACCOUNT_CERTIFIED` if `accountJwt` exists).
+- Adds custom authorities based on JWT headers and certificate validation:
+  - Validates the `accountJwt` certificate using `CertValidator`
+  - Grants `ROLE_ACCOUNT_CERTIFIED` only if the certificate is valid and present
+  - Uses Spring's default authorities for other claims
+
+#### Key Method
+```java
+private Collection<GrantedAuthority> extractAuthorities(Jwt jwt)
+```
+
+Validates the account certificate and adds appropriate authorities to the authentication token.
 
 #### Key Method
 ```java
