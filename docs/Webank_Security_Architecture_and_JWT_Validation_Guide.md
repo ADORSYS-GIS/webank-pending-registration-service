@@ -143,8 +143,8 @@ public static String extractDeviceJwk(String jwtToken)
 
 Extracts the device public key from the JWT header.
 
-####  Known Issue
-When used via `EmbeddedJwkJwtDecoder`, this method is called without parameters, causing payload hash validation to fail unless modified.
+####  Payload Validation Implementation
+The payload hash validation is now properly implemented through the integration of `RequestParameterExtractorFilter` with `EmbeddedJwkJwtDecoder`. The filter extracts request parameters and passes them to `JwtValidator.validateAndExtract()` via `RequestParameterExtractorFilter.getCurrentRequestParams()`, ensuring consistent payload validation across all endpoints.
 
 
 ### 2. `EmbeddedJwkJwtDecoder.java`
@@ -266,47 +266,32 @@ But `validateAndExtract(...)` expects request-specific parameters (like `email`,
 
 ### Impact
 
-Payload hash validation fails due to empty parameter list.
+## Payload Validation Implementation
 
-## Proposed Solutions
+The payload validation system is implemented through a robust solution that combines several components:
 
-### Option 1: Optional Payload Validation
+1. **RequestParameterExtractorFilter**
+   - Extracts parameters from HTTP requests (both GET and POST)
+   - Maintains parameter order using `LinkedHashMap`
+   - Stores parameters in ThreadLocal for access by `EmbeddedJwkJwtDecoder`
 
-Modify `validateAndExtract(...)` to skip payload hash check when no parameters are provided:
+2. **EmbeddedJwkJwtDecoder Integration**
+   - Retrieves parameters from `RequestParameterExtractorFilter.getCurrentRequestParams()`
+   - Passes parameters to `JwtValidator.validateAndExtract()`
+   - Ensures consistent validation across all endpoints
 
-```java
-if (params.length > 0) {
-    validatePayloadHash(payload, concatenatePayloads(params));
-} else {
-    logger.warn("No payload parameters provided; skipping payload hash validation");
-}
-```
+3. **EndpointParameterMapper**
+   - Maps endpoints to their required parameters
+   - Defines correct parameter order for each endpoint
+   - Centralized configuration for maintainability
 
-**Pros:** Simple fix, maintains compatibility with Spring integration.  
-**Cons:** Less secure for critical endpoints.
+This implementation provides:
+- **Security**: Consistent payload validation across all endpoints
+- **Maintainability**: Centralized parameter configuration
+- **Flexibility**: Supports both GET and POST requests
+- **Performance**: Efficient parameter extraction and validation
 
-
-### Option 2: Request-Specific Parameter Extraction
-
-Add logic in `EmbeddedJwkJwtDecoder` or a pre-filter to extract request body/path parameters dynamically and pass them to `validateAndExtract(...)`.
-
-**Pros:** Maintains payload validation across all flows.  
-**Cons:** Complex implementation, requires mapping between endpoints and required parameters.
-
-
-### Option 3: Endpoint-Specific Validators
-
-Keep manual validation in service layers where payload validation is crucial.
-
-**Pros:** Flexible, granular control over validation per endpoint.  
-**Cons:** Partial duplication of effort.
-
-
-## Recommendation
-
-Use **Option 1: Optional Payload Validation** for now. It allows smooth Spring integration while maintaining flexibility for endpoints that require strict payload checks.
-
-Later, implement **Option 2** selectively for high-security endpoints like KYC or recovery.
+The system is designed to provide robust payload validation for all endpoints while maintaining flexibility and performance.
 
 ## Developer Tips
 
