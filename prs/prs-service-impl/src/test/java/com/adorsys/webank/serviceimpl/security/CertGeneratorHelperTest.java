@@ -1,84 +1,81 @@
-/**package com.adorsys.webank.serviceimpl.security;
+package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.config.CertGeneratorHelper;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.jwk.Curve;
+import com.adorsys.webank.config.*;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.mockito.*;
+import org.springframework.test.util.*;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
-import java.util.Collections;
-import java.util.Date;
+import java.security.*;
+import java.security.interfaces.*;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-class CertGeneratorHelperTest {
+public class CertGeneratorHelperTest {
 
-    private String serverPublicKeyJson;
+    private KeyLoader keyLoader;
+    private CertGeneratorHelper certGeneratorHelper;
+
+    private ECKey deviceKey;
 
     @BeforeEach
-    void setUp() throws NoSuchAlgorithmException, JOSEException {
-        // Generate an EC key pair for testing
-        KeyPair keyPair = generateECKeyPair();
-        ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
-        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
+    public void setUp() throws Exception {
+        keyLoader = Mockito.mock(KeyLoader.class);
+        certGeneratorHelper = new CertGeneratorHelper(keyLoader);
 
-        // Convert keys to JWK format using the correct Curve constant
-        ECKey ecKey = new ECKey.Builder(Curve.P_256, publicKey)
+        // Set issuer and expirationTimeMs using reflection
+        ReflectionTestUtils.setField(certGeneratorHelper, "issuer", "test-issuer");
+        ReflectionTestUtils.setField(certGeneratorHelper, "expirationTimeMs", 3600000L); // 1 hour
+
+        // Generate EC key pair
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(Curve.P_256.toECParameterSpec());
+        KeyPair keyPair = generator.generateKeyPair();
+
+        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
+        ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
+
+        ECKey ecPrivateJWK = new ECKey.Builder(Curve.P_256, publicKey)
                 .privateKey(privateKey)
+                .keyID(UUID.randomUUID().toString())
                 .build();
 
-        serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
+        ECKey ecPublicJWK = ecPrivateJWK.toPublicJWK();
+
+        when(keyLoader.loadPrivateKey()).thenReturn(ecPrivateJWK);
+        when(keyLoader.loadPublicKey()).thenReturn(ecPublicJWK);
+
+        // Build a mock device JWK (public key only)
+        deviceKey = new ECKey.Builder(Curve.P_256, publicKey)
+                .keyID("device-key-123")
+                .build();
     }
 
     @Test
-    void testGenerateCertificate() throws Exception {
-        // Arrange
-        String deviceJwkJson = """
-                {
-                    "kty": "EC",
-                    "crv": "P-256",
-                    "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
-                    "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",
-                    "kid": "device-key-id"
-                }
-                """;
+    public void testGenerateCertificateSuccess() throws Exception {
+        String jwt = certGeneratorHelper.generateCertificate(deviceKey.toJSONString());
 
-        String issuer = "https://example.com";
+        assertNotNull(jwt, "JWT should not be null");
 
-        CertGeneratorHelper certGeneratorHelper = new CertGeneratorHelper();
+        JWSObject jwsObject = JWSObject.parse(jwt);
+        assertEquals("test-issuer", jwsObject.getPayload().toJSONObject().get("iss"), "Issuer should match");
 
-        // Act
-        String certificate = certGeneratorHelper.generateCertificate(deviceJwkJson);
-
-        // Assert
-        assertNotNull(certificate, "Generated certificate should not be null");
-
-        SignedJWT signedJWT = SignedJWT.parse(certificate);
-        JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
-
-        assertNotNull(claimsSet, "Claims set should not be null");
-        assertEquals(issuer, claimsSet.getIssuer(), "Issuer claim should match");
-        assertEquals(Collections.singletonList("device-key-id"), claimsSet.getAudience(), "Audience claim should match");
-        assertTrue(claimsSet.getExpirationTime().after(new Date()), "Expiration time should be in the future");
-        assertTrue(claimsSet.getIssueTime().before(new Date()), "Issue time should be in the past");
-
-        // Verify the signature
-        ECKey serverPublicKey = (ECKey) JWK.parse(serverPublicKeyJson);
-        assertTrue(signedJWT.verify(new com.nimbusds.jose.crypto.ECDSAVerifier(serverPublicKey)), "Signature verification failed");
+        System.out.println("Generated JWT: " + jwt);
     }
 
-    private KeyPair generateECKeyPair() throws NoSuchAlgorithmException {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-        keyPairGenerator.initialize(256); // Use P-256 curve
-        return keyPairGenerator.generateKeyPair();
+    @Test
+    public void testGenerateCertificateWithNullDeviceKey() {
+        String result = certGeneratorHelper.generateCertificate(null);
+        assertTrue(result.startsWith("Error generating device certificate"), "Should return error for null input");
     }
-}**/
+
+    @Test
+    public void testGenerateCertificateWithEmptyDeviceKey() {
+        String result = certGeneratorHelper.generateCertificate("   ");
+        assertTrue(result.startsWith("Error generating device certificate"), "Should return error for empty input");
+    }
+}
