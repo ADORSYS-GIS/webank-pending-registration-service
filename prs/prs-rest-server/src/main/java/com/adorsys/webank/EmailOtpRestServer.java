@@ -5,14 +5,12 @@ import com.adorsys.webank.dto.EmailOtpValidationRequest;
 import com.adorsys.webank.service.EmailOtpServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class EmailOtpRestServer implements EmailOtpRestApi {
     private final EmailOtpServiceApi emailOtpService;
-
-    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService) {
-        this.emailOtpService = emailOtpService;
-    }
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")

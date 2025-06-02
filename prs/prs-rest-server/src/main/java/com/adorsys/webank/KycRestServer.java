@@ -5,17 +5,16 @@ import com.adorsys.webank.service.*;
 import org.slf4j.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
 
 import java.util.*;
 
 @RestController
+@RequiredArgsConstructor
 public class KycRestServer implements KycRestApi {
     private static final Logger log = LoggerFactory.getLogger(KycRestServer.class);
     private final KycServiceApi kycServiceApi;
 
-    public KycRestServer(KycServiceApi kycServiceApi) {
-        this.kycServiceApi = kycServiceApi;
-    }
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")

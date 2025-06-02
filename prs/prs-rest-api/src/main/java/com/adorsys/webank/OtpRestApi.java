@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
+import com.adorsys.webank.exceptions.InvalidDateException;
 
 @Tag(name = "OTP", description = "Operations related to OTP processing")
 @RequestMapping("/api/prs/otp")
@@ -19,7 +20,7 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid phone number")
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request) throws java.text.ParseException;
+    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request) throws InvalidDateException;
 
 
     @Operation(summary = "Validate OTP", description = "Validates the received OTP against the stored value")
@@ -28,5 +29,5 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid OTP")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request) throws java.text.ParseException;
+    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request) throws InvalidDateException;
 }

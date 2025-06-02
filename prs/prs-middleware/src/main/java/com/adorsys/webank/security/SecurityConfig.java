@@ -30,9 +30,9 @@ public class SecurityConfig {
         try {
             http
                     .csrf(AbstractHttpConfigurer::disable)
-                    .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                     .sessionManagement(session -> session
                             .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                    .formLogin(AbstractHttpConfigurer::disable)
                     .addFilterBefore(requestParameterExtractorFilter, UsernamePasswordAuthenticationFilter.class)
                     .authorizeHttpRequests(auth -> auth
                             .requestMatchers("/api/prs/dev/**").authenticated()
@@ -52,19 +52,6 @@ public class SecurityConfig {
         } catch (Exception e) {
             throw new SecurityConfigurationException("Failed to build security filter chain", e);
         }
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:8080");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 
     /**

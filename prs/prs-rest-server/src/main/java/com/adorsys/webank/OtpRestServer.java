@@ -5,25 +5,24 @@ import com.adorsys.webank.dto.OtpValidationRequest;
 import com.adorsys.webank.service.OtpServiceApi;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
-import java.text.ParseException;
+import com.adorsys.webank.exceptions.InvalidDateException;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class OtpRestServer implements OtpRestApi {
     private final OtpServiceApi otpService;
 
-    public OtpRestServer(OtpServiceApi otpService) {
-        this.otpService = otpService;
-    }
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendOtp(String authorizationHeader, OtpRequest request) throws ParseException {
+    public String sendOtp(String authorizationHeader, OtpRequest request) throws InvalidDateException {
         return otpService.sendOtp(request.getPhoneNumber());
     }
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String validateOtp(String authorizationHeader, OtpValidationRequest request) throws ParseException {
+    public String validateOtp(String authorizationHeader, OtpValidationRequest request) throws InvalidDateException {
         return otpService.validateOtp(request.getPhoneNumber(), request.getOtpInput());
     }
 

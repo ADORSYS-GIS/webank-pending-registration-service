@@ -6,15 +6,13 @@ import com.adorsys.webank.service.DeviceRegServiceApi;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class DeviceRegRestServer implements DeviceRegRestApi {
 
     private final DeviceRegServiceApi deviceRegServiceApi;
-
-    public DeviceRegRestServer(DeviceRegServiceApi deviceRegServiceApi) {
-        this.deviceRegServiceApi = deviceRegServiceApi;
-    }
 
     @Override
     @PreAuthorize("isAuthenticated()")
