@@ -71,7 +71,7 @@ class KycCertServiceImplTest {
         String result = kycCertService.getCert(publicKey, TEST_ACCOUNT_ID);
 
         // Assert
-        assertEquals("null", result, "Result should be 'null' when personal info does not exist");
+        assertNull(result, "Result should be null when personal info does not exist");
 
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -90,7 +90,7 @@ class KycCertServiceImplTest {
         String result = kycCertService.getCert(publicKey, TEST_ACCOUNT_ID);
 
         // Assert
-        assertEquals("null", result, "Result should be 'null' when personal info is not approved");
+        assertNull(result, "Result should be null when personal info is not approved");
 
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(certGeneratorHelper, never()).generateCertificate(anyString());

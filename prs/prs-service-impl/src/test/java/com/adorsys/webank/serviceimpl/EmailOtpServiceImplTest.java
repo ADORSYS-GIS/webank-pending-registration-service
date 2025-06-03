@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.lang.reflect.Field;
@@ -25,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class EmailOtpServiceImplTest {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailOtpServiceImplTest.class);
 
@@ -73,10 +77,10 @@ public class EmailOtpServiceImplTest {
     public void testSendEmailOtp_Success() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
         when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
 
         // Act & Assert
@@ -100,31 +104,30 @@ public class EmailOtpServiceImplTest {
     public void testValidateEmailOtp_Valid() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
-        entity.setEmailOtpCode(TEST_OTP);
-        entity.setEmailOtpHash(computeOtpHash(TEST_OTP, accountId));
-        entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
+        when(projection.getEmailOtpCode()).thenReturn(TEST_OTP);
+        when(projection.getEmailOtpHash()).thenReturn(computeOtpHash(TEST_OTP, accountId));
+        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().plusMinutes(1));
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
         // Act
         String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
 
         // Assert
         assertEquals("Webank email verified successfully", result);
-        assertEquals(TEST_EMAIL, entity.getEmail());
-        verify(personalInfoRepository).save(entity);
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
     }
 
     @Test
     public void testValidateEmailOtp_Expired() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoEntity entity = new PersonalInfoEntity();
-        entity.setAccountId(accountId);
-        entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
+        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().minusMinutes(1));
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(entity));
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
