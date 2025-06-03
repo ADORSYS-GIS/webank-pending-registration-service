@@ -4,7 +4,6 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
 import jakarta.annotation.Resource;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
@@ -62,7 +61,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
         try {
             String otp = generateOtp();
-            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+            Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
             PersonalInfoEntity personalInfo;
 
             if (personalInfoOpt.isEmpty()) {
@@ -71,8 +70,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
                         .accountId(accountId)
                         .build();
             } else {
-                personalInfo = new PersonalInfoEntity();
-                personalInfo.setAccountId(accountId);
+                personalInfo = personalInfoOpt.get();
                 log.debug("Existing PersonalInfoEntity found: {}", personalInfo);
             }
 
@@ -96,16 +94,8 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     public String validateEmailOtp(String email, String otpInput, String accountId) {
         log.info("Validating OTP for email: {}, accountId: {}", email, accountId);
         try {
-            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
-            if (personalInfoOpt.isEmpty()) {
-                throw new IllegalArgumentException("User record not found");
-            }
-
-            PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-            personalInfo.setAccountId(accountId);
-            personalInfo.setEmailOtpCode(personalInfoOpt.get().getEmailOtpCode());
-            personalInfo.setEmailOtpHash(personalInfoOpt.get().getEmailOtpHash());
-            personalInfo.setOtpExpirationDateTime(personalInfoOpt.get().getOtpExpirationDateTime());
+            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
+                    .orElseThrow(() -> new IllegalArgumentException("User record not found"));
 
             validateOtpExpiration(personalInfo);
 
