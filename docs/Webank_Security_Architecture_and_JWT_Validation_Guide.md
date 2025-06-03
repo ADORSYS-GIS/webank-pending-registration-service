@@ -12,17 +12,156 @@ These components handle JWT validation, certificate validation, and Spring Secur
 
 This guide is designed for new developers joining the team, offering a clear understanding of each component's purpose, functionality, and interactions.
 
+## Architecture Overview
 
-## Overview of Security Components
+The Webank Security Architecture is now organized into two main modules to enhance reusability and maintainability:
 
-| Component | Purpose |
-|----------|---------|
-| `JwtValidator` | Validates JWTs by checking signature, embedded JWK, and payload hash. |
-| `EmbeddedJwkJwtDecoder` | Integrates with Spring Security OAuth2 resource server to decode and validate JWT tokens. |
-| `CertValidator` | Validates certificates ( `accountJwt`) embedded in JWT headers using public key verification. |
-| `CertValidationFilter` | A Spring filter that enforces certificate validation for specific secured endpoints. |
-| `CustomJwtAuthenticationConverter` | Customizes authority extraction from JWT headers (e.g., grants `ROLE_ACCOUNT_CERTIFIED`). |
-| `SecurityConfig` | Main Spring Security configuration defining access rules, CORS, and JWT integration. |
+### 1. Core Security Module (`prs-middleware`)
+
+This module contains the core security components that can be reused across different applications:
+
+- `JwtValidator`: Validates JWT tokens, signatures, and payload hashes
+- `EmbeddedJwkJwtDecoder`: Integrates JWT validation with Spring Security
+- `CertValidator`: Validates certificates embedded in JWT headers
+- `RequestParameterExtractorFilter`: Extracts and validates request parameters
+- `CachingRequestBodyWrapper`: Handles request body caching for multiple reads
+- `CustomJwtAuthenticationConverter`: Handles JWT authentication and authorization
+
+These components are designed to be generic and work with any endpoint configuration, making them highly reusable across different applications.
+
+### 2. Endpoint Configuration Module (`prs-rest-server`)
+
+This module contains the endpoint-specific configurations:
+
+- `EndpointConfig`: Defines endpoint-parameter mappings that can be extended or overridden by other applications
+- `EndpointParameterMapper`: Maps endpoints to their required parameters and validation rules
+
+### Separation Benefits
+
+1. **Reusability**
+   - Core security components can be used by any application without modification
+   - Each application can define its own endpoints while using the common security infrastructure
+   - Security updates in core components are automatically available to all applications
+
+2. **Flexibility**
+   - Applications can extend or override endpoint configurations as needed
+   - Custom security requirements can be implemented while maintaining core functionality
+   - Each application can define its own security rules and validation logic
+
+3. **Maintainability**
+   - Security updates can be made in one place and propagated to all applications
+   - Common security issues can be fixed centrally
+   - Each module has a clear responsibility and scope
+
+### Use Cases for Future Development
+
+#### 1. Creating a New Application
+
+When creating a new application that needs Webank's security features:
+
+1. Add Dependencies
+```xml
+<dependency>
+    <groupId>com.adorsys.webank</groupId>
+    <artifactId>prs-middleware</artifactId>
+    <version>0.0.1</version>
+</dependency>
+<dependency>
+    <groupId>com.adorsys.webank</groupId>
+    <artifactId>prs-rest-server</artifactId>
+    <version>0.0.1</version>
+</dependency>
+```
+
+2. Create Custom Endpoint Configuration
+```java
+@Configuration
+public class CustomEndpointConfig extends EndpointConfig {
+    @Override
+    @Bean
+    public EndpointParameterMapper endpointParameterMapper() {
+        final Map<String, List<String>> ENDPOINT_PARAMETERS = new HashMap<>();
+        
+        // Add custom endpoints
+        ENDPOINT_PARAMETERS.put("/api/custom/endpoint1", List.of("param1", "param2"));
+        
+        // Optionally use base configuration
+        ENDPOINT_PARAMETERS.putAll(super.endpointParameterMapper().getEndpointParameters());
+        
+        return EndpointParameterMapper.builder()
+            .endpointParameters(ENDPOINT_PARAMETERS)
+            .build();
+    }
+}
+```
+
+3. Configure Security
+```java
+@Configuration
+@EnableWebSecurity
+public class CustomSecurityConfig extends WebSecurityConfigurerAdapter {
+    @Autowired
+    private RequestParameterExtractorFilter requestParameterExtractorFilter;
+    
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+            .authorizeRequests()
+                .antMatchers("/api/**").authenticated()
+                .and()
+            .addFilterBefore(requestParameterExtractorFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(new CustomJwtFilter(), UsernamePasswordAuthenticationFilter.class);
+    }
+}
+```
+
+#### 2. Extending Security Features
+
+When adding new security features:
+
+1. Core Security Extensions
+   - Create new components in `prs-middleware` if they are generic and reusable
+   - Implement new validation logic that can be used across applications
+   - Add new security filters that work with any endpoint configuration
+
+2. Application-specific Security
+   - Extend `CustomJwtAuthenticationConverter` for custom authentication logic
+   - Create custom filters that use core security components
+   - Implement application-specific validation rules
+
+#### 3. Security Updates
+
+When updating security features:
+
+1. Core Security Updates
+   - Update components in `prs-middleware` for security fixes
+   - Enhance JWT validation logic
+   - Improve certificate validation
+   - All applications will automatically get these updates
+
+2. Configuration Updates
+   - Modify `EndpointConfig` for new security requirements
+   - Update parameter validation rules
+   - Add new security constraints
+
+### Best Practices for Future Development
+
+1. **Core Module Usage**
+   - Always use core components from `prs-middleware` for security-critical operations
+   - Extend rather than modify core components when custom behavior is needed
+   - Follow the established security patterns and validation logic
+
+2. **Endpoint Configuration**
+   - Define custom endpoints in application-specific configuration
+   - Use clear naming conventions for endpoints
+   - Document security requirements for each endpoint
+
+3. **Security Updates**
+   - Test security updates thoroughly before deployment
+   - Validate that core components work with all endpoint configurations
+   - Document any breaking changes in configuration
+
+This architecture provides a robust foundation for building secure applications while maintaining flexibility and reusability across different projects.
 
 ## Detailed Component Descriptions
 
