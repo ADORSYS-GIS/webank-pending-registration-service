@@ -4,6 +4,7 @@ import com.adorsys.webank.config.*;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import com.nimbusds.jose.jwk.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
@@ -23,8 +24,8 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     }
 
     @Override
-    public String getCert(String accountId) {
-        Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+    public String getCert(JWK publicKey, String accountId) {
+        Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
             ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();

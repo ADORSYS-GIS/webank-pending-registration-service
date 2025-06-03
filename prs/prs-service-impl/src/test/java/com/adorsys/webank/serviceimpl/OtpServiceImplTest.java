@@ -11,7 +11,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OtpServiceImplTest {
-
     @Mock
     private OtpRequestRepository otpRequestRepository;
 
@@ -51,5 +50,4 @@ class OtpServiceImplTest {
             otpService.sendOtp(invalidPhoneNumber);
         });
     }
-
 }
