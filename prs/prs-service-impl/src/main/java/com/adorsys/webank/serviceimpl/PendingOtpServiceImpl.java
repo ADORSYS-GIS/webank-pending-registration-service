@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PendingOtpServiceImpl implements PendingOtpServiceApi {
@@ -23,9 +24,29 @@ public class PendingOtpServiceImpl implements PendingOtpServiceApi {
 
     @Override
     public List<PendingOtpDto> fetchPendingOtpEntries() {
-        return otpRequestRepository.findByStatus(OtpStatus.PENDING)
+        log.info("Fetching all pending OTP entries");
+        
+        List<PendingOtpDto> pendingOtps = otpRequestRepository.findByStatus(OtpStatus.PENDING)
                 .stream()
-                .map(otp -> new PendingOtpDto(otp.getPhoneNumber(), otp.getOtpCode(), otp.getStatus().name()))
-                .toList();
+                .map(otp -> {
+                    String maskedPhone = maskPhoneNumber(otp.getPhoneNumber());
+                    log.debug("Found pending OTP for phone: {}", maskedPhone);
+                    return new PendingOtpDto(otp.getPhoneNumber(), otp.getOtpCode(), otp.getStatus().name());
+                })
+                .collect(Collectors.toList());
+        
+        log.info("Retrieved {} pending OTP entries", pendingOtps.size());
+        return pendingOtps;
+    }
+    
+    /**
+     * Masks a phone number for logging purposes
+     * Shows only last 4 digits, rest are masked
+     */
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() < 4) {
+            return "********";
+        }
+        return "******" + phoneNumber.substring(Math.max(0, phoneNumber.length() - 4));
     }
 }

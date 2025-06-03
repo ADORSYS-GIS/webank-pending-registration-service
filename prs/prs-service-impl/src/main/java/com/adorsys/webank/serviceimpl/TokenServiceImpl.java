@@ -44,34 +44,57 @@ public class TokenServiceImpl implements TokenServiceApi {
     @Override
     @Transactional
     public String requestRecoveryToken(TokenRequest tokenRequest) {
+        if (tokenRequest == null) {
+            log.warn("Received null token request");
+            return null;
+        }
+        
+        String oldAccountId = tokenRequest.getOldAccountId();
+        String newAccountId = tokenRequest.getNewAccountId();
+        
+        log.info("Processing recovery token request for account migration");
+        log.debug("Migration from account: {} to account: {}", 
+                maskAccountId(oldAccountId), maskAccountId(newAccountId));
+        
         try {
-            return generateToken(tokenRequest.getOldAccountId(), tokenRequest.getNewAccountId());
+            String token = generateToken(oldAccountId, newAccountId);
+            log.info("Recovery token generated successfully");
+            return token;
         } catch (Exception e) {
-            log.error("Error generating recovery token: ", e);
+            log.error("Failed to generate recovery token", e);
             return null;
         }
     }
 
     private String generateToken(String oldAccountId, String newAccountId) {
         try {
+            log.debug("Generating token for account migration: {} -> {}", 
+                    maskAccountId(oldAccountId), maskAccountId(newAccountId));
+            
             // Parse the server's private key
+            log.debug("Parsing server private key");
             ECKey serverPrivateKey = (ECKey) JWK.parse(SERVER_PRIVATE_KEY_JSON);
             if (serverPrivateKey.getD() == null) {
+                log.error("Private key 'd' parameter is missing");
                 throw new IllegalStateException("Private key 'd' parameter is missing.");
             }
 
             // Create a signer with the server's private key
+            log.debug("Creating JWT signer with server private key");
             JWSSigner signer = new ECDSASigner(serverPrivateKey);
 
             // Parse the server's public key
+            log.debug("Parsing server public key");
             ECKey serverPublicKey = (ECKey) JWK.parse(SERVER_PUBLIC_KEY_JSON);
 
-            // Compute SHA-256 hash of the server’s public JWK to use as `kid`
+            // Compute SHA-256 hash of the server's public JWK to use as `kid`
+            log.debug("Computing key ID (kid) from server public key");
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(serverPublicKey.toPublicJWK().toJSONString().getBytes(StandardCharsets.UTF_8));
             String kid = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
 
             // Create JWT Header
+            log.debug("Creating JWT header with kid: {}", kid);
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                     .keyID(kid) // Set 'kid' as SHA-256 of server public JWK
                     .type(JOSEObjectType.JWT)
@@ -81,6 +104,8 @@ public class TokenServiceImpl implements TokenServiceApi {
             long issuedAt = System.currentTimeMillis() / 1000; // Convert to seconds
             long expirationTime = issuedAt + (expirationTimeMs / 1000); // Convert milliseconds to seconds
 
+            log.debug("Creating JWT claims with issuer: {}, expiration: {} seconds", 
+                    issuer, expirationTimeMs/1000);
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .issuer(issuer)
                     .subject("RecoveryToken")
@@ -91,15 +116,35 @@ public class TokenServiceImpl implements TokenServiceApi {
                     .build();
 
             // Sign the JWT
+            log.debug("Signing JWT");
             SignedJWT signedJWT = new SignedJWT(header, claimsSet);
             signedJWT.sign(signer);
 
             String signedToken = signedJWT.serialize();
-            log.info("Generated Recovery Token: " + signedToken);
+            log.info("Recovery token generated successfully with expiration in {} seconds", 
+                    expirationTimeMs/1000);
+            
+            if (log.isTraceEnabled()) {
+                log.trace("Token: {}", signedToken);
+            }
+            
             return signedToken;
 
         } catch (Exception e) {
+            log.error("Error generating recovery token for accounts: {} -> {}", 
+                    maskAccountId(oldAccountId), maskAccountId(newAccountId), e);
             throw new IllegalStateException("Error generating recovery token", e);
         }
+    }
+    
+    /**
+     * Masks an account ID for logging purposes
+     * Shows only first 2 and last 2 characters
+     */
+    private String maskAccountId(String accountId) {
+        if (accountId == null || accountId.length() < 5) {
+            return "********";
+        }
+        return accountId.substring(0, 2) + "****" + accountId.substring(accountId.length() - 2);
     }
 }
