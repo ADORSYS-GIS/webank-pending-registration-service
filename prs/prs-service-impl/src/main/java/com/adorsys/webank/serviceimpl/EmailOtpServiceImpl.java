@@ -217,8 +217,6 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         return passwordEncoder.encode(input);
     }
 
-    // bytesToHex method is no longer needed with the centralized hashing service
-
     String canonicalizeJson(String json) {
         try {
             log.trace("Canonicalizing JSON: {}", json);

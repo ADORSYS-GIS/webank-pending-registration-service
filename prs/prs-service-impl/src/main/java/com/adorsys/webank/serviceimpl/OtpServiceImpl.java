@@ -176,7 +176,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             if (passwordEncoder.matches(canonicalJson, otpEntity.getOtpHash())) {
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
-                return "OTP Validated Successfully";
+                return "Otp Validated Successfully";
             } else {
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);

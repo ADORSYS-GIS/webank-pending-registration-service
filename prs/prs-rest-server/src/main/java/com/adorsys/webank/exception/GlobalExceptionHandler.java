@@ -8,6 +8,8 @@ package com.adorsys.webank.exception;
 import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.exceptions.JwtValidationException;
+import com.adorsys.webank.exceptions.CertificateGenerationException;
+import com.adorsys.webank.exceptions.KycProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -78,6 +80,44 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
         
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+    
+    /**
+     * Handles CertificateGenerationException and returns appropriate HTTP response.
+     *
+     * @param ex The CertificateGenerationException that was thrown
+     * @return ResponseEntity with error details and INTERNAL_SERVER_ERROR status
+     */
+    @ExceptionHandler(CertificateGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleCertificateGenerationException(CertificateGenerationException ex) {
+        log.error("Certificate generation error: {}", ex.getMessage(), ex);
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                "CERTIFICATE_GENERATION_ERROR",
+                "An error occurred during certificate generation",
+                HttpStatus.INTERNAL_SERVER_ERROR.value()
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
+    /**
+     * Handles KycProcessingException and returns appropriate HTTP response.
+     *
+     * @param ex The KycProcessingException that was thrown
+     * @return ResponseEntity with error details and BAD_REQUEST status
+     */
+    @ExceptionHandler(KycProcessingException.class)
+    public ResponseEntity<ErrorResponse> handleKycProcessingException(KycProcessingException ex) {
+        log.warn("KYC processing error: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                "KYC_PROCESSING_ERROR",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value()
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
     /**

@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.exceptions.KycProcessingException;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,12 +58,12 @@ class KycRecoveryServiceImplTest {
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.empty());
 
-        // When
-        String result = kycRecoveryService.verifyKycRecoveryFields(
-                TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE);
-
-        // Then
-        assertEquals("Failed: No record found for accountId " + TEST_ACCOUNT_ID, result);
+        // When & Then
+        KycProcessingException exception = assertThrows(KycProcessingException.class, () -> 
+                kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE));
+        
+        // Verify the exception message
+        assertEquals("No record found for accountId " + TEST_ACCOUNT_ID, exception.getMessage());
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
 
@@ -76,12 +77,12 @@ class KycRecoveryServiceImplTest {
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.of(personalInfo));
 
-        // When
-        String result = kycRecoveryService.verifyKycRecoveryFields(
-                TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE);
-
-        // Then
-        assertEquals("Failed: Document ID mismatch", result);
+        // When & Then
+        KycProcessingException exception = assertThrows(KycProcessingException.class, () -> 
+                kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE));
+        
+        // Verify the exception message
+        assertEquals("Document ID mismatch", exception.getMessage());
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
 
@@ -95,12 +96,12 @@ class KycRecoveryServiceImplTest {
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.of(personalInfo));
 
-        // When
-        String result = kycRecoveryService.verifyKycRecoveryFields(
-                TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE);
-
-        // Then
-        assertEquals("Failed: Document expiry date mismatch", result);
+        // When & Then
+        KycProcessingException exception = assertThrows(KycProcessingException.class, () -> 
+                kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE));
+        
+        // Verify the exception message
+        assertEquals("Document expiry date mismatch", exception.getMessage());
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
 }
