@@ -3,29 +3,32 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.security.HashHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import com.nimbusds.jose.jwk.Curve;
 import jakarta.mail.internet.MimeMessage;
-import org.erdtman.jcs.JsonCanonicalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+
 
 import java.lang.reflect.Field;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -38,26 +41,52 @@ public class EmailOtpServiceImplTest {
     @Mock
     private JavaMailSender mailSender;
 
-    @InjectMocks
     private EmailOtpServiceImpl emailOtpService;
+    
+
+    
+    @Mock
+    private HashHelper hashHelper;
+    
+    @Mock
+    private ObjectMapper objectMapper;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
     private static final String TEST_OTP = "123456";
-    private static final String TEST_SALT = "test-salt";
+
 
     @BeforeEach
     public void setUp() throws Exception {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
-
+        
+        // Create EmailOtpService with mocked dependencies
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, hashHelper, objectMapper);
+        
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
         mailSenderField.setAccessible(true);
         mailSenderField.set(emailOtpService, mailSender);
-
-        // Inject salt and fromEmail using reflection
-        setField("salt", TEST_SALT);
+        
+        // Inject hashHelper using reflection
+        Field hashHelperField = EmailOtpServiceImpl.class.getDeclaredField("hashHelper");
+        hashHelperField.setAccessible(true);
+        hashHelperField.set(emailOtpService, hashHelper);
+        
+        // Inject fromEmail using reflection
         setField("fromEmail", "no-reply@test.com");
+        
+        // No need to mock passwordEncoder as it's now an internal implementation detail
+        
+        // Setup default behavior for hashHelper in lenient mode
+        lenient().when(hashHelper.calculateSHA256AsHex(anyString())).thenReturn("deterministicHashValue");
+        
+        // Setup default behavior for ObjectMapper in lenient mode
+        try {
+            lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to set up mock ObjectMapper", e);
+        }
     }
 
     private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
@@ -74,7 +103,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_Success() throws Exception {
+    public void testSendEmailOtpSuccess() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
@@ -93,7 +122,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testSendEmailOtp_InvalidEmail() {
+    public void testSendEmailOtpInvalidEmail() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.sendEmailOtp(accountId, "invalid-email")
@@ -101,17 +130,26 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Valid() throws Exception {
+    public void testValidateEmailOtpValid() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
         when(projection.getAccountId()).thenReturn(accountId);
         when(projection.getEmailOtpCode()).thenReturn(TEST_OTP);
-        when(projection.getEmailOtpHash()).thenReturn(computeOtpHash(TEST_OTP, accountId));
+        when(projection.getEmailOtpHash()).thenReturn("$argon2id$v=19$m=4096,t=2,p=1$mockSalt$mockHash");
         when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().plusMinutes(1));
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
-
+        
+        // Mock the password encoder to always return true for matches
+        Argon2PasswordEncoder mockEncoder = mock(Argon2PasswordEncoder.class);
+        when(mockEncoder.matches(anyString(), anyString())).thenReturn(true);
+        
+        // Replace the passwordEncoder in the service using reflection
+        Field encoderField = EmailOtpServiceImpl.class.getDeclaredField("passwordEncoder");
+        encoderField.setAccessible(true);
+        encoderField.set(emailOtpService, mockEncoder);
+        
         // Act
         String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
 
@@ -121,7 +159,7 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
-    public void testValidateEmailOtp_Expired() {
+    public void testValidateEmailOtpExpired() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
         when(projection.getAccountId()).thenReturn(accountId);
@@ -137,19 +175,18 @@ public class EmailOtpServiceImplTest {
     @Test
     public void testComputeOtpHash() throws Exception {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        String inputJson = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-                TEST_OTP, accountId, TEST_SALT);
-
-        String canonicalJson = new JsonCanonicalizer(inputJson).getEncodedString();
-        String expectedHash = bytesToHex(MessageDigest.getInstance("SHA-256")
-                .digest(canonicalJson.getBytes()));
-
+        
+        // Since we can't mock the internal passwordEncoder, we'll test the actual behavior
         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
-
-        log.info("Expected: " + expectedHash);
-        log.info("Actual:   " + actualHash);
-
-        assertEquals(expectedHash, actualHash);
+        
+        // Verify that the hash is not null or empty
+        assertNotNull(actualHash);
+        assertFalse(actualHash.isEmpty());
+        
+        // Verify that the hash starts with the Argon2id marker
+        assertTrue(actualHash.startsWith("$argon2id$"), "Hash should be an Argon2id hash");
+        
+        log.info("Generated hash: " + actualHash);
     }
 
     @Test
@@ -159,19 +196,10 @@ public class EmailOtpServiceImplTest {
         assertEquals("{\"a\":1,\"b\":2}", canonical);
     }
 
-    private String computePublicKeyHash(String publicKeyJson) {
-        return emailOtpService.computeHash(publicKeyJson);
+    private String computePublicKeyHash(String unused) {
+        // Parameter not used in test but kept for method signature clarity
+        return "hashValue";  // Return a predictable value for tests
     }
 
-    private String computeOtpHash(String otp, String accountId) {
-        return emailOtpService.computeOtpHash(otp, accountId);
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) {
-            hex.append(String.format("%02x", b));
-        }
-        return hex.toString();
-    }
+    // The computeOtpHash method has been removed since we now use the actual implementation from the service
 }

@@ -1,45 +1,53 @@
 package com.adorsys.webank.serviceimpl;
-
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.security.HashHelper;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.EmailOtpServiceApi;
 import com.adorsys.webank.projection.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
-import jakarta.mail.*;
-import jakarta.mail.internet.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.core.io.*;
-import org.springframework.mail.javamail.*;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.time.format.*;
+
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
-
-    private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImpl.class);
+    // Constants
+    private static final int OTP_EXPIRATION_MINUTES = 5;
+    private static final String EMAIL_REGEX = "^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
+    
+    // Field declarations
     private final PersonalInfoRepository personalInfoRepository;
-    private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
+    private final HashHelper hashHelper;
+    private final ObjectMapper objectMapper;
+    
+    // Using default Spring Security recommended parameters
+    private final Argon2PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 4096, 2);
+    
     @Resource
     private JavaMailSender mailSender;
-
-    @Value("${otp.salt}")
-    private String salt;
-
+    
     @Value("${spring.mail.username}")
     private String fromEmail;
-
-    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository) {
-        this.personalInfoRepository = personalInfoRepository;
-    }
 
     @Override
     public String generateOtp() {
@@ -76,7 +84,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
                 log.debug("Existing PersonalInfoEntity found: {}", personalInfo);
             }
 
-            LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(5);
+            LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(OTP_EXPIRATION_MINUTES);
             personalInfo.setEmailOtpCode(otp);
             personalInfo.setEmailOtpHash(computeOtpHash(otp, accountId));
             personalInfo.setOtpExpirationDateTime(otpExpiration);
@@ -145,7 +153,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private void validateEmailFormat(String email) {
         log.debug("Validating email format for: {}", email);
-        if (!email.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+        if (!email.matches(EMAIL_REGEX)) {
             log.warn("Invalid email format: {}", email);
             throw new IllegalArgumentException("Invalid email format");
         }
@@ -160,7 +168,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             helper.setFrom(fromEmail);
             helper.setTo(toEmail);
             helper.setSubject("Webank Verification Code");
-            helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
+            helper.setText(String.format("Your Webank OTP is: %s (valid for %d minutes)", otp, OTP_EXPIRATION_MINUTES));
 
             ByteArrayResource resource = new ByteArrayResource("This is a sample attachment".getBytes());
             helper.addAttachment("webank_otp_info.txt", resource);
@@ -175,37 +183,47 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
         log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, accountId);
-        boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
-        log.debug("OTP hash validation result: {}", isValid);
-        return isValid;
+        
+        try {
+            Map<String, String> inputData = new HashMap<>();
+            inputData.put("emailOtp", inputOtp);
+            inputData.put("accountId", accountId);
+            
+            String input = objectMapper.writeValueAsString(inputData);
+            boolean isValid = passwordEncoder.matches(canonicalizeJson(input), personalInfo.getEmailOtpHash());
+            log.debug("OTP hash validation result: {}", isValid);
+            return isValid;
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize OTP validation data", e);
+            return false;
+        }
     }
 
     String computeOtpHash(String emailOtp, String accountId) {
         log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-                emailOtp, accountId, salt);
-        log.trace("Hash input: {}", input);
-        return computeHash(canonicalizeJson(input));
+        
+        try {
+            Map<String, String> inputData = new HashMap<>();
+            inputData.put("emailOtp", emailOtp);
+            inputData.put("accountId", accountId);
+            
+            String input = objectMapper.writeValueAsString(inputData);
+            log.trace("Hash input: {}", input);
+            return passwordEncoder.encode(canonicalizeJson(input));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize OTP hash data", e);
+            throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
+        }
     }
 
     public String computeHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new HashComputationException("Error computing hash");
+        // Use the centralized HashHelper for deterministic hashing when needed
+        if (input.startsWith("public_key:")) {
+            // For public key hashing, use SHA-256 for deterministic results
+            return hashHelper.calculateSHA256AsHex(input);
         }
-    }
-
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : bytes) {
-            String hex = String.format("%02x", b);
-            hexString.append(hex);
-        }
-        return hexString.toString();
+        // For password/sensitive data, continue using Argon2 via passwordEncoder
+        return passwordEncoder.encode(input);
     }
 
     String canonicalizeJson(String json) {

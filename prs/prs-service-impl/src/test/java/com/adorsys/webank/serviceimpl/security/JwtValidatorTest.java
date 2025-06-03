@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl.security;
 
+import com.adorsys.webank.security.HashHelper;
 import com.adorsys.webank.security.JwtValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -24,18 +25,21 @@ class JwtValidatorTest {
 
     private ECKey validEcKey;
     private ECKey invalidEcKey;
+    private HashHelper hashHelper = new HashHelper();
 
     @BeforeEach
     void setUp() {
         validEcKey = assertDoesNotThrow(() -> new ECKeyGenerator(Curve.P_256).generate());
         invalidEcKey = assertDoesNotThrow(() -> new ECKeyGenerator(Curve.P_256).generate());
+        
+        new JwtValidator(hashHelper);
     }
 
     @Test
     void validateAndExtract_validJwt_returnsJwk() {
         String[] params = {"param1", "param2"};
         String concatenated = String.join("", params);
-        String hash = assertDoesNotThrow(() -> JwtValidator.hashPayload(concatenated));
+        String hash = assertDoesNotThrow(() -> hashHelper.hashPayload(concatenated));
 
         SignedJWT signedJWT = assertDoesNotThrow(() -> createSignedJWT(validEcKey, hash));
         JWK jwk = assertDoesNotThrow(() -> JwtValidator.validateAndExtract(signedJWT.serialize(), params));
@@ -67,7 +71,7 @@ class JwtValidatorTest {
 
     @Test
     void validateAndExtract_invalidSignature_throwsBadJWTException() {
-        String hash = assertDoesNotThrow(() -> JwtValidator.hashPayload("originalPayload"));
+        String hash = assertDoesNotThrow(() -> hashHelper.hashPayload("originalPayload"));
         // Create a JWT where the header contains validEcKey's public key,
         // but sign the token with invalidEcKey.
         SignedJWT invalidJWT = assertDoesNotThrow(() -> createSignedJWTWithMismatchedKey(invalidEcKey, validEcKey, hash));
@@ -86,7 +90,7 @@ class JwtValidatorTest {
 
     @Test
     void hashPayload_validInput_returnsCorrectHash() {
-        String hash = assertDoesNotThrow(() -> JwtValidator.hashPayload("test"));
+        String hash = assertDoesNotThrow(() -> hashHelper.hashPayload("test"));
         assertEquals("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", hash);
     }
 

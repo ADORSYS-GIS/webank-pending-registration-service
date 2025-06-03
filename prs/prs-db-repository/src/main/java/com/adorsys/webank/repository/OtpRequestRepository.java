@@ -18,6 +18,11 @@ import java.time.LocalDateTime;
 @Repository
 public interface OtpRequestRepository extends JpaRepository<OtpEntity, UUID> {
     Optional<OtpProjection> findByPublicKeyHash(String publicKeyHash);
+    
+    // Added method to get the full entity for update operations
+    @Query("SELECT o FROM OtpEntity o WHERE o.publicKeyHash = :publicKeyHash")
+    Optional<OtpEntity> findEntityByPublicKeyHash(@Param("publicKeyHash") String publicKeyHash);
+    
     List<OtpProjection> findByStatus(OtpStatus status);
 
     @Modifying
