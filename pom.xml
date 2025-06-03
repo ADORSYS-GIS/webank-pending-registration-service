@@ -181,18 +181,4 @@
 			<url>https://maven.pkg.github.com/ADORSYS-GIS/webank-pending-registration-service</url>
 		</snapshotRepository>
 	</distributionManagement>
-
-	<profiles>
-		<profile>
-			<id>native</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.graalvm.buildtools</groupId>
-						<artifactId>native-maven-plugin</artifactId>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 </project>

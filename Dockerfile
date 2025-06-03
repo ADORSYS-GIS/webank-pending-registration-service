@@ -1,34 +1,29 @@
-# Native Build Stage (GraalVM)
+# Stage 1: Dependencies only
+FROM debian:bullseye-slim AS dep
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libstdc++6 \
+        zlib1g \
+        libgcc1 && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM ghcr.io/graalvm/native-image-community:24-muslib AS native-builder
+RUN mkdir /deps && \
+    cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /deps/ && \
+    cp /lib/x86_64-linux-gnu/libz.so.1 /deps/ && \
+    cp /lib/x86_64-linux-gnu/libgcc_s.so.1 /deps/
 
-WORKDIR /app
-
-# Copy full source (or adjust if using pre-built artifacts)
-COPY . .
-
-# Build native executable
-RUN ./mvnw -Pnative clean native:compile
-
-# Native Runtime Stage (Distroless)
-FROM gcr.io/distroless/base-debian12 AS final
-
+# Stage 2: Final image
+FROM gcr.io/distroless/base-debian12:nonroot
 WORKDIR /webank-prs
 
-# Copy native binary
-COPY --from=native-builder /app/prs-rest-server /webank-prs/prs-rest-server
+# Copy the pre-built native executable from host
+COPY prs/prs-rest-server/target/prs-rest-server /webank-prs/prs-rest-server
+COPY prs/prs-rest-server/target/lib*.so* /usr/lib/
 
-# Set environment variables
-ENV OTP_SALT=${OTP_SALT}
-ENV SERVER_PRIVATE_KEY_JSON=${SERVER_PRIVATE_KEY_JSON}
-ENV SERVER_PUBLIC_KEY_JSON=${SERVER_PUBLIC_KEY_JSON}
-ENV JWT_ISSUER=${JWT_ISSUER}
-ENV JWT_EXPIRATION_TIME_MS=${JWT_EXPIRATION_TIME_MS}
-ENV SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
-ENV SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
-ENV SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+# Copy dependencies
+COPY --from=dep /deps/libstdc++.so.6 /usr/lib/
+COPY --from=dep /deps/libz.so.1 /usr/lib/
+COPY --from=dep /deps/libgcc_s.so.1 /usr/lib/
 
-EXPOSE 8080
-
-# Run the native binary
-CMD ["/webank-prs/prs-rest-server"]
+USER nonroot
+ENTRYPOINT ["/webank-prs/prs-rest-server"]
