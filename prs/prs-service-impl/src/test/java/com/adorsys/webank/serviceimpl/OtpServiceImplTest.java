@@ -2,7 +2,6 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.projection.OtpProjection;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -17,21 +16,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 public class OtpServiceImplTest {
 
     @Mock
@@ -85,36 +80,36 @@ public class OtpServiceImplTest {
 
     @Test
     void validateOtp_ExpiredOtp_ReturnsExpiredMessage() {
-        OtpProjection expiredRequest = createTestOtpProjection("12345", 6); // Created 6 minutes ago
+        OtpEntity expiredRequest = createTestOtpRequest("12345", 6); // Created 6 minutes ago
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(expiredRequest));
 
         String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
         assertEquals("OTP expired. Request a new one.", result);
-        verify(otpRequestRepository).save(any(OtpEntity.class));
+        assertEquals(OtpStatus.INCOMPLETE, expiredRequest.getStatus());
     }
 
     @Test
     void validateOtp_InvalidOtp_ReturnsInvalidMessage() {
-        OtpProjection request = createTestOtpProjection("12345", 0);
+        OtpEntity request = createTestOtpRequest("12345", 0);
 
         when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(request));
 
         String result = otpService.validateOtp(phoneNumber, devicePublicKey, "12345");
 
         assertEquals("Invalid OTP", result);
-        verify(otpRequestRepository).save(any(OtpEntity.class));
+        assertEquals(OtpStatus.INCOMPLETE, request.getStatus());
     }
 
-    private OtpProjection createTestOtpProjection(String otpCode, int minutesAgo) {
-        OtpProjection projection = mock(OtpProjection.class);
-        when(projection.getPhoneNumber()).thenReturn(phoneNumber);
-        when(projection.getPublicKeyHash()).thenReturn("test-public-key-hash");
-        when(projection.getOtpHash()).thenReturn("test-hash");
-        when(projection.getOtpCode()).thenReturn(otpCode);
-        when(projection.getStatus()).thenReturn(OtpStatus.PENDING);
-        when(projection.getCreatedAt()).thenReturn(LocalDateTime.now().minusMinutes(minutesAgo));
-        return projection;
+    private OtpEntity createTestOtpRequest(String otpCode, int minutesAgo) {
+        return OtpEntity.builder()
+                .phoneNumber(phoneNumber)
+                .publicKeyHash("test-public-key-hash")
+                .otpHash("test-hash")
+                .otpCode(otpCode)
+                .status(OtpStatus.PENDING)
+                .createdAt(LocalDateTime.now().minusMinutes(minutesAgo))
+                .build();
     }
 }
