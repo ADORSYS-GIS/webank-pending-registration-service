@@ -24,7 +24,7 @@ public class KycCertServiceImpl implements KycCertServiceApi {
     }
 
     @Override
-    public String getCert(JWK publicKey, String accountId) {
+    public String getCert(String accountId) {
         Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isPresent() && personalInfoOpt.get().getStatus() == PersonalInfoStatus.APPROVED) {
