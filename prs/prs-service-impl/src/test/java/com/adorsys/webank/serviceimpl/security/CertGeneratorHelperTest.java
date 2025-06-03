@@ -5,7 +5,6 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.ECKey;
 import org.junit.jupiter.api.*;
-import org.mockito.*;
 import org.springframework.test.util.*;
 
 import java.security.*;
@@ -17,14 +16,13 @@ import static org.mockito.Mockito.*;
 
 public class CertGeneratorHelperTest {
 
-    private KeyLoader keyLoader;
     private CertGeneratorHelper certGeneratorHelper;
 
     private ECKey deviceKey;
 
     @BeforeEach
     public void setUp() throws Exception {
-        keyLoader = Mockito.mock(KeyLoader.class);
+    KeyLoader keyLoader = mock(KeyLoader.class);
         certGeneratorHelper = new CertGeneratorHelper(keyLoader);
 
         // Set issuer and expirationTimeMs using reflection
@@ -64,7 +62,6 @@ public class CertGeneratorHelperTest {
         JWSObject jwsObject = JWSObject.parse(jwt);
         assertEquals("test-issuer", jwsObject.getPayload().toJSONObject().get("iss"), "Issuer should match");
 
-        System.out.println("Generated JWT: " + jwt);
     }
 
     @Test

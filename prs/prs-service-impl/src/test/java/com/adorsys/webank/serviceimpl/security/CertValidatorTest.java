@@ -14,11 +14,10 @@ class CertValidatorTest {
 
     private CertValidator certValidator;
     private ECKey serverPrivateKey;
-    private KeyLoader keyLoader;
 
     @BeforeEach
     void setUp() throws JOSEException {
-        // Create EC key pair
+        // Create an EC key pair
         ECKey ecKey = new ECKeyGenerator(Curve.P_256).generate();
         serverPrivateKey = ecKey;
         String serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
@@ -29,7 +28,7 @@ class CertValidatorTest {
         // You can also setPrivateKey if needed
 
         // Inject into KeyLoader
-        keyLoader = new KeyLoader(keyProperties);
+        KeyLoader keyLoader = new KeyLoader(keyProperties);
 
         // Initialize CertValidator
         certValidator = new CertValidator(keyLoader);
