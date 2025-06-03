@@ -4,6 +4,7 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.KycProcessingException;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.*;
 import org.springframework.transaction.annotation.*;
@@ -23,14 +24,16 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     @Override
     @Transactional
     public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason) {
-        log.info("Updating KYC status for accountId {} to {} with rejection reason: {}",
-                accountId, newStatus, rejectionReason);
+        if (log.isInfoEnabled()) {
+            log.info("Updating KYC status for accountId {} to {} with rejection reason: {}",
+                    accountId, newStatus, rejectionReason);
+        }
 
         // Validate all input parameters
         validateInputParameters(accountId, newStatus, idNumber, expiryDate);
         
         // Find and validate personal info record
-        PersonalInfoEntity personalInfo = findAndValidatePersonalInfo(accountId, idNumber, expiryDate);
+        PersonalInfoProjection personalInfo = findAndValidatePersonalInfo(accountId, idNumber, expiryDate);
 
         // Process the status update
         return processStatusUpdate(personalInfo, accountId, newStatus, rejectionReason);
@@ -44,6 +47,17 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
         validateNotEmpty(newStatus, "New status");
         validateNotEmpty(idNumber, "Document ID");
         validateNotEmpty(expiryDate, "Expiry date");
+    }
+
+    /**
+     * Find entity by account ID for updates
+     */
+    private PersonalInfoEntity findEntityByAccountId(String accountId) {
+        // Use native query or JPA query to get the full entity, not just the projection
+        return inforepository.findAll().stream()
+               .filter(entity -> entity.getAccountId().equals(accountId))
+               .findFirst()
+               .orElseThrow(() -> new KycProcessingException("Entity not found for accountId " + accountId));
     }
 
     /**
@@ -61,11 +75,13 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     /**
      * Finds personal info by account ID and validates document details
      */
-    private PersonalInfoEntity findAndValidatePersonalInfo(String accountId, String idNumber, String expiryDate) {
+    private PersonalInfoProjection findAndValidatePersonalInfo(String accountId, String idNumber, String expiryDate) {
         // Find the personal info by accountId
-        PersonalInfoEntity personalInfo = inforepository.findByAccountId(accountId)
+        PersonalInfoProjection personalInfo = inforepository.findByAccountId(accountId)
                 .orElseThrow(() -> {
-                    log.warn("No record found for accountId {}", accountId);
+                    if (log.isWarnEnabled()) {
+                        log.warn("No record found for accountId {}", accountId);
+                    }
                     return new KycProcessingException("No record found for accountId " + accountId);
                 });
 
@@ -78,27 +94,34 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
     /**
      * Validates document details match with stored personal info
      */
-    private void validateDocumentDetails(PersonalInfoEntity personalInfo, String accountId, 
-                                     String idNumber, String expiryDate) {
+    private void validateDocumentDetails(PersonalInfoProjection personalInfo, String accountId, 
+                                       String idNumber, String expiryDate) {
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
-            log.warn("Document ID mismatch for accountId {}", accountId);
+            if (log.isWarnEnabled()) {
+                log.warn("Document ID mismatch for accountId {}", accountId);
+            }
             throw new KycProcessingException("Document ID mismatch");
         }
 
         if (!personalInfo.getExpirationDate().equals(expiryDate)) {
-            log.warn("Document expiry date mismatch for accountId {}", accountId);
+            if (log.isWarnEnabled()) {
+                log.warn("Document expiry date mismatch for accountId {}", accountId);
+            }
             throw new KycProcessingException("Document expiry date mismatch");
         }
     }
     
     /**
-     * Process the status update including validation of the status and rejection reason
+     * Process the status update including validation and persistence
      */
-    private String processStatusUpdate(PersonalInfoEntity personalInfo, String accountId, 
-                                  String newStatus, String rejectionReason) {
+    private String processStatusUpdate(PersonalInfoProjection projection, String accountId, 
+                                   String newStatus, String rejectionReason) {
         try {
             // Convert newStatus string to Enum
             PersonalInfoStatus kycStatus = PersonalInfoStatus.valueOf(newStatus.toUpperCase());
+            
+            // Fetch the actual entity for updates using accountId
+            PersonalInfoEntity personalInfo = findEntityByAccountId(projection.getAccountId());
             
             // Update the status and handle rejection fields
             updateStatusAndRejectionFields(personalInfo, kycStatus, rejectionReason);
@@ -106,10 +129,14 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
             // Save the changes
             inforepository.save(personalInfo);
 
-            log.info("Successfully updated KYC status for accountId {}", accountId);
+            if (log.isInfoEnabled()) {
+                log.info("Successfully updated KYC status for accountId {}", accountId);
+            }
             return "KYC status for " + accountId + " updated to " + newStatus;
         } catch (IllegalArgumentException e) {
-            log.error("Invalid KYC status value: {}", newStatus);
+            if (log.isErrorEnabled()) {
+                log.error("Invalid KYC status value: {}", newStatus);
+            }
             throw new KycProcessingException("Invalid KYC status value '" + newStatus + "'", e);
         }
     }

@@ -23,4 +23,5 @@ public class OtpData {
     private String otp;
     private JWK devicePub;
     private String phoneNumber;
+    private String salt;
 }
