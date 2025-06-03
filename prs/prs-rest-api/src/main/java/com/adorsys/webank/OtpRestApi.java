@@ -20,7 +20,7 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid phone number")
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request) throws InvalidDateException;
+    String sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request);
 
 
     @Operation(summary = "Validate OTP", description = "Validates the received OTP against the stored value")
@@ -29,5 +29,5 @@ public interface OtpRestApi {
             @ApiResponse(responseCode = "400", description = "Invalid OTP")
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request) throws InvalidDateException;
+    String validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request);
 }

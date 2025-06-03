@@ -17,7 +17,7 @@ public class KycCertRestServer implements KycCertRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String getCert(String authorizationHeader, String accountId) throws InvalidDateException {
+    public String getCert(String authorizationHeader, String accountId) {
 
         log.info("Getting KYC certificate for accountId: {}", accountId);
 

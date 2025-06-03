@@ -16,13 +16,13 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendOtp(String authorizationHeader, OtpRequest request) throws InvalidDateException {
+    public String sendOtp(String authorizationHeader, OtpRequest request) {
         return otpService.sendOtp(request.getPhoneNumber());
     }
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String validateOtp(String authorizationHeader, OtpValidationRequest request) throws InvalidDateException {
+    public String validateOtp(String authorizationHeader, OtpValidationRequest request) {
         return otpService.validateOtp(request.getPhoneNumber(), request.getOtpInput());
     }
 
