@@ -4,8 +4,6 @@ import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
 import jakarta.transaction.*;
 import org.erdtman.jcs.*;
@@ -17,6 +15,8 @@ import java.nio.charset.*;
 import java.security.*;
 import java.time.*;
 import java.util.*;
+
+import com.adorsys.error.ValidationException;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -100,6 +100,12 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
+        if (phoneNumber == null || phoneNumber.isEmpty()) {
+            throw new ValidationException("Phone number is required");
+        }
+        if (otpInput == null || otpInput.isEmpty()) {
+            throw new ValidationException("OTP is required");
+        }
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
@@ -135,11 +141,11 @@ public class OtpServiceImpl implements OtpServiceApi {
             } else {
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
-                return "Invalid OTP";
+                throw new ValidationException("Invalid OTP");
             }
         } catch (Exception e) {
             log.error("Error validating OTP", e);
-            return "Error validating the OTP";
+            throw new ValidationException("Error validating the OTP");
         }
     }
 

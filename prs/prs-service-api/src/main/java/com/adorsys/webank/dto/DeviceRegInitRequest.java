@@ -6,5 +6,4 @@ import lombok.Setter;
 @Setter
 public class DeviceRegInitRequest {
     private String timeStamp;
-
 }

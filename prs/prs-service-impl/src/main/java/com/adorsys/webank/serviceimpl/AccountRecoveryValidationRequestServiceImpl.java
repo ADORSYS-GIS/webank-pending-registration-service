@@ -6,11 +6,11 @@ import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.adorsys.error.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
-import java.util.Date;
 
 @Service
 public class AccountRecoveryValidationRequestServiceImpl implements AccountRecoveryValidationRequestServiceApi {
@@ -24,6 +24,12 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
 
     @Override
     public AccountRecoveryResponse processRecovery(JWK publicKey, String newAccountId, String recoveryJwt) {
+        if (newAccountId == null || newAccountId.isEmpty()) {
+            throw new ValidationException("New account ID is required");
+        }
+        if (recoveryJwt == null || recoveryJwt.isEmpty()) {
+            throw new ValidationException("Recovery JWT is required");
+        }
         try {
             // Parse the recovery JWT
             SignedJWT signedJWT = SignedJWT.parse(recoveryJwt);
@@ -37,13 +43,13 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
 
         } catch (ParseException e) {
             // Handle invalid JWT format
-            return new AccountRecoveryResponse(null, null, "Invalid RecoveryJWT format");
+            throw new ValidationException("Invalid RecoveryJWT format");
         } catch (IllegalArgumentException e) {
             // Handle specific business logic errors (e.g., token expired, account ID mismatch)
-            return new AccountRecoveryResponse(null, null, e.getMessage());
+            throw new ValidationException(e.getMessage());
         } catch (Exception e) {
             // Handle unexpected errors
-            return new AccountRecoveryResponse(null, null, "An unexpected error occurred: " + e.getMessage());
+            throw new ValidationException("An unexpected error occurred: " + e.getMessage());
         }
     }
 
