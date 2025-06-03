@@ -11,22 +11,22 @@ import  jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 
 @Component
+@RequiredArgsConstructor
 public class RequestParameterExtractorFilter extends OncePerRequestFilter {
     private static final ThreadLocal<Map<String, String>> REQUEST_PARAMS = new ThreadLocal<>();
     private static final Logger log = LoggerFactory.getLogger(RequestParameterExtractorFilter.class);
     @Autowired
     private final EndpointParameterMapper endpointParameterMapper;
-
-    public RequestParameterExtractorFilter(EndpointParameterMapper endpointParameterMapper) {
-        this.endpointParameterMapper = endpointParameterMapper;
-    }
 
     /**
      * Retrieves the required parameters for the given endpoint path.
@@ -36,11 +36,12 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
      * @return A list of required parameter names.
      */
     private List<String> getRequiredParameters(String fullPath) {
-        List<String> requiredParams = endpointParameterMapper.getRequiredParameters(fullPath);
+        // Remove the leading slash if present
+        String normalizedPath = fullPath.startsWith("/") ? fullPath.substring(1) : fullPath;
+
+        List<String> requiredParams = endpointParameterMapper.getRequiredParameters(normalizedPath);
         if (requiredParams.isEmpty()) {
-            // Try to match without leading slash
-            String pathWithoutLeadingSlash = fullPath.startsWith("/") ? fullPath.substring(1) : fullPath;
-            requiredParams = endpointParameterMapper.getRequiredParameters(pathWithoutLeadingSlash);
+            requiredParams = endpointParameterMapper.getRequiredParameters(fullPath);
         }
         return requiredParams;
     }
@@ -73,32 +74,78 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
         return orderedParams;
     }
 
+
+    private Map<String, String> extractPathVariableParameters(String fullPath, String pattern, List<String> requiredParams) {
+        Map<String, String> result = new LinkedHashMap<>();
+
+        // Extract variable names from a pattern: e.g., {userId}, {username}
+        List<String> varNames = new ArrayList<>();
+        Pattern varPattern = Pattern.compile("\\{([^/]+?)}");
+        Matcher varMatcher = varPattern.matcher(pattern);
+
+        while (varMatcher.find()) {
+            varNames.add(varMatcher.group(1));
+        }
+
+        // Build regex and match
+        String regex = pattern.replaceAll("\\{([^/]+?)}", "([^/]+)");
+        Pattern pathPattern = Pattern.compile(regex);
+        Matcher matcher = pathPattern.matcher(fullPath);
+
+        if (matcher.matches() && !varNames.isEmpty()) {
+            for (int i = 0; i < varNames.size(); i++) {
+                String paramName = varNames.get(i);
+                String paramValue = matcher.group(i + 1); // group 0 is full match
+
+                if (requiredParams.contains(paramName)) {
+                    result.put(paramName, paramValue);
+                    log.info("Extracted path parameter {} = {}", paramName, paramValue);
+                }
+            }
+        }
+
+        return result;
+    }
+
     /**
-     * Extracts parameters from the request path for GET requests.
+     * Extracts parameters from the request path
      *
-     * @param fullPath The full request path.
+     * @param request The HttpServletRequest containing the request path and query string.
      * @param requiredParams The list of required parameter names.
      * @return A map of extracted parameters with their values.
      */
-    private Map<String, String> extractGetParameters(String fullPath, List<String> requiredParams) {
-        String[] pathSegments = fullPath.split("/");
-        log.debug("Path segments: {}", Arrays.toString(pathSegments));
-        
+
+    private Map<String, String> extractGetParameters(HttpServletRequest request, List<String> requiredParams) {
+        String fullPath = request.getRequestURI();
+        log.debug("Full request path: {}", fullPath);
+
         Map<String, String> orderedParams = new LinkedHashMap<>();
-        for (String paramName : requiredParams) {
-            for (String segment : pathSegments) {
-                if (segment.startsWith(paramName)) {
-                    String paramValue = segment.replace(paramName + "/", "");
-                    orderedParams.put(paramName, paramValue);
-                    log.info("Extracted path parameter {} with value: {}", paramName, paramValue);
+
+        String normalizedPath = fullPath.startsWith("/") ? fullPath.substring(1) : fullPath;
+
+        for (Map.Entry<String, List<String>> entry : endpointParameterMapper.getEndpointParameters().entrySet()) {
+            String pattern = entry.getKey();
+
+            if (pattern.contains("{")) {
+                log.debug("Trying to match pattern: {} against path: {}", pattern, normalizedPath);
+
+                String regex = pattern.replaceAll("\\{[^/]+?}", "([^/]+)");
+
+                if (normalizedPath.matches(regex)) {
+                    Map<String, String> pathVariables = extractPathVariableParameters(normalizedPath, pattern, requiredParams);
+                    orderedParams.putAll(pathVariables);
+                    log.info("Matched pattern: {} -> Extracted variables: {}", pattern, pathVariables);
+                    break;
+                } else if (fullPath.matches(regex)) {
+                    Map<String, String> pathVariables = extractPathVariableParameters(fullPath, pattern, requiredParams);
+                    orderedParams.putAll(pathVariables);
                     break;
                 }
             }
         }
+
         return orderedParams;
     }
-
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -107,15 +154,14 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
             Map<String, String> params = new HashMap<>();
             
             String fullPath = wrappedRequest.getRequestURI();
-            log.debug("Full request path: {}", fullPath);
-            
+
             List<String> requiredParams = getRequiredParameters(fullPath);
             log.info("Required parameters for endpoint {}: {}", fullPath, requiredParams);
             
             if (wrappedRequest.getMethod().equals("POST")) {
                 params = extractPostParameters(wrappedRequest, requiredParams);
             } else if (wrappedRequest.getMethod().equals("GET")) {
-                params = extractGetParameters(fullPath, requiredParams);
+                params = extractGetParameters(wrappedRequest, requiredParams);
             }
             
             log.info("Extracted parameters for path {}: {}", fullPath, params);

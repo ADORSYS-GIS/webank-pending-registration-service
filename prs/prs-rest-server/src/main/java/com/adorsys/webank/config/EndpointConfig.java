@@ -30,7 +30,7 @@ public class EndpointConfig {
         ENDPOINT_PARAMETERS.put("api/prs/kyc/info", Arrays.asList("idNumber", "expiryDate", "accountId"));
         ENDPOINT_PARAMETERS.put("api/prs/kyc/documents", Arrays.asList("frontId", "backId", "selfieId", "taxId", "accountId"));
         ENDPOINT_PARAMETERS.put("api/prs/kyc/record", List.of("accountId"));
-        ENDPOINT_PARAMETERS.put("api/prs/kyc/findById/*", List.of("DocumentUniqueId)"));
+        ENDPOINT_PARAMETERS.put("api/prs/kyc/findById/{DocumentUniqueId}", List.of("DocumentUniqueId"));
 
 
         return EndpointParameterMapper.builder().endpointParameters(ENDPOINT_PARAMETERS).build();
