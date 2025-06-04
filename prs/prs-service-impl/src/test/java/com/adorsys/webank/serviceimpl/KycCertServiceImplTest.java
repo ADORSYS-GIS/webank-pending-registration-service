@@ -1,23 +1,19 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.nimbusds.jose.jwk.ECKey;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.adorsys.webank.config.*;
+import com.adorsys.webank.domain.*;
+import com.adorsys.webank.projection.*;
+import com.adorsys.webank.repository.*;
+import com.nimbusds.jose.jwk.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.*;
+import org.mockito.*;
+import org.mockito.junit.jupiter.*;
 
-import java.util.Optional;
-import com.adorsys.webank.config.SecurityUtils;
+import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import com.adorsys.webank.config.CertGeneratorHelper;
 
 @ExtendWith(MockitoExtension.class)
 class KycCertServiceImplTest {
@@ -36,20 +32,17 @@ class KycCertServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // Reset mocks before each test
         reset(personalInfoRepository, certGeneratorHelper);
     }
 
     @Test
     void getCert_whenAccountIsRejected_shouldReturnRejectionReason() {
         // Arrange
-        PersonalInfoEntity rejectedEntity = PersonalInfoEntity.builder()
-                .accountId(TEST_ACCOUNT_ID)
-                .status(PersonalInfoStatus.REJECTED)
-                .rejectionReason(TEST_REJECTION_REASON)
-                .build();
+        PersonalInfoProjection rejectedProjection = mock(PersonalInfoProjection.class);
+        when(rejectedProjection.getStatus()).thenReturn(PersonalInfoStatus.REJECTED);
+        when(rejectedProjection.getRejectionReason()).thenReturn(TEST_REJECTION_REASON);
 
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedProjection));
 
         // Act
         String result = kycCertService.getCert(TEST_ACCOUNT_ID);
@@ -63,13 +56,11 @@ class KycCertServiceImplTest {
     @Test
     void getCert_whenAccountIsRejectedWithoutReason_shouldReturnDefaultMessage() {
         // Arrange
-        PersonalInfoEntity rejectedEntity = PersonalInfoEntity.builder()
-                .accountId(TEST_ACCOUNT_ID)
-                .status(PersonalInfoStatus.REJECTED)
-                .rejectionReason("")
-                .build();
+        PersonalInfoProjection rejectedProjection = mock(PersonalInfoProjection.class);
+        when(rejectedProjection.getStatus()).thenReturn(PersonalInfoStatus.REJECTED);
+        when(rejectedProjection.getRejectionReason()).thenReturn("");
 
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedProjection));
 
         // Act
         String result = kycCertService.getCert(TEST_ACCOUNT_ID);
@@ -95,18 +86,16 @@ class KycCertServiceImplTest {
     @Test
     void getCert_whenCertificateGenerationFails_shouldReturnNull() {
         // Arrange
-        PersonalInfoEntity approvedEntity = PersonalInfoEntity.builder()
-                .accountId(TEST_ACCOUNT_ID)
-                .status(PersonalInfoStatus.APPROVED)
-                .build();
+        PersonalInfoProjection approvedProjection = mock(PersonalInfoProjection.class);
+        when(approvedProjection.getStatus()).thenReturn(PersonalInfoStatus.APPROVED);
 
         ECKey mockDevicePub = mock(ECKey.class);
-        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
-            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext)
-                .thenReturn(mockDevicePub);
+        when(mockDevicePub.toJSONString()).thenReturn("{\"kty\":\"EC\"}");
 
-            when(certGeneratorHelper.generateCertificate(anyString())).thenThrow(new RuntimeException("Test exception"));
-            when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(approvedEntity));
+        try (MockedStatic<SecurityUtils> mockedStatic = mockStatic(SecurityUtils.class)) {
+            mockedStatic.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(mockDevicePub);
+            when(certGeneratorHelper.generateCertificate(anyString())).thenThrow(new RuntimeException("Simulated failure"));
+            when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(approvedProjection));
 
             // Act
             String result = kycCertService.getCert(TEST_ACCOUNT_ID);

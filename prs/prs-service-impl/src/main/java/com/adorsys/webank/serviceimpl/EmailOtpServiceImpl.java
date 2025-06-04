@@ -5,6 +5,7 @@ import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
 import com.adorsys.webank.projection.*;
+import jakarta.annotation.Resource;
 import jakarta.annotation.*;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
