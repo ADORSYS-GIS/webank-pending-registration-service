@@ -48,7 +48,7 @@
 		</sonar.coverage.exclusions>
 		<sonar.moduleName>${project.artifactId}</sonar.moduleName>
 		<skipITs>false</skipITs>
-		<native.maven.plugin.version>0.10.1</native.maven.plugin.version>
+		<native.maven.plugin.version>0.10.6</native.maven.plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>

@@ -1,29 +1,35 @@
-# Stage 1: Dependencies only
-FROM debian:bullseye-slim AS dep
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libstdc++6 \
-        zlib1g \
-        libgcc1 && \
-    rm -rf /var/lib/apt/lists/*
+FROM vegardit/graalvm-maven:latest-java17 AS builder
 
-RUN mkdir /deps && \
-    cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /deps/ && \
-    cp /lib/x86_64-linux-gnu/libz.so.1 /deps/ && \
-    cp /lib/x86_64-linux-gnu/libgcc_s.so.1 /deps/
+WORKDIR /build_dir
 
-# Stage 2: Final image
-FROM gcr.io/distroless/base-debian12:nonroot
-WORKDIR /webank-prs
+COPY . .
 
-# Copy the pre-built native executable from host
-COPY prs/prs-rest-server/target/prs-rest-server /webank-prs/prs-rest-server
-COPY prs/prs-rest-server/target/lib*.so* /usr/lib/
+RUN \
+  --mount=type=bind,source=./pom.xml,target=./pom.xml \
+  --mount=type=bind,source=./prs/pom.xml,target=./prs/pom.xml \
+  --mount=type=bind,source=./prs/prs-db-repository/pom.xml,target=./prs/prs-db-repository/pom.xml \
+  --mount=type=bind,source=./prs/prs-db-repository/src,target=./prs/prs-db-repository/src \
+  --mount=type=bind,source=./prs/prs-rest-api/pom.xml,target=./prs/prs-rest-api/pom.xml \
+  --mount=type=bind,source=./prs/prs-rest-api/src,target=./prs/prs-rest-api/src \
+  --mount=type=bind,source=./prs/prs-rest-server/pom.xml,target=./prs/prs-rest-server/pom.xml \
+  --mount=type=bind,source=./prs/prs-rest-server/src,target=./prs/prs-rest-server/src \
+  --mount=type=bind,source=./prs/prs-service-api/pom.xml,target=./prs/prs-service-api/pom.xml \
+  --mount=type=bind,source=./prs/prs-service-api/src,target=./prs/prs-service-api/src \
+  --mount=type=bind,source=./prs/prs-service-impl/pom.xml,target=./prs/prs-service-impl/pom.xml \
+  --mount=type=bind,source=./prs/prs-service-impl/src,target=./prs/prs-service-impl/src \
+  --mount=type=cache,target=./prs/prs-db-repository/target \
+  --mount=type=cache,target=./prs/prs-rest-api/target \
+  --mount=type=cache,target=./prs/prs-rest-server/target \
+  --mount=type=cache,target=./prs/prs-service-api/target \
+  --mount=type=cache,target=./prs/prs-service-impl/target \
+  --mount=type=cache,target=/root/.m2/repository \
+    mvn -Pnative install \
+    && cp prs/prs-rest-server/target/prs-rest-server ./server 
 
-# Copy dependencies
-COPY --from=dep /deps/libstdc++.so.6 /usr/lib/
-COPY --from=dep /deps/libz.so.1 /usr/lib/
-COPY --from=dep /deps/libgcc_s.so.1 /usr/lib/
+FROM gcr.io/distroless/static-debian12:nonroot
 
-USER nonroot
-ENTRYPOINT ["/webank-prs/prs-rest-server"]
+WORKDIR /app
+
+COPY --from=builder /build_dir/server .
+
+ENTRYPOINT ["/app/server"]
