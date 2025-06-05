@@ -5,7 +5,7 @@ import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.security.HashHelper;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
@@ -43,7 +43,7 @@ public class OtpServiceImplTest {
     private ObjectMapper objectMapper;
     
     @Mock
-    private Argon2PasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder;
     
     private OtpServiceImpl otpService;
 

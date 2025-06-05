@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.dto.EmailOtpData;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.security.HashHelper;
@@ -17,12 +18,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,7 +49,7 @@ public class EmailOtpServiceImplTest {
     private ObjectMapper objectMapper;
     
     @Mock
-    private Argon2PasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
@@ -143,7 +142,7 @@ public class EmailOtpServiceImplTest {
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
         
         // Mock the password encoder to always return true for matches
-        Argon2PasswordEncoder mockEncoder = mock(Argon2PasswordEncoder.class);
+        PasswordEncoder mockEncoder = mock(PasswordEncoder.class);
         when(mockEncoder.matches(anyString(), anyString())).thenReturn(true);
         
         // Replace the passwordEncoder in the service using reflection
@@ -175,17 +174,15 @@ public class EmailOtpServiceImplTest {
 
     @Test
     public void testComputeOtpHash() throws Exception {
-        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        // Setup
+        String accountId = "hashValue";
+        String expectedHash = "hashedValue";
+        String expectedJson = "{\"emailOtp\":\"123456\",\"accountId\":\"hashValue\"}";
         
-        // Setup test data
-        Map<String, String> testData = new HashMap<>();
-        testData.put("emailOtp", TEST_OTP);
-        testData.put("accountId", accountId);
-        String testJson = "{\"emailOtp\":\"" + TEST_OTP + "\",\"accountId\":\"" + accountId + "\"}";
-        String expectedHash = "test_hash_value";
+        // Mock the object mapper to return a JSON string
+        when(objectMapper.writeValueAsString(any(EmailOtpData.class))).thenReturn(expectedJson);
         
-        // Mock dependencies
-        when(objectMapper.writeValueAsString(any(Map.class))).thenReturn(testJson);
+        // Mock the password encoder to return a known hash
         when(passwordEncoder.encode(anyString())).thenReturn(expectedHash);
         
         // Call the method
@@ -196,7 +193,7 @@ public class EmailOtpServiceImplTest {
         assertEquals(expectedHash, actualHash, "Hash should match the expected value");
         
         // Verify interactions
-        verify(objectMapper).writeValueAsString(any(Map.class));
+        verify(objectMapper).writeValueAsString(any(EmailOtpData.class));
         verify(passwordEncoder).encode(anyString());
     }
 

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -29,7 +29,7 @@ class DeviceRegServiceTest {
     private ObjectMapper mockObjectMapper;
     
     @Mock
-    private Argon2PasswordEncoder mockPasswordEncoder;
+    private PasswordEncoder mockPasswordEncoder;
     
     @Mock
     private JWK mockJWK;

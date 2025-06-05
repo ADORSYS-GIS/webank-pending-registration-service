@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.adorsys.webank.dto.ProofOfWorkData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
@@ -16,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.security.HashHelper;
 
@@ -26,8 +27,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
 @Slf4j
@@ -35,7 +34,7 @@ import java.util.Map;
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
-    private final Argon2PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${server.private.key}")
     private String SERVER_PRIVATE_KEY_JSON;
@@ -68,11 +67,8 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
         
-        // Step 2: Create and canonicalize the PoW JSON using ObjectMapper
-        Map<String, Object> powData = new HashMap<>();
-        powData.put("initiationNonce", initiationNonce);
-        powData.put("devicePub", devicePub.toJSONObject());
-        powData.put("powNonce", powNonce);
+        // Step 2: Create and canonicalize the PoW JSON using ProofOfWorkData POJO
+        ProofOfWorkData powData = ProofOfWorkData.create(initiationNonce, devicePub, powNonce);
         
         String powJSON;
         try {

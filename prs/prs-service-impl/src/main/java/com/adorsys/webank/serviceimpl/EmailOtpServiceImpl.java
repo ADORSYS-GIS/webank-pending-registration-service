@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.adorsys.webank.dto.EmailOtpData;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
@@ -23,8 +24,6 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -39,7 +38,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     private final PersonalInfoRepository personalInfoRepository;
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
-    private final Argon2PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     
     @Resource
     private JavaMailSender mailSender;
@@ -180,14 +179,11 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     }
 
     private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
-        log.debug("Validating OTP hash for input OTP");
+        log.debug("Validating OTP for accountId: {}", accountId);
         
         try {
-            Map<String, String> inputData = new HashMap<>();
-            inputData.put("emailOtp", inputOtp);
-            inputData.put("accountId", accountId);
-            
-            String input = objectMapper.writeValueAsString(inputData);
+            EmailOtpData otpData = EmailOtpData.create(inputOtp, accountId);
+            String input = objectMapper.writeValueAsString(otpData);
             boolean isValid = passwordEncoder.matches(canonicalizeJson(input), personalInfo.getEmailOtpHash());
             log.debug("OTP hash validation result: {}", isValid);
             return isValid;
@@ -201,11 +197,8 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         log.debug("Computing OTP hash");
         
         try {
-            Map<String, String> inputData = new HashMap<>();
-            inputData.put("emailOtp", emailOtp);
-            inputData.put("accountId", accountId);
-            
-            String input = objectMapper.writeValueAsString(inputData);
+            EmailOtpData otpData = EmailOtpData.create(emailOtp, accountId);
+            String input = objectMapper.writeValueAsString(otpData);
             log.trace("Hash input: {}", input);
             return passwordEncoder.encode(canonicalizeJson(input));
         } catch (JsonProcessingException e) {
