@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;

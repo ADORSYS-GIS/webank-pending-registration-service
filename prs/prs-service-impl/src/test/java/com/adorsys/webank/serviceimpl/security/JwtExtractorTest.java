@@ -1,40 +1,42 @@
 package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.security.JwtExtractor;
-import org.json.JSONException;
+import com.adorsys.webank.config.JwtExtractor;
+import com.adorsys.webank.exceptions.JwtPayloadParseException;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class JwtExtractorTest {
 
     @Test
-    void extractPayloadHash_validHash_returnsHash() {
+    void extractPayloadHashValidHashReturnsHash() {
         String payload = "{\"hash\":\"testHash\"}";
         String hash = JwtExtractor.extractPayloadHash(payload);
         assertEquals("testHash", hash);
     }
 
     @Test
-    void extractPayloadHash_missingHash_throwsException() {
+    void extractPayloadHashMissingHashReturnsNull() { // Renamed for clarity
         String payload = "{\"noHash\":\"value\"}";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        String hash = JwtExtractor.extractPayloadHash(payload);
+        assertNull(hash);
     }
 
     @Test
-    void extractPayloadHash_emptyPayload_throwsException() {
+    void extractPayloadHashEmptyPayloadReturnsNull() { // Renamed for clarity
         String payload = "{}";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        String hash = JwtExtractor.extractPayloadHash(payload);
+        assertNull(hash);
     }
 
     @Test
-    void extractPayloadHash_nullPayload_throwsException() {
+    void extractPayloadHashNullPayloadThrowsIllegalArgumentException() { // Renamed for clarity
         String payload = null;
-        assertThrows(NullPointerException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        assertThrows(IllegalArgumentException.class, () -> JwtExtractor.extractPayloadHash(payload));
     }
 
     @Test
-    void extractPayloadHash_invalidJson_throwsException() {
+    void extractPayloadHashInvalidJsonThrowsJwtPayloadParseException() { // Renamed for clarity and new exception
         String payload = "invalid json";
-        assertThrows(JSONException.class, () -> JwtExtractor.extractPayloadHash(payload));
+        assertThrows(JwtPayloadParseException.class, () -> JwtExtractor.extractPayloadHash(payload));
     }
 }

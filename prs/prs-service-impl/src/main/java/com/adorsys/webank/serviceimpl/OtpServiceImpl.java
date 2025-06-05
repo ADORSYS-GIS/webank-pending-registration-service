@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.config.*;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
@@ -26,9 +27,9 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
     @Value("${otp.salt}")
     private String salt;
+
 
     // Constructor
     public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
@@ -44,10 +45,12 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(JWK devicePub, String phoneNumber) {
+    public String sendOtp(String phoneNumber) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
+
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
 
         try {
             String otp = generateOtp();
@@ -106,7 +109,11 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-    public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
+    public String validateOtp(String phoneNumber,String otpInput) {
+
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
+
+
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
