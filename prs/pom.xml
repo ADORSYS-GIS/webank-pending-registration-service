@@ -19,6 +19,7 @@
         <module>prs-service-api</module>
         <module>prs-service-impl</module>
         <module>prs-db-repository</module>
+        <module>prs-middleware</module>
     </modules>
 
     <properties>

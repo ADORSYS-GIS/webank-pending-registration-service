@@ -1,51 +1,27 @@
 package com.adorsys.webank;
-
-import com.adorsys.webank.security.CertValidator;
-import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.KycCertServiceApi;
-import com.nimbusds.jose.jwk.JWK;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.adorsys.webank.exceptions.InvalidDateException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
+@Slf4j
+@RequiredArgsConstructor
 public class KycCertRestServer implements KycCertRestApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycCertRestServer.class);
     private final KycCertServiceApi kycCertServiceApi;
-    private final CertValidator certValidator;
-
-    public KycCertRestServer( KycCertServiceApi kycCertServiceApi, CertValidator certValidator) {
-        this.kycCertServiceApi = kycCertServiceApi;
-        this.certValidator = certValidator;
-    }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String getCert(String authorizationHeader, String accountId) {
-        String jwtToken;
-        JWK publicKey;
-        try {
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("JWT token: {}", jwtToken);
-            publicKey = JwtValidator.validateAndExtract(jwtToken);
-            log.info("Public key: {}", publicKey);
 
-            // Validate the JWT token
-            if (!certValidator.validateJWT(jwtToken)) {
-                return "Unauthorized";
-            }
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
+        log.info("Getting KYC certificate for accountId: {}", accountId);
 
         // Retrieve and return the KYC certificate
-        return kycCertServiceApi.getCert(publicKey, accountId);
-    }
-
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
-        }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
+        return kycCertServiceApi.getCert(accountId);
     }
 }
