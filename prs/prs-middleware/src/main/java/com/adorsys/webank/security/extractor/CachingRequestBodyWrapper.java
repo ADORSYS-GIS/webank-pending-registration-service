@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.security.extractor;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;

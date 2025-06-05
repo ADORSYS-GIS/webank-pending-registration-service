@@ -1,4 +1,4 @@
-package com.adorsys.webank.config;
+package com.adorsys.webank.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

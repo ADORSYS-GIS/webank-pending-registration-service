@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.security.extractor;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.SuperBuilder;

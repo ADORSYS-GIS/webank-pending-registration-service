@@ -13,7 +13,7 @@ import java.text.*;
 @RequiredArgsConstructor
 public class KeyLoader {
 
-    private final ServerKeyProperties keyProperties;
+    private final com.adorsys.webank.properties.ServerKeyProperties keyProperties;
 
 
     public ECKey loadPrivateKey() throws ParseException {
