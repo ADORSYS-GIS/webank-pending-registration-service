@@ -13,7 +13,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 
-@Table(name = "personal_information_table")
+@Table(name = "personal_information_table", indexes = {
+    @Index(name = "idx_account_id", columnList = "account_id"),
+    @Index(name = "idx_document_id", columnList = "document_id"),
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_email", columnList = "email")
+})
 public class PersonalInfoEntity {
 
     @Id

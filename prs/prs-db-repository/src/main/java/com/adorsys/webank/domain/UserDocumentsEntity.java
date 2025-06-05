@@ -11,7 +11,10 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@Table(name = "user_documents")
+@Table(name = "user_documents", indexes = {
+    @Index(name = "idx_account_id", columnList = "account_id"),
+    @Index(name = "idx_status", columnList = "status")
+})
 public class UserDocumentsEntity {
 
     @Id
