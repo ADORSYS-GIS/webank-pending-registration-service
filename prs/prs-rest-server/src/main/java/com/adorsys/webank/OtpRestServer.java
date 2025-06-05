@@ -2,70 +2,28 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.OtpRequest;
 import com.adorsys.webank.dto.OtpValidationRequest;
-import com.adorsys.webank.security.CertValidator;
-import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.OtpServiceApi;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.adorsys.webank.exceptions.InvalidDateException;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class OtpRestServer implements OtpRestApi {
     private final OtpServiceApi otpService;
-    private final CertValidator certValidator;  // Inject CertValidator as a dependency
 
-    public OtpRestServer(OtpServiceApi otpService, CertValidator certValidator) {
-        this.otpService = otpService;
-        this.certValidator = certValidator;  // Assign the injected CertValidator instance
-    }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String sendOtp(String authorizationHeader, OtpRequest request) {
-        String jwtToken;
-        JWK publicKey;
-        try {
-            // Extract the JWT token from the Authorization header
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            String phoneNumber = request.getPhoneNumber();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber);
-
-            // Validate the JWT token using the injected CertValidator instance
-            if (!certValidator.validateJWT(jwtToken)) {
-
-                return "Invalid or unauthorized JWT.";
-            }
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
-        return otpService.sendOtp(publicKey, request.getPhoneNumber());
+        return otpService.sendOtp(request.getPhoneNumber());
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String validateOtp(String authorizationHeader, OtpValidationRequest request) {
-        String jwtToken;
-        JWK publicKey;
-        try {
-            // Extract the JWT token from the Authorization header
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            String phoneNumber = request.getPhoneNumber();
-            String otpInput = request.getOtpInput();
-            publicKey = JwtValidator.validateAndExtract(jwtToken, phoneNumber, otpInput);
-
-            // Validate the JWT token using the injected CertValidator instance
-            if (!certValidator.validateJWT(jwtToken)) {
-
-                return "Invalid or unauthorized JWT.";
-            }
-        } catch (Exception e) {
-            return "Invalid JWT: " + e.getMessage();
-        }
-
-        return otpService.validateOtp(request.getPhoneNumber(), publicKey, request.getOtpInput());
+        return otpService.validateOtp(request.getPhoneNumber(), request.getOtpInput());
     }
 
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
-        }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
-    }
 }

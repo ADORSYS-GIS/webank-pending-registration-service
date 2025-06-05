@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,6 +8,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.Optional;
 
@@ -15,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class KycRecoveryServiceImplTest {
 
     @Mock
@@ -35,9 +38,9 @@ class KycRecoveryServiceImplTest {
     @Test
     void verifyKycRecoveryFields_Success() {
         // Given
-        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-        personalInfo.setDocumentUniqueId(TEST_ID_NUMBER);
-        personalInfo.setExpirationDate(TEST_EXPIRY_DATE);
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
 
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.of(personalInfo));
@@ -52,7 +55,7 @@ class KycRecoveryServiceImplTest {
     }
 
     @Test
-    void verifyKycRecoveryFields_AccountNotFound() {
+    void verifyKycRecoveryFields_NoRecordFound() {
         // Given
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.empty());
@@ -67,11 +70,11 @@ class KycRecoveryServiceImplTest {
     }
 
     @Test
-    void verifyKycRecoveryFields_IdNumberMismatch() {
+    void verifyKycRecoveryFields_DocumentIdMismatch() {
         // Given
-        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-        personalInfo.setDocumentUniqueId("different-id-number");
-        personalInfo.setExpirationDate(TEST_EXPIRY_DATE);
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn("different-id");
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
 
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.of(personalInfo));
@@ -88,9 +91,9 @@ class KycRecoveryServiceImplTest {
     @Test
     void verifyKycRecoveryFields_ExpiryDateMismatch() {
         // Given
-        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-        personalInfo.setDocumentUniqueId(TEST_ID_NUMBER);
-        personalInfo.setExpirationDate("2024-12-31");
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn("2024-12-31");
 
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
                 .thenReturn(Optional.of(personalInfo));

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
+import com.adorsys.webank.exceptions.InvalidDateException;
 
 @Tag(name = "OTP", description = "Operations related to OTP processing")
 @RequestMapping("/api/prs/otp")
