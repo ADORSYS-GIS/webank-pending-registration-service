@@ -7,12 +7,13 @@ import org.springframework.security.config.annotation.web.builders.*;
 import org.springframework.security.config.annotation.web.configuration.*;
 import org.springframework.security.config.annotation.web.configurers.*;
 import org.springframework.security.web.*;
-import org.springframework.web.cors.*;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.adorsys.webank.domain.Role;
 import com.adorsys.webank.config.CertValidator;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import com.adorsys.webank.security.headers.SecurityHeadersConfig;
+import com.adorsys.webank.security.extractor.RequestParameterExtractorFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -23,6 +24,8 @@ public class SecurityConfig {
     private RequestParameterExtractorFilter requestParameterExtractorFilter;
     @Autowired
     private CertValidator certValidator;
+    @Autowired
+    private SecurityHeadersConfig securityHeadersConfig;
 
 
     @Bean
@@ -47,6 +50,8 @@ public class SecurityConfig {
                                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                             )
                     );
+
+            securityHeadersConfig.configureHeaders(http);
 
             return http.build();
         } catch (Exception e) {
