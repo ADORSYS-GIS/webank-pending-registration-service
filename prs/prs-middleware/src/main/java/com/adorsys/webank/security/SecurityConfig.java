@@ -84,10 +84,10 @@ public class SecurityConfig {
                             )
 
                             /* * The Permissions-Policy header allows you to control which features and APIs can be used in the browser.
-                             * This example disables geolocation, microphone, camera, and payment features.
+                             * This example disables geolocation, microphone, camera,
                              */
                             .permissionsPolicy(policy -> policy
-                                    .policy("geolocation=(), microphone=(), camera=()")
+                                    .policy("geolocation=(), microphone=(), camera=(self)")
                             )
              );
 
