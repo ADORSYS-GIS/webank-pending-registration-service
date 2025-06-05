@@ -21,18 +21,17 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class EmailOtpServiceImplTest {
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailOtpServiceImplTest.class);
 
     @Mock
     private PersonalInfoRepository personalInfoRepository;
@@ -178,17 +177,27 @@ public class EmailOtpServiceImplTest {
     public void testComputeOtpHash() throws Exception {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         
-        // Since we can't mock the internal passwordEncoder, we'll test the actual behavior
+        // Setup test data
+        Map<String, String> testData = new HashMap<>();
+        testData.put("emailOtp", TEST_OTP);
+        testData.put("accountId", accountId);
+        String testJson = "{\"emailOtp\":\"" + TEST_OTP + "\",\"accountId\":\"" + accountId + "\"}";
+        String expectedHash = "test_hash_value";
+        
+        // Mock dependencies
+        when(objectMapper.writeValueAsString(any(Map.class))).thenReturn(testJson);
+        when(passwordEncoder.encode(anyString())).thenReturn(expectedHash);
+        
+        // Call the method
         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
         
-        // Verify that the hash is not null or empty
-        assertNotNull(actualHash);
-        assertFalse(actualHash.isEmpty());
+        // Verify the result
+        assertNotNull(actualHash, "Hash should not be null");
+        assertEquals(expectedHash, actualHash, "Hash should match the expected value");
         
-        // Verify that the hash starts with the Argon2id marker
-        assertTrue(actualHash.startsWith("$argon2id$"), "Hash should be an Argon2id hash");
-        
-        log.info("Generated hash: " + actualHash);
+        // Verify interactions
+        verify(objectMapper).writeValueAsString(any(Map.class));
+        verify(passwordEncoder).encode(anyString());
     }
 
     @Test

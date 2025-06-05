@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -28,6 +29,9 @@ class DeviceRegServiceTest {
     private ObjectMapper mockObjectMapper;
     
     @Mock
+    private Argon2PasswordEncoder mockPasswordEncoder;
+    
+    @Mock
     private JWK mockJWK;
     
     private DeviceRegServiceImpl deviceRegService;
@@ -35,13 +39,14 @@ class DeviceRegServiceTest {
 
     @BeforeEach
     void setUp() {
-        deviceRegService = new DeviceRegServiceImpl(mockHashHelper, mockObjectMapper);
+        deviceRegService = new DeviceRegServiceImpl(mockHashHelper, mockObjectMapper, mockPasswordEncoder);
         
         // Set up default behaviors for the mock in lenient mode
         try {
             lenient().when(mockObjectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"json\"}");
+            lenient().when(mockPasswordEncoder.encode(anyString())).thenAnswer(invocation -> "encoded_" + invocation.getArgument(0));
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to set up mock ObjectMapper", e);
+            throw new IllegalStateException("Failed to set up mocks", e);
         }
     }
 
@@ -87,16 +92,23 @@ class DeviceRegServiceTest {
 
     @Test
     void testGenerateNonceGeneratesHash() {
-        // Since we can't mock the internal passwordEncoder, we'll test the actual behavior
+        // Setup mock to return different values for each call
+        when(mockPasswordEncoder.encode(anyString()))
+            .thenReturn("nonce1")
+            .thenReturn("nonce2");
+            
         String nonce = deviceRegService.generateNonce();
         
         // Verify that the nonce is not null or empty
         assertNotNull(nonce);
         assertFalse(nonce.isEmpty());
         
-        // Test consistency (calling it twice should produce different values because it includes random data)
+        // Test that subsequent calls return different values
         String secondNonce = deviceRegService.generateNonce();
-        assertNotEquals(nonce, secondNonce, "Nonces should be unique");
+        assertNotEquals(nonce, secondNonce, "Subsequent nonces should be unique");
+        
+        // Verify the mock was called with the expected arguments
+        verify(mockPasswordEncoder, times(2)).encode(anyString());
     }
 
 
