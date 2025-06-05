@@ -22,7 +22,7 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
     @Override
     @Transactional
-    public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
+    public Boolean verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
         // Validate input parameters directly
         validateNotEmpty(accountId, "Account ID");
         validateNotEmpty(idNumber, "Document ID");
@@ -38,7 +38,7 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
         if (log.isInfoEnabled()) {
             log.info("Document verification successful for accountId {}", accountId);
         }
-        return "Document verification successful";
+        return true;
     }
     
 

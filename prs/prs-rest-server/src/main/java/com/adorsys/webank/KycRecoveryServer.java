@@ -17,10 +17,13 @@ public class KycRecoveryServer implements KycRecoveryRestApi {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Unauthorized or invalid JWT.");
         }
-        return kycRecoveryServiceApi.verifyKycRecoveryFields(
+        if (kycRecoveryServiceApi.verifyKycRecoveryFields(
                 accountId,
                 kycInfoRequest.getIdNumber(),
                 kycInfoRequest.getExpiryDate()
-        );
+        )) {
+            return "Document verification successful";
+        }
+        return "Document verification failed";
     }
 }

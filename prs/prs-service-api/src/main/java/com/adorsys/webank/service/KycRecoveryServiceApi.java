@@ -11,5 +11,5 @@ public interface KycRecoveryServiceApi {
      * @param expiryDate The expiration date of the document.
      * @return A string indicating the result of the verification process.
      */
-    String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate);
+    Boolean verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate);
 }

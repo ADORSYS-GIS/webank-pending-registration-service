@@ -30,9 +30,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     private final OtpRequestRepository otpRequestRepository;
     private final HashHelper hashHelper;
     private final ObjectMapper objectMapper;
-    
-    // Using default Spring Security recommended parameters
-    private final Argon2PasswordEncoder passwordEncoder = new Argon2PasswordEncoder(16, 32, 1, 4096, 2);
+    private final Argon2PasswordEncoder passwordEncoder;
 
     @Override
     public String generateOtp() {

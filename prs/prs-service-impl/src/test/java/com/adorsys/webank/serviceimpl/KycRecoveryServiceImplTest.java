@@ -48,11 +48,11 @@ class KycRecoveryServiceImplTest {
                 .thenReturn(Optional.of(personalInfo));
 
         // When
-        String result = kycRecoveryService.verifyKycRecoveryFields(
+        Boolean result = kycRecoveryService.verifyKycRecoveryFields(
                 TEST_ACCOUNT_ID, TEST_ID_NUMBER, TEST_EXPIRY_DATE);
 
         // Then
-        assertEquals("Document verification successful", result);
+        assertEquals(true, result);
         verify(personalInfoRepository, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
 

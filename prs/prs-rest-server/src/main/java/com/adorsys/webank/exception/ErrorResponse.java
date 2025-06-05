@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2018-2023 adorsys GmbH and Co. KG
- * All rights are reserved.
- */
-
 package com.adorsys.webank.exception;
 
 import lombok.AllArgsConstructor;
@@ -16,7 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ErrorResponse {
-    
     /**
      * Error code that can be used by clients to identify the error type
      */

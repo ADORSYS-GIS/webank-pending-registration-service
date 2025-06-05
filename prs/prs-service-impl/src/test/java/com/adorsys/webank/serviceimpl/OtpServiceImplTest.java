@@ -5,6 +5,7 @@ import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.security.HashHelper;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
@@ -41,6 +42,9 @@ public class OtpServiceImplTest {
     @Mock
     private ObjectMapper objectMapper;
     
+    @Mock
+    private Argon2PasswordEncoder passwordEncoder;
+    
     private OtpServiceImpl otpService;
 
     private ECKey devicePublicKey;
@@ -52,7 +56,7 @@ public class OtpServiceImplTest {
         devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
         
         // Create service with mocked dependencies
-        otpService = spy(new OtpServiceImpl(otpRequestRepository, hashHelper, objectMapper));
+        otpService = spy(new OtpServiceImpl(otpRequestRepository, hashHelper, objectMapper, passwordEncoder));
         
 
         

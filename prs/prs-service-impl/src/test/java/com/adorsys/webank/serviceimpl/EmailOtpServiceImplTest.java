@@ -19,7 +19,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 
-
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -50,6 +49,9 @@ public class EmailOtpServiceImplTest {
     
     @Mock
     private ObjectMapper objectMapper;
+    
+    @Mock
+    private Argon2PasswordEncoder passwordEncoder;
 
     private ECKey deviceKey;
     private static final String TEST_EMAIL = "user@example.com";
@@ -61,7 +63,7 @@ public class EmailOtpServiceImplTest {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
         
         // Create EmailOtpService with mocked dependencies
-        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, hashHelper, objectMapper);
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, hashHelper, objectMapper, passwordEncoder);
         
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
