@@ -61,12 +61,16 @@ public class SecurityConfig {
                                     .headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK)
                             )
 
-                           /* * The Content Security Policy (CSP) header helps prevent XSS attacks by controlling which resources can be loaded.
-                            * The policy here is set to 'none' for all directives, which means no resources can be loaded.
+
+                           /* * Hsts (HTTP Strict Transport Security) header is used to enforce secure connections to the server.
+                            * It tells the browser to only connect to the server using HTTPS for a specified period.
                            */
-                            .contentSecurityPolicy(csp -> csp
-                                    .policyDirectives("default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-src 'none'; base-uri 'self'; form-action 'self'")
-                            )
+
+                           .httpStrictTransportSecurity(hsts -> hsts
+                                  .includeSubDomains(true)
+                                  .preload(true)
+                                  .maxAgeInSeconds(31536000)
+                           )
 
 
                             /* * The Referrer-Policy header controls how much referrer information is included with requests.
