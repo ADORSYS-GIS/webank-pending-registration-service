@@ -36,3 +36,6 @@ replay_pid*
 ### Maven
 target
 
+# Ignore all environment files
+.env*
+

@@ -1,0 +1,39 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\QMETA-INF/services/org.apache.commons.logging.LogFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.apache.commons.logging.Log\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/com.zaxxer.hikari.HikariDataSource\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.core.FileAppender\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.core.Layout\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.core.rolling.RollingPolicy\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.core.rolling.TriggeringPolicy\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/ch.qos.logback.core.spi.ContextAware\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.slf4j.spi.SLF4JServiceProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/javax.sql.DataSource\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.sql.Driver\\E"
+      }
+    ]
+  }
+} 
