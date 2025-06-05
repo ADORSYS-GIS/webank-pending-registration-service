@@ -72,15 +72,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <image>
-                        <builder>paketobuildpacks/builder-jammy-buildpackless-tiny</builder><!--required for AArch64/M1 support -->
-                        <buildpacks>
-                            <buildpack>paketobuildpacks/oracle</buildpack>
-                            <buildpack>paketobuildpacks/java-native-image</buildpack>
-                        </buildpacks>
-                    </image>
-                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -111,6 +102,10 @@
                             </execution>
                         </executions>
                         <configuration>
+                            <buildArgs>
+                                <arg>-H:+PrintClassInitialization</arg>
+                                <arg>-H:+PrintAnalysisCallTree</arg>
+                            </buildArgs>
                         </configuration>
                     </plugin>
                 </plugins>

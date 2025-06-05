@@ -1,23 +1,26 @@
-gu# webank-pending-registration-service
+# webank-pending-registration-service
 
-# Native Image Build
+## Getting Started
 
 This project supports building native images using GraalVM Native Image. The native image provides faster startup times and lower memory footprint compared to running on the JVM.
 
 ## Prerequisites
 
+- java 17
 - SDKMAN (for managing Java versions)
 - Docker (for containerized builds)
 
 ## Setup
 
 1. Install SDKMAN if not already installed:
+
 ```bash
 curl -s "https://get.sdkman.io" | bash
 source "$HOME/.sdkman/bin/sdkman-init.sh"
 ```
 
 2. Install and use GraalVM:
+
 ```bash
 # List available GraalVM versions
 sdk list java | grep graalvm
@@ -37,97 +40,74 @@ native-image --version  # Should show native-image version
 ```
 
 3. Enable GraalVM for the project:
+
 ```bash
 # From project root
 sdk env install
 sdk use
 ```
 
-## Building Locally
+## Building and run Locally
+
+## Environment Variables
+
+The following environment variables are required, make to export them before running the application.
+
+- `JWT_ISSUER`: JWT issuer URL (e.g., "<https:webank.com>")
+- `JWT_EXPIRATION_TIME_MS`: JWT expiration time in milliseconds (e.g., "172800000" for 48 hours)
+- `SERVER_PRIVATE_KEY_JSON`: Server private key in JWK format
+- `SERVER_PUBLIC_KEY_JSON`: Server public key in JWK format
+- `OTP_SALT`: A secure random string for OTP generation
+- `EMAIL`: Email address for sending OTPs
+- `PASSWORD`: Email password
+
+### Start docker componse for external services
+
+```bash
+docker-compose up -d
+```
 
 ### Using Maven
 
-To build the native image locally from the project root:
+To build locally from the project root:
+
+1. Build the native image
 
 ```bash
-mvn -Pnative native:compile
+mvn clean package -Pnative -DskipTests
+# Run the application
+./prs/prs-rest-server/target/prs-rest-server
 ```
 
 The native executable will be generated in `prs/prs-rest-server/target/prs-rest-server`.
+
+2. Build the normal jar
+
+```bash
+mvn clean install
+cd prs/prs-rest-server
+mvn spring-boot:run
+```
+
 
 ### Using Docker
 
 To build using Docker:
 
 ```bash
-docker build -t webank-prs-native .
+#Make sure the environmental varaibles are exported
+docker build -t webank-prs .
+docker run -p 8080:8080 webank-prs
+
 ```
-
-## Running the Application
-
-### Direct Execution
-
-From the `prs/prs-rest-server` directory:
-
-```bash
-# Set required environment variables
-export JWT_ISSUER="<your-jwt-issuer-url>"
-export JWT_EXPIRATION_TIME_MS="<expiration-time-in-ms>"
-export SERVER_PRIVATE_KEY_JSON='<your-private-key-jwk>'
-export SERVER_PUBLIC_KEY_JSON='<your-public-key-jwk>'
-export TWILIO_ACCOUNT_SID="<your-twilio-sid>"
-export TWILIO_AUTH_TOKEN="<your-twilio-token>"
-export TWILIO_PHONE_NUMBER="<your-twilio-phone>"
-export OTP_SALT="<your-otp-salt>"
-export EMAIL="<your-email>"
-export PASSWORD="<your-email-password>"
-
-# Run the application
-./target/prs-rest-server
-```
-
-### Using Docker
-
-```bash
-docker run -p 8080:8080 \
-  -e JWT_ISSUER="<your-jwt-issuer-url>" \
-  -e JWT_EXPIRATION_TIME_MS="<expiration-time-in-ms>" \
-  -e SERVER_PRIVATE_KEY_JSON='<your-private-key-jwk>' \
-  -e SERVER_PUBLIC_KEY_JSON='<your-public-key-jwk>' \
-  -e TWILIO_ACCOUNT_SID="<your-twilio-sid>" \
-  -e TWILIO_AUTH_TOKEN="<your-twilio-token>" \
-  -e TWILIO_PHONE_NUMBER="<your-twilio-phone>" \
-  -e OTP_SALT="<your-otp-salt>" \
-  -e EMAIL="<your-email>" \
-  -e PASSWORD="<your-email-password>" \
-  webank-prs-native
-```
-
-## Environment Variables
-
-The following environment variables are required:
-
-- `JWT_ISSUER`: JWT issuer URL (e.g., "https://your-domain.com")
-- `JWT_EXPIRATION_TIME_MS`: JWT expiration time in milliseconds (e.g., "172800000" for 48 hours)
-- `SERVER_PRIVATE_KEY_JSON`: Server private key in JWK format
-- `SERVER_PUBLIC_KEY_JSON`: Server public key in JWK format
-- `TWILIO_ACCOUNT_SID`: Twilio account SID from your Twilio dashboard
-- `TWILIO_AUTH_TOKEN`: Twilio auth token from your Twilio dashboard
-- `TWILIO_PHONE_NUMBER`: Your Twilio phone number in E.164 format (e.g., "+1234567890")
-- `OTP_SALT`: A secure random string for OTP generation
-- `EMAIL`: Email address for sending OTPs
-- `PASSWORD`: Email password or app password (for Gmail, use an App Password)
-
-## Performance Benefits
-
-The native image provides several benefits:
-
-- Faster startup time (typically 50-100x faster)
-- Lower memory footprint
-- Smaller container size
-- Better resource utilization
 
 ## Troubleshooting
+
+If you encounter issueswith building or running webank-pending-registration-service:
+
+1. Ensure environmental varaibles are correctly exported
+2. Run docker compose is running for external services.
+3. If running normal spring-boot ensure to run from `prs/prs-rest-server`
 
 If you encounter issues with the native build:
 
@@ -135,9 +115,3 @@ If you encounter issues with the native build:
 2. Verify GraalVM is installed and selected: `sdk current java`
 3. Check the reflection configuration in `reflect-config.json`
 4. Review the native-image.properties file for initialization settings
-
-For more detailed error information, run the build with:
-
-```bash
-mvn -Pnative native:compile -Dnative.image.debug=true
-```

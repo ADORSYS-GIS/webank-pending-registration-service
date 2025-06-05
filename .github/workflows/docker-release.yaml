@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
       - develop
 
 jobs:
@@ -48,14 +45,6 @@ jobs:
                   </servers>
                 </settings>" > ~/.m2/settings.xml
 
-      - name: Build Native Image
-        run: mvn clean package -Pnative -DskipTests
-
-      - name: Verify Native Executable Exists
-        run: |
-          if [ ! -f prs/prs-rest-server/target/prs-rest-server ]; then
-            echo "Native executable not found!" && exit 1
-          fi
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
