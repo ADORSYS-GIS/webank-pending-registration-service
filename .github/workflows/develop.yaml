@@ -3,10 +3,10 @@ name: Java CI with Maven
 on:
   push:
     branches:
-      - develop
+    - develop
   pull_request:
     branches:
-      - develop
+    - develop
 
 jobs:
 
@@ -146,59 +146,3 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=webank-pending-registration-service -Dsonar.projectName='webank-pending-registration-service'
-
-  database-migration:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Only run on main branch
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: 17
-        distribution: 'temurin'
-
-    - name: Cache Maven packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-
-    - name: Set up Maven settings.xml
-      run: |
-        mkdir -p ~/.m2
-        echo "<settings>
-                <servers>
-                  <server>
-                    <id>github-webank</id>
-                    <username>${{ github.actor }}</username>
-                    <password>${{ secrets.WEBANK_ACCESS_TOKEN }}</password>1212
-                  </server>
-                </servers>
-              </settings>" > ~/.m2/settings.xml
-
-    - name: Database Backup
-      run: |
-        pg_dump -h ${{ secrets.DB_HOST }} -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} > backup_$(date +%Y%m%d_%H%M%S).sql
-      env:
-        PGPASSWORD: ${{ secrets.DB_PASSWORD }}
-
-    - name: Run Flyway Migration
-      run: |
-        mvn flyway:migrate -s ~/.m2/settings.xml \
-          -Dflyway.url=jdbc:postgresql://${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }} \
-          -Dflyway.user=${{ secrets.DB_USER }} \
-          -Dflyway.password=${{ secrets.DB_PASSWORD }} \
-          -Dflyway.schemas=public \
-          -Dflyway.locations=filesystem:prs/prs-rest-server/src/main/resources/db/migration
-
-    - name: Verify Migration
-      run: |
-        mvn flyway:info -s ~/.m2/settings.xml \
-          -Dflyway.url=jdbc:postgresql://${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }} \
-          -Dflyway.user=${{ secrets.DB_USER }} \
-          -Dflyway.password=${{ secrets.DB_PASSWORD }} \
-          -Dflyway.schemas=public
