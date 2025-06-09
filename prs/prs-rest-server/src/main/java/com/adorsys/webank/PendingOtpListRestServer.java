@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,9 +23,15 @@ public class PendingOtpListRestServer implements PendingOtpListRestApi {
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public List<PendingOtpDto> getPendingOtps(String authorizationHeader) {
-
-        log.info("Fetching pending OTP entries");
-        // Delegate to the service to retrieve pending OTP records.
-        return pendingOtpServiceApi.fetchPendingOtpEntries();
+        String correlationId = MDC.get("correlationId");
+        log.info("Received request to fetch pending OTPs [correlationId={}]", correlationId);
+        
+        // Delegate to the service to retrieve pending OTP records
+        log.debug("Fetching pending OTP entries [correlationId={}]", correlationId);
+        List<PendingOtpDto> pendingOtps = pendingOtpServiceApi.fetchPendingOtpEntries();
+        log.info("Retrieved {} pending OTP entries [correlationId={}]", 
+                pendingOtps.size(), correlationId);
+        
+        return pendingOtps;
     }
 }

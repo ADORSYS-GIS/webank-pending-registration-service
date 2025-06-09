@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.slf4j.MDC;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,10 +48,14 @@ public class EmailOtpServiceImplTest {
     private static final String TEST_EMAIL = "user@example.com";
     private static final String TEST_OTP = "123456";
     private static final String TEST_SALT = "test-salt";
+    private static final String TEST_CORRELATION_ID = "test-correlation-id";
 
     @BeforeEach
     public void setUp() throws Exception {
         deviceKey = new ECKeyGenerator(Curve.P_256).generate();
+
+        // Set correlation ID for testing
+        MDC.put("correlationId", TEST_CORRELATION_ID);
 
         // Inject mailSender using reflection
         Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
