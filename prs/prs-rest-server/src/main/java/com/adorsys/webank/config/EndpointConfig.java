@@ -1,6 +1,5 @@
 package com.adorsys.webank.config;
 
-import com.adorsys.webank.security.*;
 import org.springframework.context.annotation.*;
 
 import java.util.*;
@@ -9,7 +8,7 @@ import java.util.*;
 public class EndpointConfig {
 
     @Bean
-    public EndpointParameterMapper endpointParameterMapper() {
+    public com.adorsys.webank.security.extractor.EndpointParameterMapper endpointParameterMapper() {
          final Map<String, List<String>> ENDPOINT_PARAMETERS = new HashMap<>();
 
         // Device Registration
@@ -33,7 +32,7 @@ public class EndpointConfig {
         ENDPOINT_PARAMETERS.put("api/prs/kyc/findById/{DocumentUniqueId}", List.of("DocumentUniqueId"));
 
 
-        return EndpointParameterMapper.builder().endpointParameters(ENDPOINT_PARAMETERS).build();
+        return com.adorsys.webank.security.extractor.EndpointParameterMapper.builder().endpointParameters(ENDPOINT_PARAMETERS).build();
 
 
     }
