@@ -31,7 +31,7 @@ public class EmbeddedJwkJwtDecoder implements JwtDecoder {
         
         try {
             // Get request parameters from ThreadLocal
-            Map<String, String> requestParams = RequestParameterExtractorFilter.getCurrentRequestParams();
+            Map<String, String> requestParams = com.adorsys.webank.security.extractor.RequestParameterExtractorFilter.getCurrentRequestParams();
             String[] params = requestParams.values().toArray(new String[0]);
             
             log.info("Validating JWT using JwtValidator with params: {}", Arrays.toString(params));

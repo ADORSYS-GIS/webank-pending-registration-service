@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.security.extractor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import com.adorsys.webank.security.extractor.EndpointParameterMapper;
 
 
 @Component
