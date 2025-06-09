@@ -1,21 +1,27 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.OtpEntity;
-import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.dto.PendingOtpDto;
-import com.adorsys.webank.repository.OtpRequestRepository;
-import com.adorsys.error.ResourceNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.adorsys.error.ResourceNotFoundException;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.dto.PendingOtpDto;
+import com.adorsys.webank.projection.OtpProjection;
+import com.adorsys.webank.repository.OtpRequestRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PendingOtpServiceImplTest {
@@ -39,9 +45,17 @@ class PendingOtpServiceImplTest {
     @Test
     void testFetchPendingOtpEntries_Success() {
         // Arrange
-        OtpEntity otpEntity1 = createOtpEntity(TEST_PHONE_1, TEST_OTP_1, OtpStatus.PENDING);
-        OtpEntity otpEntity2 = createOtpEntity(TEST_PHONE_2, TEST_OTP_2, OtpStatus.PENDING);
-        List<OtpEntity> otpList = List.of(otpEntity1, otpEntity2);
+        OtpProjection otpProjection1 = mock(OtpProjection.class);
+        when(otpProjection1.getPhoneNumber()).thenReturn(TEST_PHONE_1);
+        when(otpProjection1.getOtpCode()).thenReturn(TEST_OTP_1);
+        when(otpProjection1.getStatus()).thenReturn(OtpStatus.PENDING);
+
+        OtpProjection otpProjection2 = mock(OtpProjection.class);
+        when(otpProjection2.getPhoneNumber()).thenReturn(TEST_PHONE_2);
+        when(otpProjection2.getOtpCode()).thenReturn(TEST_OTP_2);
+        when(otpProjection2.getStatus()).thenReturn(OtpStatus.PENDING);
+
+        List<OtpProjection> otpList = List.of(otpProjection1, otpProjection2);
         
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(otpList);
 
@@ -83,9 +97,13 @@ class PendingOtpServiceImplTest {
     @Test
     void testFetchPendingOtpEntries_NoPendingEntries() {
         // Arrange
-        OtpEntity otpEntity1 = createOtpEntity(TEST_PHONE_1, TEST_OTP_1, OtpStatus.COMPLETE);
-        OtpEntity otpEntity2 = createOtpEntity(TEST_PHONE_2, TEST_OTP_2, OtpStatus.INCOMPLETE);
-        List<OtpEntity> otpList = List.of(otpEntity1, otpEntity2);
+        OtpProjection otpProjection1 = mock(OtpProjection.class);
+        when(otpProjection1.getStatus()).thenReturn(OtpStatus.COMPLETE);
+
+        OtpProjection otpProjection2 = mock(OtpProjection.class);
+        when(otpProjection2.getStatus()).thenReturn(OtpStatus.INCOMPLETE);
+
+        List<OtpProjection> otpList = List.of(otpProjection1, otpProjection2);
         
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(Collections.emptyList());
 
@@ -95,13 +113,5 @@ class PendingOtpServiceImplTest {
         );
         assertEquals("No pending OTP entries found", exception.getMessage());
         verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
-    }
-
-    private OtpEntity createOtpEntity(String phoneNumber, String otpCode, OtpStatus status) {
-        OtpEntity entity = new OtpEntity();
-        entity.setPhoneNumber(phoneNumber);
-        entity.setOtpCode(otpCode);
-        entity.setStatus(status);
-        return entity;
     }
 }

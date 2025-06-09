@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
 import org.springframework.transaction.annotation.*;
@@ -39,9 +40,9 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
 
         log.info("Updating KYC status for accountId {} to {}", accountId, newStatus);
 
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
+        Optional<PersonalInfoProjection> personalInfoOpt = inforepository.findByAccountId(accountId);
         if (personalInfoOpt.isPresent()) {
-            PersonalInfoEntity personalInfo = personalInfoOpt.get();
+            PersonalInfoProjection personalInfo = personalInfoOpt.get();
 
             // Validate document details
             if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
@@ -57,20 +58,26 @@ public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
             try {
                 // Convert newStatus string to Enum
                 PersonalInfoStatus kycStatus = PersonalInfoStatus.valueOf(newStatus.toUpperCase());
-                personalInfo.setStatus(kycStatus);  // Update status field
+                
+                // Create new entity with updated status
+                PersonalInfoEntity updatedInfo = new PersonalInfoEntity();
+                updatedInfo.setAccountId(accountId);
+                updatedInfo.setDocumentUniqueId(personalInfo.getDocumentUniqueId());
+                updatedInfo.setExpirationDate(personalInfo.getExpirationDate());
+                updatedInfo.setStatus(kycStatus);
                 
                 // Set rejection fields if status is REJECTED
                 if (kycStatus == PersonalInfoStatus.REJECTED) {
                     if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
                         throw new ValidationException("Rejection reason is required when status is REJECTED");
                     }
-                    personalInfo.setRejectionReason(rejectionReason);
+                    updatedInfo.setRejectionReason(rejectionReason);
                 } else {
                     // Clear rejection fields if status is not REJECTED
-                    personalInfo.setRejectionReason(null);
+                    updatedInfo.setRejectionReason(null);
                 }
                 
-                inforepository.save(personalInfo); // Save the updated record
+                inforepository.save(updatedInfo); // Save the updated record
 
                 log.info("Successfully updated KYC status for accountId {}", accountId);
                 return "KYC status for " + accountId + " updated to " + newStatus;

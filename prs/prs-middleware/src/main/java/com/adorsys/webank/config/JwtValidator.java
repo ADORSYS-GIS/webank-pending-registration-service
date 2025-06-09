@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,13 +13,15 @@ import com.nimbusds.jwt.proc.BadJWTException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import com.adorsys.webank.exceptions.JwtPayloadParseException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 
-import static com.adorsys.webank.security.JwtExtractor.extractPayloadHash;
+import static com.adorsys.webank.config.JwtExtractor.extractPayloadHash;
 
 @Service
 public class JwtValidator {
@@ -44,9 +46,10 @@ public class JwtValidator {
 
         validatePayloadHash(jwsObject.getPayload().toString(), concatenatedPayload);
         logger.info("Payload hash validation passed");
-
         return jwk;
+
     }
+
 
     private static String concatenatePayloads(String... params) {
         logger.debug("Concatenating payload parameters");
@@ -64,7 +67,7 @@ public class JwtValidator {
         Object jwkObject = jwsObject.getHeader().toJSONObject().get("jwk");
         if (jwkObject == null) {
             logger.error("Missing 'jwk' in JWT header");
-            throw new BadJOSEException("Missing 'jwk' in JWT header.");
+            throw new SecurityConfigurationException("Missing 'jwk' in JWT header", null);
         }
 
         String jwkString = new ObjectMapper().writeValueAsString(jwkObject);
@@ -73,7 +76,7 @@ public class JwtValidator {
         JWK jwk = JWK.parse(jwkString);
         if (!(jwk instanceof ECKey)) {
             logger.error("Invalid key type, expected ECKey but found {}", jwk.getKeyType());
-            throw new BadJOSEException("Invalid key type, expected ECKey.");
+            throw new SecurityConfigurationException("Invalid key type, expected ECKey", null);
         }
 
         logger.info("Successfully validated JWK");
@@ -86,7 +89,7 @@ public class JwtValidator {
         var verifier = ecKey.toECPublicKey();
         if (!jwsObject.verify(new ECDSAVerifier(verifier))) {
             logger.error("Invalid signature detected");
-            throw new BadJWTException("Invalid signature.");
+            throw new SecurityConfigurationException("Invalid signature", null);
         }
         logger.info("Signature verification successful");
     }
@@ -102,7 +105,7 @@ public class JwtValidator {
 
         if (!payloadHash.equals(expectedHash)) {
             logger.error("Payload hash validation failed");
-            throw new BadJWTException("Invalid payload hash.");
+            throw new SecurityConfigurationException("Invalid payload hash", null);
         }
         logger.info("Payload hash validation successful");
     }
@@ -127,8 +130,30 @@ public class JwtValidator {
             logger.info("Successfully parsed JWT token:{}", signedJWT);
             return signedJWT.getHeader().toJSONObject().get(claimKey).toString();
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Error extracting claim: " + claimKey, e);
+            throw new JwtPayloadParseException("Error extracting claim: " + claimKey, e);
         }
     }
 
+    /**
+     * Extracts the device JWK from an already-validated JWT token.
+     * This method assumes the JWT has already been validated by Spring Security.
+     *
+     * @param jwtToken The validated JWT token
+     * @return The device public key as a JSON string
+     * @throws IllegalArgumentException if extraction fails
+     */
+    public static ECKey extractDeviceJwk(String jwtToken) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(jwtToken);
+            Object jwkObject = signedJWT.getHeader().toJSONObject().get("jwk");
+            if (jwkObject == null) {
+                throw new SecurityConfigurationException("Missing 'jwk' in JWT header", null);
+            }
+
+            String jwkJson = new ObjectMapper().writeValueAsString(jwkObject);
+            return ECKey.parse(jwkJson);
+        } catch (Exception e) {
+            throw new SecurityConfigurationException("Failed to extract or parse device JWK from JWT", e);
+        }
+    }
 }

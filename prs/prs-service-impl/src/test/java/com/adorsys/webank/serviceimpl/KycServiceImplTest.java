@@ -1,13 +1,19 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import com.adorsys.webank.domain.UserDocumentsEntity;
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.repository.UserDocumentsRepository;
-import jakarta.persistence.EntityNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,13 +21,22 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.domain.UserDocumentsEntity;
+import com.adorsys.webank.domain.UserDocumentsStatus;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
+import com.adorsys.webank.exceptions.KycProcessingException;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.projection.UserDocumentsProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.repository.UserDocumentsRepository;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import jakarta.persistence.EntityNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class KycServiceImplTest {
@@ -83,6 +98,26 @@ class KycServiceImplTest {
    }
 
    @Test
+   void sendKycDocument_ProcessingError_ThrowsException() {
+       // Given
+       KycDocumentRequest request = new KycDocumentRequest(
+           TEST_FRONT_ID,
+           TEST_BACK_ID,
+           TEST_TAX_ID,
+           TEST_SELFIE_ID,
+           TEST_ACCOUNT_ID
+       );
+
+       when(userDocumentsRepository.save(any(UserDocumentsEntity.class)))
+           .thenThrow(new RuntimeException("Database error"));
+
+       // When & Then
+       assertThrows(KycProcessingException.class, () -> {
+           kycService.sendKycDocument(TEST_ACCOUNT_ID, request);
+       });
+   }
+
+   @Test
    void sendKycInfo_Success() {
        // Given
        KycInfoRequest request = new KycInfoRequest(
@@ -112,6 +147,25 @@ class KycServiceImplTest {
    }
 
    @Test
+   void sendKycInfo_ProcessingError_ThrowsException() {
+       // Given
+       KycInfoRequest request = new KycInfoRequest(
+           TEST_ID_NUMBER,
+           TEST_EXPIRY_DATE,
+           TEST_ACCOUNT_ID,
+           TEST_ID_TYPE
+       );
+
+       when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
+           .thenThrow(new RuntimeException("Database error"));
+
+       // When & Then
+       assertThrows(KycProcessingException.class, () -> {
+           kycService.sendKycInfo(TEST_ACCOUNT_ID, request);
+       });
+   }
+
+   @Test
    void sendKycLocation_Success() {
        // Given
        KycLocationRequest request = new KycLocationRequest(
@@ -119,11 +173,11 @@ class KycServiceImplTest {
            TEST_ACCOUNT_ID
        );
 
-       PersonalInfoEntity existingInfo = new PersonalInfoEntity();
+       PersonalInfoProjection existingInfo = mock(PersonalInfoProjection.class);
        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
            .thenReturn(Optional.of(existingInfo));
        when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
-           .thenReturn(existingInfo);
+           .thenReturn(new PersonalInfoEntity());
 
        // When
        String result = kycService.sendKycLocation(request);
@@ -134,6 +188,31 @@ class KycServiceImplTest {
    }
 
    @Test
+   void sendKycLocation_NullRequest_ThrowsException() {
+       // When & Then
+       assertThrows(IllegalArgumentException.class, () -> {
+           kycService.sendKycLocation(null);
+       });
+   }
+
+   @Test
+   void sendKycLocation_NoRecordFound_ThrowsException() {
+       // Given
+       KycLocationRequest request = new KycLocationRequest(
+           TEST_LOCATION,
+           TEST_ACCOUNT_ID
+       );
+
+       when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+           .thenReturn(Optional.empty());
+
+       // When & Then
+       assertThrows(EntityNotFoundException.class, () -> {
+           kycService.sendKycLocation(request);
+       });
+   }
+
+   @Test
    void sendKycEmail_Success() {
        // Given
        KycEmailRequest request = new KycEmailRequest(
@@ -141,11 +220,11 @@ class KycServiceImplTest {
            TEST_ACCOUNT_ID
        );
 
-       PersonalInfoEntity existingInfo = new PersonalInfoEntity();
+       PersonalInfoProjection existingInfo = mock(PersonalInfoProjection.class);
        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
            .thenReturn(Optional.of(existingInfo));
        when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
-           .thenReturn(existingInfo);
+           .thenReturn(new PersonalInfoEntity());
 
        // When
        String result = kycService.sendKycEmail(request);
@@ -156,14 +235,39 @@ class KycServiceImplTest {
    }
 
    @Test
+   void sendKycEmail_NullRequest_ThrowsException() {
+       // When & Then
+       assertThrows(IllegalArgumentException.class, () -> {
+           kycService.sendKycEmail(null);
+       });
+   }
+
+   @Test
+   void sendKycEmail_NoRecordFound_ThrowsException() {
+       // Given
+       KycEmailRequest request = new KycEmailRequest(
+           TEST_EMAIL,
+           TEST_ACCOUNT_ID
+       );
+
+       when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+           .thenReturn(Optional.empty());
+
+       // When & Then
+       assertThrows(EntityNotFoundException.class, () -> {
+           kycService.sendKycEmail(request);
+       });
+   }
+
+   @Test
    void getPersonalInfoAccountId_Success() {
        // Given
-       PersonalInfoEntity info = new PersonalInfoEntity();
+       PersonalInfoProjection info = mock(PersonalInfoProjection.class);
        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
            .thenReturn(Optional.of(info));
 
        // When
-       Optional<PersonalInfoEntity> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
+       Optional<PersonalInfoProjection> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
 
        // Then
        assertTrue(result.isPresent());
@@ -177,56 +281,55 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When
-       Optional<PersonalInfoEntity> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
+       Optional<PersonalInfoProjection> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
 
        // Then
        assertFalse(result.isPresent());
    }
 
    @Test
-   void sendKycDocument_ValidFileSize_Success() {
+   void getPendingKycRecords_Success() {
        // Given
-       // Create a base64 string that would result in a file size < 200KB
-       String validBase64String = "a".repeat(100 * 1024); // 100KB worth of base64 data
+       PersonalInfoProjection pendingInfo = mock(PersonalInfoProjection.class);
+       when(pendingInfo.getAccountId()).thenReturn(TEST_ACCOUNT_ID);
+       when(pendingInfo.getStatus()).thenReturn(PersonalInfoStatus.PENDING);
 
-       KycDocumentRequest request = new KycDocumentRequest(
-           validBase64String, // frontId
-           TEST_BACK_ID,
-           TEST_TAX_ID,
-           TEST_SELFIE_ID,
-           TEST_ACCOUNT_ID
-       );
+       UserDocumentsProjection pendingDoc = mock(UserDocumentsProjection.class);
+       when(pendingDoc.getStatus()).thenReturn(UserDocumentsStatus.PENDING);
 
-       when(userDocumentsRepository.save(any(UserDocumentsEntity.class)))
-           .thenReturn(new UserDocumentsEntity());
+       when(personalInfoRepository.findByStatus(PersonalInfoStatus.PENDING))
+           .thenReturn(Arrays.asList(pendingInfo));
+       when(userDocumentsRepository.findByAccountId(TEST_ACCOUNT_ID))
+           .thenReturn(Optional.of(pendingDoc));
 
        // When
-       String result = kycService.sendKycDocument(TEST_ACCOUNT_ID, request);
+       List<UserInfoResponse> result = kycService.getPendingKycRecords();
 
        // Then
-       assertEquals("KYC Document sent successfully and saved", result);
-       verify(userDocumentsRepository).save(any(UserDocumentsEntity.class));
+       assertEquals(1, result.size());
+       verify(personalInfoRepository).findByStatus(PersonalInfoStatus.PENDING);
+       verify(userDocumentsRepository).findByAccountId(TEST_ACCOUNT_ID);
    }
 
    @Test
-   void sendKycDocument_EmptyDocument_Success() {
+   void findByDocumentUniqueId_Success() {
        // Given
-       KycDocumentRequest request = new KycDocumentRequest(
-           "", // empty frontId
-           TEST_BACK_ID,
-           TEST_TAX_ID,
-           TEST_SELFIE_ID,
-           TEST_ACCOUNT_ID
-       );
+       PersonalInfoProjection info = mock(PersonalInfoProjection.class);
+       when(info.getAccountId()).thenReturn(TEST_ACCOUNT_ID);
 
-       when(userDocumentsRepository.save(any(UserDocumentsEntity.class)))
-           .thenReturn(new UserDocumentsEntity());
+       UserDocumentsProjection doc = mock(UserDocumentsProjection.class);
+
+       when(personalInfoRepository.findByDocumentUniqueId(TEST_ID_NUMBER))
+           .thenReturn(Arrays.asList(info));
+       when(userDocumentsRepository.findByAccountId(TEST_ACCOUNT_ID))
+           .thenReturn(Optional.of(doc));
 
        // When
-       String result = kycService.sendKycDocument(TEST_ACCOUNT_ID, request);
+       List<UserInfoResponse> result = kycService.findByDocumentUniqueId(TEST_ID_NUMBER);
 
        // Then
-       assertEquals("KYC Document sent successfully and saved", result);
-       verify(userDocumentsRepository).save(any(UserDocumentsEntity.class));
+       assertEquals(1, result.size());
+       verify(personalInfoRepository).findByDocumentUniqueId(TEST_ID_NUMBER);
+       verify(userDocumentsRepository).findByAccountId(TEST_ACCOUNT_ID);
    }
 }

@@ -1,18 +1,24 @@
 package com.adorsys.webank.service;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.dto.*;
-import org.springframework.stereotype.*;
+import java.util.List;
+import java.util.Optional;
 
-import java.util.*;
+import org.springframework.stereotype.Service;
+
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
+import com.adorsys.webank.projection.PersonalInfoProjection;
 
 @Service
 public interface KycServiceApi {
-    String sendKycDocument( String AccountId, KycDocumentRequest kycDocumentRequest);
+    String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest);
     String sendKycInfo(String AccountId, KycInfoRequest kycInfoRequest);
     String sendKycLocation(KycLocationRequest kycLocationRequest);
     String sendKycEmail(KycEmailRequest kycEmailRequest);
-    Optional<PersonalInfoEntity> getPersonalInfoAccountId(String accountId);
+    Optional<PersonalInfoProjection> getPersonalInfoAccountId(String accountId);
     List<UserInfoResponse> getPendingKycRecords();
     List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId);
 }

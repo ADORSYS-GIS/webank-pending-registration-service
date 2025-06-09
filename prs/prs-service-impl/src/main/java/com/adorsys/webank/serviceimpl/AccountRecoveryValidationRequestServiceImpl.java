@@ -1,7 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.AccountRecoveryResponse;
-import com.adorsys.webank.security.CertGeneratorHelper;
+import com.adorsys.webank.config.CertGeneratorHelper;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;

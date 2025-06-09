@@ -1,22 +1,31 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.nimbusds.jose.jwk.*;
-import jakarta.transaction.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.stereotype.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.Optional;
 
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import com.adorsys.error.ValidationException;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.projection.OtpProjection;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.webank.service.OtpServiceApi;
+import com.nimbusds.jose.jwk.ECKey;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -25,15 +34,14 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
     @Value("${otp.salt}")
     private String salt;
+
 
     // Constructor
     public OtpServiceImpl(OtpRequestRepository otpRequestRepository) {
         this.otpRequestRepository = otpRequestRepository;
     }
-
 
     @Override
     public String generateOtp() {
@@ -44,10 +52,12 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(JWK devicePub, String phoneNumber) {
+    public String sendOtp(String phoneNumber) {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             throw new IllegalArgumentException("Invalid phone number format");
         }
+
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
 
         try {
             String otp = generateOtp();
@@ -73,8 +83,16 @@ public class OtpServiceImpl implements OtpServiceApi {
                         .build();
             } else {
                 // 3. If record was updated, fetch it
-                otpRequest = otpRequestRepository.findByPublicKeyHash(publicKeyHash)
-                        .orElseThrow(() -> new FailedToSendOTPException("Failed to fetch updated OTP record"));
+                Optional<OtpProjection> otpProjectionOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+                if (otpProjectionOpt.isEmpty()) {
+                    throw new FailedToSendOTPException("Failed to fetch updated OTP record");
+                }
+                OtpProjection otpProjection = otpProjectionOpt.get();
+                otpRequest = new OtpEntity();
+                otpRequest.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpRequest.setPublicKeyHash(otpProjection.getPublicKeyHash());
+                otpRequest.setStatus(otpProjection.getStatus());
+                otpRequest.setCreatedAt(otpProjection.getCreatedAt());
             }
 
             // Generate OTP hash
@@ -97,27 +115,27 @@ public class OtpServiceImpl implements OtpServiceApi {
         }
     }
 
-
     @Override
-    public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
-        if (phoneNumber == null || phoneNumber.isEmpty()) {
-            throw new ValidationException("Phone number is required");
-        }
-        if (otpInput == null || otpInput.isEmpty()) {
-            throw new ValidationException("OTP is required");
-        }
+    public String validateOtp(String phoneNumber,String otpInput) {
+
+        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
+
+
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
 
-            Optional<OtpEntity> otpEntityOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
-            if (otpEntityOpt.isEmpty()) {
+            Optional<OtpProjection> otpProjectionOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+            if (otpProjectionOpt.isEmpty()) {
                 return "No OTP request found for this public key";
             }
 
-            OtpEntity otpEntity = otpEntityOpt.get();
+            OtpProjection otpProjection = otpProjectionOpt.get();
             LocalDateTime now = LocalDateTime.now();
-            if (otpEntity.getCreatedAt().isBefore(now.minusMinutes(5))) {
+            if (otpProjection.getCreatedAt().isBefore(now.minusMinutes(5))) {
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "OTP expired. Request a new one.";
@@ -134,11 +152,17 @@ public class OtpServiceImpl implements OtpServiceApi {
             String newOtpHash = computeHash(input);
             log.info("OTP newOtpHash:{}", newOtpHash);
 
-            if (newOtpHash.equals(otpEntity.getOtpHash())) {
+            if (newOtpHash.equals(otpProjection.getOtpHash())) {
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";
             } else {
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
                 throw new ValidationException("Invalid OTP");
@@ -163,5 +187,4 @@ public class OtpServiceImpl implements OtpServiceApi {
     private String computePublicKeyHash(String devicePublicKey) {
         return computeHash(devicePublicKey);
     }
-
 }

@@ -1,26 +1,33 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import jakarta.annotation.Resource;
-import jakarta.mail.*;
-import jakarta.mail.internet.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.core.io.*;
-import org.springframework.mail.javamail.*;
-import org.springframework.stereotype.Service;
-
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.time.format.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Service;
+
 import com.adorsys.error.ValidationException;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.EmailOtpServiceApi;
+
+import jakarta.annotation.Resource;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
@@ -64,7 +71,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
         try {
             String otp = generateOtp();
-            Optional<PersonalInfoEntity> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
             PersonalInfoEntity personalInfo;
 
             if (personalInfoOpt.isEmpty()) {
@@ -73,7 +80,8 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
                         .accountId(accountId)
                         .build();
             } else {
-                personalInfo = personalInfoOpt.get();
+                personalInfo = new PersonalInfoEntity();
+                personalInfo.setAccountId(accountId);
                 log.debug("Existing PersonalInfoEntity found: {}", personalInfo);
             }
 
@@ -106,8 +114,16 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         }
         log.info("Validating OTP for email: {}, accountId: {}", email, accountId);
         try {
-            PersonalInfoEntity personalInfo = personalInfoRepository.findByAccountId(accountId)
-                    .orElseThrow(() -> new IllegalArgumentException("User record not found"));
+            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
+            if (personalInfoOpt.isEmpty()) {
+                throw new IllegalArgumentException("User record not found");
+            }
+
+            PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+            personalInfo.setAccountId(accountId);
+            personalInfo.setEmailOtpCode(personalInfoOpt.get().getEmailOtpCode());
+            personalInfo.setEmailOtpHash(personalInfoOpt.get().getEmailOtpHash());
+            personalInfo.setOtpExpirationDateTime(personalInfoOpt.get().getOtpExpirationDateTime());
 
             validateOtpExpiration(personalInfo);
 

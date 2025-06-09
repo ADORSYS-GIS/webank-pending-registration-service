@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -8,6 +8,8 @@ import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import com.adorsys.webank.exceptions.JwtPayloadParseException;
 
 import java.text.ParseException;
 
@@ -32,12 +34,14 @@ public class CertValidator {
             return verifySignature(certJwt, jwk);
         } catch (ParseException e) {
             log.error("Error parsing JWT: ", e);
+            throw new JwtPayloadParseException("Error parsing JWT", e);
         } catch (JOSEException e) {
             log.error("Error verifying JWT signature: ", e);
+            throw new SecurityConfigurationException("Error verifying JWT signature", e);
         } catch (Exception e) {
             log.error("Unexpected error during JWT validation: ", e);
+            throw new SecurityConfigurationException("Unexpected error during JWT validation", e);
         }
-        return false;
     }
 
     private SignedJWT parseJWT(String token) throws ParseException {
@@ -63,7 +67,7 @@ public class CertValidator {
 
     private boolean verifySignature(SignedJWT certJwt, JWK jwk) throws JOSEException {
         if (!(jwk instanceof ECKey publicKey) || jwk.isPrivate()) {
-            throw new IllegalArgumentException("Invalid JWK provided by backend.");
+            throw new SecurityConfigurationException("Invalid JWK provided by backend", null);
         }
 
         JWSVerifier certVerifier = new ECDSAVerifier(publicKey);

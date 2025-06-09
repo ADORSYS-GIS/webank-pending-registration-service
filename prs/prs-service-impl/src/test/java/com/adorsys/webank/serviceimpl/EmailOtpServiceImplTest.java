@@ -1,297 +1,179 @@
-// package com.adorsys.webank.serviceimpl;
+package com.adorsys.webank.serviceimpl;
 
-// import com.adorsys.webank.domain.PersonalInfoEntity;
-// import com.adorsys.webank.exceptions.FailedToSendOTPException;
-// import com.adorsys.webank.repository.PersonalInfoRepository;
-// import com.adorsys.error.ValidationException;
-// import jakarta.mail.MessagingException;
-// import jakarta.mail.internet.MimeMessage;
-// import org.junit.jupiter.api.BeforeEach;
-// import org.junit.jupiter.api.Test;
-// import org.junit.jupiter.api.extension.ExtendWith;
-// import org.mockito.*;
-// import org.mockito.junit.jupiter.MockitoExtension;
-// import org.springframework.mail.javamail.JavaMailSender;
-// import org.springframework.mail.javamail.MimeMessageHelper;
-// import org.springframework.test.util.ReflectionTestUtils;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import com.nimbusds.jose.jwk.Curve;
+import jakarta.mail.internet.MimeMessage;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-// import java.time.LocalDateTime;
-// import java.util.Optional;
+import java.lang.reflect.Field;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
-// import static org.junit.jupiter.api.Assertions.*;
-// import static org.mockito.ArgumentMatchers.any;
-// import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-// @ExtendWith(MockitoExtension.class)
-// class EmailOtpServiceImplTest {
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+public class EmailOtpServiceImplTest {
+    private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImplTest.class);
 
-//     @Mock
-//     private PersonalInfoRepository personalInfoRepository;
+    @Mock
+    private PersonalInfoRepository personalInfoRepository;
 
-//     @Mock
-//     private JavaMailSender mailSender;
+    @Mock
+    private JavaMailSender mailSender;
 
-//     @InjectMocks
-//     private EmailOtpServiceImpl emailOtpService;
+    @InjectMocks
+    private EmailOtpServiceImpl emailOtpService;
 
-//     private static final String TEST_EMAIL = "test@example.com";
-//     private static final String TEST_ACCOUNT_ID = "test-account-id";
-//     private static final String TEST_SALT = "test-salt";
-//     private static final String TEST_OTP = "123456";
-//     private static final String TEST_FROM_EMAIL = "no-reply@test.com";
+    private ECKey deviceKey;
+    private static final String TEST_EMAIL = "user@example.com";
+    private static final String TEST_OTP = "123456";
+    private static final String TEST_SALT = "test-salt";
 
-//     @BeforeEach
-//     void setUp() {
-//         ReflectionTestUtils.setField(emailOtpService, "salt", TEST_SALT);
-//         ReflectionTestUtils.setField(emailOtpService, "fromEmail", TEST_FROM_EMAIL);
-        
-//         // Mock MimeMessage and MimeMessageHelper
-//         MimeMessage mimeMessage = mock(MimeMessage.class);
-//         MimeMessageHelper helper = mock(MimeMessageHelper.class);
-//         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-//     }
+    @BeforeEach
+    public void setUp() throws Exception {
+        deviceKey = new ECKeyGenerator(Curve.P_256).generate();
 
-//     @Test
-//     void testGenerateOtp() {
-//         // Act
-//         String otp = emailOtpService.generateOtp();
+        // Inject mailSender using reflection
+        Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
+        mailSenderField.setAccessible(true);
+        mailSenderField.set(emailOtpService, mailSender);
 
-//         // Assert
-//         assertNotNull(otp);
-//         assertEquals(6, otp.length());
-//         assertTrue(otp.matches("\\d{6}"));
-//     }
+        // Inject salt and fromEmail using reflection
+        setField("salt", TEST_SALT);
+        setField("fromEmail", "no-reply@test.com");
+    }
 
-//     @Test
-//     void testSendEmailOtp_Success() throws MessagingException {
-//         // Arrange
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.empty());
-//         doNothing().when(mailSender).send(any(MimeMessage.class));
+    private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
+        Field field = EmailOtpServiceImpl.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(emailOtpService, value);
+    }
 
-//         // Act
-//         String result = emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, TEST_EMAIL);
+    @Test
+    public void testGenerateOtp() {
+        String otp = emailOtpService.generateOtp();
+        assertEquals(6, otp.length());
+        assertTrue(otp.matches("\\d+"));
+    }
 
-//         // Assert
-//         assertEquals("Email OTP sent successfully", result);
-//         verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
-//         verify(mailSender).send(any(MimeMessage.class));
-//     }
+    @Test
+    public void testSendEmailOtp_Success() throws Exception {
+        // Arrange
+        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
 
-//     @Test
-//     void testSendEmailOtp_UpdateExisting() throws MessagingException {
-//         // Arrange
-//         PersonalInfoEntity existingEntity = new PersonalInfoEntity();
-//         existingEntity.setAccountId(TEST_ACCOUNT_ID);
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(existingEntity));
-//         doNothing().when(mailSender).send(any(MimeMessage.class));
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
+        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
 
-//         // Act
-//         String result = emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, TEST_EMAIL);
+        // Act & Assert
+        assertDoesNotThrow(() -> {
+            String result = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
+            assertEquals("OTP sent successfully to " + TEST_EMAIL, result);
+        });
 
-//         // Assert
-//         assertEquals("Email OTP sent successfully", result);
-//         verify(personalInfoRepository).save(existingEntity);
-//         verify(mailSender).send(any(MimeMessage.class));
-//     }
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
+    }
 
-//     @Test
-//     void testSendEmailOtp_NullAccountId() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.sendEmailOtp(null, TEST_EMAIL)
-//         );
-//         assertEquals("Account ID is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//         verify(mailSender, never()).send(any(MimeMessage.class));
-//     }
+    @Test
+    public void testSendEmailOtp_InvalidEmail() {
+        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        assertThrows(IllegalArgumentException.class, () ->
+                emailOtpService.sendEmailOtp(accountId, "invalid-email")
+        );
+    }
 
-//     @Test
-//     void testSendEmailOtp_EmptyAccountId() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.sendEmailOtp("", TEST_EMAIL)
-//         );
-//         assertEquals("Account ID is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//         verify(mailSender, never()).send(any(MimeMessage.class));
-//     }
+    @Test
+    public void testValidateEmailOtp_Valid() throws Exception {
+        // Arrange
+        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
+        when(projection.getEmailOtpCode()).thenReturn(TEST_OTP);
+        when(projection.getEmailOtpHash()).thenReturn(computeOtpHash(TEST_OTP, accountId));
+        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().plusMinutes(1));
 
-//     @Test
-//     void testSendEmailOtp_NullEmail() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, null)
-//         );
-//         assertEquals("Email is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//         verify(mailSender, never()).send(any(MimeMessage.class));
-//     }
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
-//     @Test
-//     void testSendEmailOtp_EmptyEmail() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, "")
-//         );
-//         assertEquals("Email is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//         verify(mailSender, never()).send(any(MimeMessage.class));
-//     }
+        // Act
+        String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
 
-//     @Test
-//     void testSendEmailOtp_InvalidEmailFormat() {
-//         // Act & Assert
-//         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-//             emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, "invalid-email")
-//         );
-//         assertEquals("Invalid email format", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//         verify(mailSender, never()).send(any(MimeMessage.class));
-//     }
+        // Assert
+        assertEquals("Webank email verified successfully", result);
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
+    }
 
-//     @Test
-//     void testSendEmailOtp_MailSenderError() throws MessagingException {
-//         // Arrange
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.empty());
-//         doThrow(new MessagingException("Failed to send email")).when(mailSender).send(any(MimeMessage.class));
+    @Test
+    public void testValidateEmailOtp_Expired() {
+        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
+        when(projection.getAccountId()).thenReturn(accountId);
+        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().minusMinutes(1));
 
-//         // Act & Assert
-//         FailedToSendOTPException exception = assertThrows(FailedToSendOTPException.class, () ->
-//             emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, TEST_EMAIL)
-//         );
-//         assertTrue(exception.getMessage().contains("Failed to send Webank email OTP"));
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//     }
+        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
-//     @Test
-//     void testValidateEmailOtp_Success() {
-//         // Arrange
-//         PersonalInfoEntity entity = new PersonalInfoEntity();
-//         entity.setAccountId(TEST_ACCOUNT_ID);
-//         entity.setEmailOtpCode(TEST_OTP);
-//         entity.setEmailOtpHash(emailOtpService.computeOtpHash(TEST_OTP, TEST_ACCOUNT_ID));
-//         entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(5));
-        
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(entity));
-//         when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(entity);
+        assertThrows(IllegalArgumentException.class, () ->
+                emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
+        );
+    }
 
-//         // Act
-//         String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, TEST_ACCOUNT_ID);
+    @Test
+    public void testComputeOtpHash() throws Exception {
+        String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        String inputJson = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
+                TEST_OTP, accountId, TEST_SALT);
 
-//         // Assert
-//         assertEquals("Email OTP validated successfully", result);
-//         assertEquals(TEST_EMAIL, entity.getEmail());
-//         verify(personalInfoRepository).save(entity);
-//     }
+        String canonicalJson = new JsonCanonicalizer(inputJson).getEncodedString();
+        String expectedHash = bytesToHex(MessageDigest.getInstance("SHA-256")
+                .digest(canonicalJson.getBytes()));
 
-//     @Test
-//     void testValidateEmailOtp_NullEmail() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.validateEmailOtp(null, TEST_OTP, TEST_ACCOUNT_ID)
-//         );
-//         assertEquals("Email is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//     }
+        String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
 
-//     @Test
-//     void testValidateEmailOtp_NullOtp() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.validateEmailOtp(TEST_EMAIL, null, TEST_ACCOUNT_ID)
-//         );
-//         assertEquals("OTP is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//     }
+        log.info("Expected: " + expectedHash);
+        log.info("Actual:   " + actualHash);
 
-//     @Test
-//     void testValidateEmailOtp_NullAccountId() {
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, null)
-//         );
-//         assertEquals("Account ID is required", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//     }
+        assertEquals(expectedHash, actualHash);
+    }
 
-//     @Test
-//     void testValidateEmailOtp_ExpiredOtp() {
-//         // Arrange
-//         PersonalInfoEntity entity = new PersonalInfoEntity();
-//         entity.setAccountId(TEST_ACCOUNT_ID);
-//         entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
+    @Test
+    public void testCanonicalizeJson() {
+        String json = "{\"b\":2, \"a\":1}";
+        String canonical = emailOtpService.canonicalizeJson(json);
+        assertEquals("{\"a\":1,\"b\":2}", canonical);
+    }
 
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(entity));
-//         when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(entity);
+    private String computePublicKeyHash(String publicKeyJson) {
+        return emailOtpService.computeHash(publicKeyJson);
+    }
 
-//         // Act & Assert
-//         FailedToSendOTPException exception = assertThrows(FailedToSendOTPException.class, () ->
-//             emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, TEST_ACCOUNT_ID)
-//         );
-//         assertEquals("Webank OTP expired", exception.getMessage());
-//         verify(personalInfoRepository).save(entity);
-//     }
+    private String computeOtpHash(String otp, String accountId) {
+        return emailOtpService.computeOtpHash(otp, accountId);
+    }
 
-//     @Test
-//     void testValidateEmailOtp_InvalidOtp() {
-//         // Arrange
-//         PersonalInfoEntity entity = new PersonalInfoEntity();
-//         entity.setAccountId(TEST_ACCOUNT_ID);
-//         entity.setEmailOtpCode(TEST_OTP);
-//         entity.setEmailOtpHash(emailOtpService.computeOtpHash(TEST_OTP, TEST_ACCOUNT_ID));
-//         entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(5));
-        
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(entity));
-//         when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(entity);
-
-//         // Act & Assert
-//         ValidationException exception = assertThrows(ValidationException.class, () ->
-//             emailOtpService.validateEmailOtp(TEST_EMAIL, "654321", TEST_ACCOUNT_ID)
-//         );
-//         assertEquals("Invalid OTP", exception.getMessage());
-//         verify(personalInfoRepository).save(entity);
-//     }
-
-//     @Test
-//     void testValidateEmailOtp_UserNotFound() {
-//         // Arrange
-//         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.empty());
-
-//         // Act & Assert
-//         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-//             emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, TEST_ACCOUNT_ID)
-//         );
-//         assertEquals("User record not found", exception.getMessage());
-//         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
-//     }
-
-//     @Test
-//     void testComputeOtpHash() {
-//         // Arrange
-//         String expectedHash = emailOtpService.computeHash(
-//             emailOtpService.canonicalizeJson(
-//                 String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-//                     TEST_OTP, TEST_ACCOUNT_ID, TEST_SALT)
-//             )
-//         );
-
-//         // Act
-//         String actualHash = emailOtpService.computeOtpHash(TEST_OTP, TEST_ACCOUNT_ID);
-
-//         // Assert
-//         assertEquals(expectedHash, actualHash);
-//     }
-
-//     @Test
-//     void testCanonicalizeJson() {
-//         // Arrange
-//         String input = "{\"b\":2,\"a\":1}";
-//         String expected = "{\"a\":1,\"b\":2}";
-
-//         // Act
-//         String result = emailOtpService.canonicalizeJson(input);
-
-//         // Assert
-//         assertEquals(expected, result);
-//     }
-// } 
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder hex = new StringBuilder();
+        for (byte b : bytes) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
+    }
+}

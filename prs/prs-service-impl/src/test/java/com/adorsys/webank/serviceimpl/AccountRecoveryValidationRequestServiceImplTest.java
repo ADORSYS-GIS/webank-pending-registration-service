@@ -1,7 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.dto.AccountRecoveryResponse;
-import com.adorsys.webank.security.CertGeneratorHelper;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -12,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import com.adorsys.webank.config.CertGeneratorHelper;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;

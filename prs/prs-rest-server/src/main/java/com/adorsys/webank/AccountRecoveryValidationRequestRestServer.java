@@ -2,7 +2,7 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.AccountRecovery;
 import com.adorsys.webank.dto.AccountRecoveryResponse;
-import com.adorsys.webank.security.JwtValidator;
+import com.adorsys.webank.config.JwtValidator;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.adorsys.error.JwtValidationException;

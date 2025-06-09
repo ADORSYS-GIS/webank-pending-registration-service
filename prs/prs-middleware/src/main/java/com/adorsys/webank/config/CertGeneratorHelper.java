@@ -1,4 +1,4 @@
-package com.adorsys.webank.security;
+package com.adorsys.webank.config;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
@@ -9,7 +9,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import  com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.ECKey;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import com.adorsys.webank.exceptions.JwtPayloadParseException;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,11 +34,10 @@ public class CertGeneratorHelper {
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
 
-
     public String generateCertificate(String deviceJwkJson) {
         if (deviceJwkJson == null || deviceJwkJson.trim().isEmpty()) {
             log.error("Device JWK is null or empty");
-            return "Error generating device certificate: Device JWK JSON must not be null or empty.";
+            throw new SecurityConfigurationException("Device JWK JSON must not be null or empty", null);
         }
 
         try {
@@ -65,9 +67,18 @@ public class CertGeneratorHelper {
 
             return signedJWT.serialize();
 
-        } catch (IllegalStateException | JOSEException | ParseException | NoSuchAlgorithmException e) {
+        } catch (ParseException e) {
+            log.error("Error parsing JWK", e);
+            throw new JwtPayloadParseException("Error parsing JWK: " + e.getMessage(), e);
+        } catch (JOSEException e) {
+            log.error("Error signing JWT", e);
+            throw new SecurityConfigurationException("Error signing JWT: " + e.getMessage(), e);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("Error computing KID", e);
+            throw new SecurityConfigurationException("Error computing KID: " + e.getMessage(), e);
+        } catch (Exception e) {
             log.error("Error generating certificate", e);
-            return "Error generating device certificate: " + e.getMessage();
+            throw new SecurityConfigurationException("Error generating certificate: " + e.getMessage(), e);
         }
     }
 

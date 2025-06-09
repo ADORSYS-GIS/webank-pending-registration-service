@@ -1,45 +1,45 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.TokenRequest;
-import com.adorsys.error.ValidationException;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.text.ParseException;
+import java.util.Date;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.text.ParseException;
-import java.util.Date;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.config.KeyLoader;
+import com.adorsys.webank.dto.TokenRequest;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jwt.SignedJWT;
 
 @ExtendWith(MockitoExtension.class)
-class TokenServiceImplTest {
+public class TokenServiceImplTest {
+    private static final Logger LOG = LoggerFactory.getLogger(TokenServiceImplTest.class);
+    
+    private static final String TEST_OLD_ACCOUNT_ID = "old-account-123";
+    private static final String TEST_NEW_ACCOUNT_ID = "new-account-456";
+    private static final String TEST_ISSUER = "test-issuer";
+    private static final long TEST_EXPIRATION_TIME_MS = 3600000L; // 1 hour
+    private static final String TEST_PRIVATE_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\",\"d\":\"870MB6gfuTJ4HtUnUvYMyJpr5eUZNP4Bk43bVdj3eAE\"}";
+    private static final String TEST_PUBLIC_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\"}";
+
+    @Mock
+    private KeyLoader keyLoader;
 
     @InjectMocks
     private TokenServiceImpl tokenService;
-
-    private static final String TEST_OLD_ACCOUNT_ID = "old-account-id";
-    private static final String TEST_NEW_ACCOUNT_ID = "new-account-id";
-    private static final String TEST_PRIVATE_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\",\"d\":\"870MB6gfuTJ4HtUnUvYMyJpr5eUZNP4Bk43bVdj3eAE\"}";
-    private static final String TEST_PUBLIC_KEY = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4\",\"y\":\"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM\"}";
-    private static final String TEST_ISSUER = "test-issuer";
-    private static final Long TEST_EXPIRATION_TIME_MS = 3600000L; // 1 hour
 
     @BeforeEach
     void setUp() {
@@ -50,30 +50,30 @@ class TokenServiceImplTest {
         ReflectionTestUtils.setField(tokenService, "expirationTimeMs", TEST_EXPIRATION_TIME_MS);
     }
 
-    // @Test
-    // void requestRecoveryToken_Success() throws ParseException, JOSEException {
-    //     // Arrange
-    //     TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
+    @Test
+    void requestRecoveryToken_Success() throws ParseException, JOSEException {
+        // Arrange
+        TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
 
-    //     // Act
-    //     String token = tokenService.requestRecoveryToken(request);
+        // Act
+        String token = tokenService.requestRecoveryToken(request);
 
-    //     // Assert
-    //     assertNotNull(token);
-    //     assertTrue(token.split("\\.").length == 3); // JWT should have 3 parts
+        // Assert
+        assertNotNull(token);
+        assertTrue(token.split("\\.").length == 3); // JWT should have 3 parts
         
-    //     // Verify JWT contents
-    //     SignedJWT signedJWT = SignedJWT.parse(token);
-    //     assertEquals(TEST_ISSUER, signedJWT.getJWTClaimsSet().getIssuer());
-    //     assertEquals("RecoveryToken", signedJWT.getJWTClaimsSet().getSubject());
-    //     assertEquals(TEST_OLD_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("oldAccountId"));
-    //     assertEquals(TEST_NEW_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("newAccountId"));
+        // Verify JWT contents
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        assertEquals(TEST_ISSUER, signedJWT.getJWTClaimsSet().getIssuer());
+        assertEquals("RecoveryToken", signedJWT.getJWTClaimsSet().getSubject());
+        assertEquals(TEST_OLD_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("oldAccountId"));
+        assertEquals(TEST_NEW_ACCOUNT_ID, signedJWT.getJWTClaimsSet().getClaim("newAccountId"));
         
-    //     // Verify expiration
-    //     Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-    //     assertNotNull(expirationTime);
-    //     assertTrue(expirationTime.after(new Date(System.currentTimeMillis() + TEST_EXPIRATION_TIME_MS - 5000))); // Allow for small time differences
-    // }
+        // Verify expiration
+        Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        assertNotNull(expirationTime);
+        assertTrue(expirationTime.after(new Date(System.currentTimeMillis() + TEST_EXPIRATION_TIME_MS - 5000))); // Allow for small time differences
+    }
 
     @Test
     void requestRecoveryToken_NullOldAccountId() {
@@ -84,7 +84,7 @@ class TokenServiceImplTest {
         ValidationException exception = assertThrows(ValidationException.class, () ->
             tokenService.requestRecoveryToken(request)
         );
-        assertEquals("New account ID is required", exception.getMessage());
+        assertEquals("Old account ID is required", exception.getMessage());
     }
 
     @Test
@@ -96,7 +96,7 @@ class TokenServiceImplTest {
         ValidationException exception = assertThrows(ValidationException.class, () ->
             tokenService.requestRecoveryToken(request)
         );
-        assertEquals("New account ID is required", exception.getMessage());
+        assertEquals("Old account ID is required", exception.getMessage());
     }
 
     @Test
@@ -108,7 +108,7 @@ class TokenServiceImplTest {
         ValidationException exception = assertThrows(ValidationException.class, () ->
             tokenService.requestRecoveryToken(request)
         );
-        assertEquals("Old account ID is required", exception.getMessage());
+        assertEquals("New account ID is required", exception.getMessage());
     }
 
     @Test
@@ -120,7 +120,7 @@ class TokenServiceImplTest {
         ValidationException exception = assertThrows(ValidationException.class, () ->
             tokenService.requestRecoveryToken(request)
         );
-        assertEquals("Old account ID is required", exception.getMessage());
+        assertEquals("New account ID is required", exception.getMessage());
     }
 
     @Test
@@ -129,11 +129,10 @@ class TokenServiceImplTest {
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
         ReflectionTestUtils.setField(tokenService, "SERVER_PRIVATE_KEY_JSON", "invalid-key");
 
-        // Act
-        String token = tokenService.requestRecoveryToken(request);
-
-        // Assert
-        assertNull(token);
+        // Act & Assert
+        assertThrows(RuntimeException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
     }
 
     @Test
@@ -142,41 +141,34 @@ class TokenServiceImplTest {
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
         ReflectionTestUtils.setField(tokenService, "SERVER_PUBLIC_KEY_JSON", "invalid-key");
 
-        // Act
-        String token = tokenService.requestRecoveryToken(request);
-
-        // Assert
-        assertNull(token);
+        // Act & Assert
+        assertThrows(RuntimeException.class, () ->
+            tokenService.requestRecoveryToken(request)
+        );
     }
 
     @Test
-    void requestRecoveryToken_InvalidExpirationTime() {
+    void requestRecoveryToken_InvalidExpirationTime() throws ParseException {
         // Arrange
         TokenRequest request = new TokenRequest(TEST_OLD_ACCOUNT_ID, TEST_NEW_ACCOUNT_ID);
-        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", -1000L); // A negative value or 0 might be treated differently, using a past time instead
+        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", -1000L);
 
         // Act
         String token = tokenService.requestRecoveryToken(request);
 
         // Assert
-        assertNotNull(token); // The service likely generates a token that is immediately expired
-         try {
-            SignedJWT signedJWT = SignedJWT.parse(token);
-            Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-            assertNotNull(expirationTime);
-            assertTrue(expirationTime.before(new Date()));
-        } catch (ParseException e) {
-            fail("Failed to parse JWT: " + e.getMessage());
-        }
+        assertNotNull(token);
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        assertNotNull(expirationTime);
+        assertTrue(expirationTime.before(new Date()));
     }
 
-    // @Test
-    // void requestRecoveryToken_NullRequest_ReturnsNull() {
-    //     // When
-    //     String token = tokenService.requestRecoveryToken(null);
-
-    //     // Then
-    //     assertNull(token);
-    // }
-
+    @Test
+    void requestRecoveryToken_NullRequest() {
+        // Act & Assert
+        assertThrows(ValidationException.class, () ->
+            tokenService.requestRecoveryToken(null)
+        );
+    }
 } 

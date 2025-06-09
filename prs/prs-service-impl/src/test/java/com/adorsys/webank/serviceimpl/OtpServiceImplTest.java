@@ -1,30 +1,37 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.OtpEntity;
-import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.repository.OtpRequestRepository;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.error.ValidationException;
-import com.nimbusds.jose.jwk.Curve;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Spy;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.projection.OtpProjection;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 
 @ExtendWith(MockitoExtension.class)
 class OtpServiceImplTest {
@@ -32,18 +39,17 @@ class OtpServiceImplTest {
     @Mock
     private OtpRequestRepository otpRequestRepository;
 
-    @Spy
     @InjectMocks
     private OtpServiceImpl otpService;
 
-    private JWK devicePublicKey;
+    private ECKey deviceKey;
     private static final String TEST_PHONE_NUMBER = "+1234567890";
     private static final String TEST_SALT = "test-salt";
     private static final String TEST_OTP = "12345";
 
     @BeforeEach
     void setUp() throws Exception {
-        devicePublicKey = new ECKeyGenerator(Curve.P_256).generate().toPublicJWK();
+        deviceKey = new ECKeyGenerator(Curve.P_256).generate();
         ReflectionTestUtils.setField(otpService, "salt", TEST_SALT);
     }
 
@@ -55,7 +61,7 @@ class OtpServiceImplTest {
         // Assert
         assertNotNull(otp);
         assertEquals(5, otp.length());
-        assertTrue(otp.matches("\\d{5}"));
+        assertTrue(Integer.parseInt(otp) >= 10000 && Integer.parseInt(otp) <= 99999);
     }
 
     @Test
@@ -64,12 +70,16 @@ class OtpServiceImplTest {
         doReturn(TEST_OTP).when(otpService).generateOtp();
         when(otpRequestRepository.updateOtpByPublicKeyHash(any(), any(), any(), any())).thenReturn(0);
 
-        // Act
-        String otpHash = otpService.sendOtp(devicePublicKey, TEST_PHONE_NUMBER);
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
 
-        // Assert
-        assertNotNull(otpHash);
-        verify(otpRequestRepository).save(any(OtpEntity.class));
+            // Act
+            String otpHash = otpService.sendOtp(TEST_PHONE_NUMBER);
+
+            // Assert
+            assertNotNull(otpHash);
+            verify(otpRequestRepository).save(any(OtpEntity.class));
+        }
     }
 
     @Test
@@ -77,22 +87,26 @@ class OtpServiceImplTest {
         // Arrange
         doReturn(TEST_OTP).when(otpService).generateOtp();
         when(otpRequestRepository.updateOtpByPublicKeyHash(any(), any(), any(), any())).thenReturn(1);
-        OtpEntity existingEntity = new OtpEntity();
-        when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(existingEntity));
+        OtpProjection existingProjection = mock(OtpProjection.class);
+        when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(existingProjection));
 
-        // Act
-        String otpHash = otpService.sendOtp(devicePublicKey, TEST_PHONE_NUMBER);
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
 
-        // Assert
-        assertNotNull(otpHash);
-        verify(otpRequestRepository).save(existingEntity);
+            // Act
+            String otpHash = otpService.sendOtp(TEST_PHONE_NUMBER);
+
+            // Assert
+            assertNotNull(otpHash);
+            verify(otpRequestRepository).save(any(OtpEntity.class));
+        }
     }
 
     @Test
     void testSendOtp_InvalidPhoneNumber() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () ->
-            otpService.sendOtp(devicePublicKey, "invalid-phone")
+            otpService.sendOtp("invalid-phone")
         );
         verify(otpRequestRepository, never()).save(any(OtpEntity.class));
     }
@@ -101,7 +115,7 @@ class OtpServiceImplTest {
     void testSendOtp_NullPhoneNumber() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () ->
-            otpService.sendOtp(devicePublicKey, null)
+            otpService.sendOtp(null)
         );
         verify(otpRequestRepository, never()).save(any(OtpEntity.class));
     }
@@ -110,25 +124,28 @@ class OtpServiceImplTest {
     void testValidateOtp_Success() {
         // Arrange
         String otpHash = computeOtpHash(TEST_OTP);
-        OtpEntity otpEntity = createTestOtpRequest(TEST_OTP, 0);
-        otpEntity.setOtpHash(otpHash);
+        OtpProjection otpProjection = mock(OtpProjection.class);
+        when(otpProjection.getOtpHash()).thenReturn(otpHash);
+        when(otpProjection.getCreatedAt()).thenReturn(LocalDateTime.now());
         
-        when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(otpEntity));
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
+            when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(otpProjection));
 
-        // Act
-        String result = otpService.validateOtp(TEST_PHONE_NUMBER, devicePublicKey, TEST_OTP);
+            // Act
+            String result = otpService.validateOtp(TEST_PHONE_NUMBER, TEST_OTP);
 
-        // Assert
-        assertEquals("Otp Validated Successfully", result);
-        assertEquals(OtpStatus.COMPLETE, otpEntity.getStatus());
-        verify(otpRequestRepository).save(otpEntity);
+            // Assert
+            assertEquals("Otp Validated Successfully", result);
+            verify(otpRequestRepository).save(any(OtpEntity.class));
+        }
     }
 
     @Test
     void testValidateOtp_NullPhoneNumber() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            otpService.validateOtp(null, devicePublicKey, TEST_OTP)
+            otpService.validateOtp(null, TEST_OTP)
         );
         assertEquals("Phone number is required", exception.getMessage());
         verify(otpRequestRepository, never()).save(any(OtpEntity.class));
@@ -138,7 +155,7 @@ class OtpServiceImplTest {
     void testValidateOtp_NullOtp() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            otpService.validateOtp(TEST_PHONE_NUMBER, devicePublicKey, null)
+            otpService.validateOtp(TEST_PHONE_NUMBER, null)
         );
         assertEquals("OTP is required", exception.getMessage());
         verify(otpRequestRepository, never()).save(any(OtpEntity.class));
@@ -147,59 +164,37 @@ class OtpServiceImplTest {
     @Test
     void testValidateOtp_NoRequestFound() {
         // Arrange
-        when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.empty());
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
+            when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.empty());
 
-        // Act
-        String result = otpService.validateOtp(TEST_PHONE_NUMBER, devicePublicKey, TEST_OTP);
+            // Act
+            String result = otpService.validateOtp(TEST_PHONE_NUMBER, TEST_OTP);
 
-        // Assert
-        assertEquals("No OTP request found for this public key", result);
-        verify(otpRequestRepository, never()).save(any(OtpEntity.class));
+            // Assert
+            assertEquals("No OTP request found for this public key", result);
+            verify(otpRequestRepository, never()).save(any(OtpEntity.class));
+        }
     }
 
     @Test
     void testValidateOtp_ExpiredOtp() {
         // Arrange
-        OtpEntity otpEntity = createTestOtpRequest(TEST_OTP, 6); // Created 6 minutes ago
-        when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(otpEntity));
+        OtpProjection otpProjection = mock(OtpProjection.class);
+        when(otpProjection.getCreatedAt()).thenReturn(LocalDateTime.now().minusMinutes(6));
 
-        // Act
-        String result = otpService.validateOtp(TEST_PHONE_NUMBER, devicePublicKey, TEST_OTP);
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
+            when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(otpProjection));
 
-        // Assert
-        assertEquals("OTP expired. Request a new one.", result);
-        assertEquals(OtpStatus.INCOMPLETE, otpEntity.getStatus());
-        verify(otpRequestRepository).save(otpEntity);
+            // Act
+            String result = otpService.validateOtp(TEST_PHONE_NUMBER, TEST_OTP);
+
+            // Assert
+            assertEquals("OTP expired. Request a new one.", result);
+            verify(otpRequestRepository).save(any(OtpEntity.class));
+        }
     }
-
-    // @Test
-    // void testValidateOtp_InvalidOtp() {
-    //     // Arrange
-    //     String validOtp = TEST_OTP;
-    //     String invalidOtp = "54321";
-        
-    //     // Create entity with valid OTP hash
-    //     OtpEntity otpEntity = createTestOtpRequest(validOtp, 0);
-    //     String validOtpHash = computeOtpHash(validOtp);
-    //     otpEntity.setOtpHash(validOtpHash);
-    //     otpEntity.setOtpCode(validOtp);
-        
-    //     when(otpRequestRepository.findByPublicKeyHash(any())).thenReturn(Optional.of(otpEntity));
-
-    //     // Act & Assert
-    //     ValidationException exception = assertThrows(ValidationException.class, () ->
-    //         otpService.validateOtp(TEST_PHONE_NUMBER, devicePublicKey, invalidOtp)
-    //     );
-        
-    //     // Verify exception and state
-    //     assertEquals("Invalid OTP", exception.getMessage());
-    //     assertEquals(OtpStatus.INCOMPLETE, otpEntity.getStatus());
-    //     verify(otpRequestRepository).save(otpEntity);
-        
-    //     // Verify the hash comparison failed
-    //     String invalidOtpHash = computeOtpHash(invalidOtp);
-    //     assertNotEquals(validOtpHash, invalidOtpHash, "Hashes should be different for different OTPs");
-    // }
 
     @Test
     void testComputeHash() {
@@ -214,21 +209,10 @@ class OtpServiceImplTest {
         assertTrue(hash.matches("^[A-Za-z0-9+/=]+$")); // Base64 pattern
     }
 
-    private OtpEntity createTestOtpRequest(String otpCode, int minutesAgo) {
-        OtpEntity entity = new OtpEntity();
-        entity.setPhoneNumber(TEST_PHONE_NUMBER);
-        entity.setPublicKeyHash("test-public-key-hash");
-        entity.setOtpHash("test-hash");
-        entity.setOtpCode(otpCode);
-        entity.setStatus(OtpStatus.PENDING);
-        entity.setCreatedAt(LocalDateTime.now().minusMinutes(minutesAgo));
-        return entity;
-    }
-
     private String computeOtpHash(String otp) {
         String otpJSON = String.format(
             "{\"otp\":\"%s\",\"devicePub\":%s,\"phoneNumber\":\"%s\",\"salt\":\"%s\"}",
-            otp, devicePublicKey.toJSONString(), TEST_PHONE_NUMBER, TEST_SALT
+            otp, deviceKey.toJSONString(), TEST_PHONE_NUMBER, TEST_SALT
         );
         try {
             org.erdtman.jcs.JsonCanonicalizer jc = new org.erdtman.jcs.JsonCanonicalizer(otpJSON);

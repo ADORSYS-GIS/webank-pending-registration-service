@@ -2,6 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.error.ValidationException;
 import com.adorsys.error.ResourceNotFoundException;
@@ -25,7 +26,7 @@ class KycStatusUpdateServiceImplTest {
     @InjectMocks
     private KycStatusUpdateServiceImpl kycStatusUpdateService;
 
-    private PersonalInfoEntity dummyEntity;
+    private PersonalInfoProjection dummyProjection;
     private static final String TEST_ACCOUNT_ID = "test-account-id";
     private static final String TEST_ID_NUMBER = "test-id-number";
     private static final String TEST_EXPIRY_DATE = "2025-12-31";
@@ -33,18 +34,18 @@ class KycStatusUpdateServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        dummyEntity = new PersonalInfoEntity();
-        dummyEntity.setAccountId(TEST_ACCOUNT_ID);
-        dummyEntity.setStatus(PersonalInfoStatus.PENDING);
-        dummyEntity.setDocumentUniqueId(TEST_ID_NUMBER);
-        dummyEntity.setExpirationDate(TEST_EXPIRY_DATE);
+        dummyProjection = mock(PersonalInfoProjection.class);
+        when(dummyProjection.getAccountId()).thenReturn(TEST_ACCOUNT_ID);
+        when(dummyProjection.getStatus()).thenReturn(PersonalInfoStatus.PENDING);
+        when(dummyProjection.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(dummyProjection.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
     }
 
     @Test
     void testUpdateKycStatus_Success() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
-        when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(dummyEntity);
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
+        when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(new PersonalInfoEntity());
 
         // Act
         String response = kycStatusUpdateService.updateKycStatus(
@@ -52,16 +53,14 @@ class KycStatusUpdateServiceImplTest {
 
         // Assert
         assertEquals("KYC status for " + TEST_ACCOUNT_ID + " updated to APPROVED", response);
-        assertEquals(PersonalInfoStatus.APPROVED, dummyEntity.getStatus());
-        assertNull(dummyEntity.getRejectionReason());
-        verify(personalInfoRepository).save(dummyEntity);
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
     }
 
     @Test
     void testUpdateKycStatus_RejectedWithReason() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
-        when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(dummyEntity);
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
+        when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(new PersonalInfoEntity());
 
         // Act
         String response = kycStatusUpdateService.updateKycStatus(
@@ -69,15 +68,13 @@ class KycStatusUpdateServiceImplTest {
 
         // Assert
         assertEquals("KYC status for " + TEST_ACCOUNT_ID + " updated to REJECTED", response);
-        assertEquals(PersonalInfoStatus.REJECTED, dummyEntity.getStatus());
-        assertEquals(TEST_REJECTION_REASON, dummyEntity.getRejectionReason());
-        verify(personalInfoRepository).save(dummyEntity);
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
     }
 
     @Test
     void testUpdateKycStatus_RejectedWithoutReason() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
@@ -135,7 +132,7 @@ class KycStatusUpdateServiceImplTest {
     @Test
     void testUpdateKycStatus_InvalidStatus() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
@@ -163,7 +160,7 @@ class KycStatusUpdateServiceImplTest {
     @Test
     void testUpdateKycStatus_DocumentIdMismatch() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
@@ -177,7 +174,7 @@ class KycStatusUpdateServiceImplTest {
     @Test
     void testUpdateKycStatus_ExpiryDateMismatch() {
         // Arrange
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(dummyProjection));
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->

@@ -1,15 +1,18 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import org.slf4j.*;
-import org.springframework.transaction.annotation.*;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.KycRecoveryServiceApi;
 import com.adorsys.error.ResourceNotFoundException;
 import com.adorsys.error.ValidationException;
 
-import java.util.*;
 @Service
 public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
@@ -23,24 +26,14 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
     @Override
     @Transactional
     public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
-        if (accountId == null || accountId.isEmpty()) {
-            throw new ValidationException("Account ID is required");
-        }
-        if (idNumber == null || idNumber.isEmpty()) {
-            throw new ValidationException("ID number is required");
-        }
-        if (expiryDate == null || expiryDate.isEmpty()) {
-            throw new ValidationException("Expiry date is required");
-        }
-
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
+        Optional<PersonalInfoProjection> personalInfoOpt = inforepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isEmpty()) {
             log.warn("No record found for accountId {}", accountId);
             throw new ResourceNotFoundException("No record found for accountId " + accountId);
         }
 
-        PersonalInfoEntity personalInfo = personalInfoOpt.get();
+        PersonalInfoProjection personalInfo = personalInfoOpt.get();
 
         // Validate document details
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {

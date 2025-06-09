@@ -1,33 +1,54 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.DeviceRegInitRequest;
-import com.adorsys.webank.dto.DeviceValidateRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import com.nimbusds.jose.jwk.Curve;
-import com.adorsys.error.ValidationException;
-import com.adorsys.error.NonceValidationException;
-import com.adorsys.error.DeviceValidationException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.config.KeyLoader;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.dto.DeviceRegInitRequest;
+import com.adorsys.webank.dto.DeviceValidateRequest;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceRegServiceTest {
 
     @InjectMocks
     private DeviceRegServiceImpl deviceRegService;
+
+    @Mock
+    private KeyLoader keyLoader;
+
+    @Mock
+    private ECKey mockECKey;
 
     private JWK mockJWK;
     private static final String TEST_SALT = "testSalt";
@@ -46,6 +67,10 @@ class DeviceRegServiceTest {
         ReflectionTestUtils.setField(deviceRegService, "SERVER_PUBLIC_KEY_JSON", TEST_SERVER_PUBLIC_KEY);
         ReflectionTestUtils.setField(deviceRegService, "issuer", TEST_ISSUER);
         ReflectionTestUtils.setField(deviceRegService, "expirationTimeMs", TEST_EXPIRATION);
+
+        // Mock KeyLoader
+        when(keyLoader.loadPrivateKey()).thenReturn(mockECKey);
+        when(keyLoader.loadPublicKey()).thenReturn(mockECKey);
     }
 
     @Test
@@ -55,24 +80,11 @@ class DeviceRegServiceTest {
         request.setTimeStamp("2024-03-20T10:00:00");
 
         // Act
-        String nonce = deviceRegService.initiateDeviceRegistration(mockJWK, request);
+        String nonce = deviceRegService.initiateDeviceRegistration(request);
 
         // Assert
         assertNotNull(nonce);
         assertTrue(nonce.length() > 0);
-    }
-
-    @Test
-    void testInitiateDeviceRegistration_NullPublicKey() {
-        // Arrange
-        DeviceRegInitRequest request = new DeviceRegInitRequest();
-        request.setTimeStamp("2024-03-20T10:00:00");
-
-        // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.initiateDeviceRegistration(null, request)
-        );
-        assertEquals("Public key is required", exception.getMessage());
     }
 
     @Test
@@ -82,41 +94,9 @@ class DeviceRegServiceTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.initiateDeviceRegistration(mockJWK, request)
+            deviceRegService.initiateDeviceRegistration(request)
         );
         assertEquals("Timestamp is required", exception.getMessage());
-    }
-
-    // @Test
-    // void testValidateDeviceRegistration_Success() throws Exception {
-    //     // Arrange
-    //     String nonce = deviceRegService.initiateDeviceRegistration(mockJWK, new DeviceRegInitRequest());
-    //     DeviceValidateRequest request = new DeviceValidateRequest();
-    //     request.setInitiationNonce(nonce);
-    //     request.setPowNonce("testPowNonce");
-    //     request.setPowHash(deviceRegService.calculateSHA256("testHash"));
-
-    //     // Act
-    //     String result = deviceRegService.validateDeviceRegistration(mockJWK, request);
-
-    //     // Assert
-    //     assertNotNull(result);
-    //     assertTrue(result.length() > 0);
-    // }
-
-    @Test
-    void testValidateDeviceRegistration_NullPublicKey() {
-        // Arrange
-        DeviceValidateRequest request = new DeviceValidateRequest();
-        request.setInitiationNonce("testNonce");
-        request.setPowNonce("testPowNonce");
-        request.setPowHash("testHash");
-
-        // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.validateDeviceRegistration(null, request)
-        );
-        assertEquals("Public key is required", exception.getMessage());
     }
 
     @Test
@@ -128,7 +108,7 @@ class DeviceRegServiceTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.validateDeviceRegistration(mockJWK, request)
+            deviceRegService.validateDeviceRegistration(request)
         );
         assertEquals("Initiation nonce is required", exception.getMessage());
     }
@@ -142,9 +122,30 @@ class DeviceRegServiceTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.validateDeviceRegistration(mockJWK, request)
+            deviceRegService.validateDeviceRegistration(request)
         );
         assertEquals("PoW hash is required", exception.getMessage());
+    }
+
+    @Test
+    void testValidateDeviceRegistration_ErrorOnNonceMismatch() throws IOException, ParseException {
+        // Arrange
+        DeviceValidateRequest request = new DeviceValidateRequest();
+        request.setInitiationNonce("invalidNonce");
+        request.setPowNonce("testNonce");
+        request.setPowHash("testHash");
+
+        // Mock SecurityUtils to return the ECKey
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext)
+                .thenReturn(mockECKey);
+
+            // Act
+            String result = deviceRegService.validateDeviceRegistration(request);
+
+            // Assert
+            assertTrue(result.contains("Error: Registration time elapsed"));
+        }
     }
 
     @Test
@@ -156,7 +157,7 @@ class DeviceRegServiceTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            deviceRegService.validateDeviceRegistration(mockJWK, request)
+            deviceRegService.validateDeviceRegistration(request)
         );
         assertEquals("PoW nonce is required", exception.getMessage());
     }
@@ -190,5 +191,30 @@ class DeviceRegServiceTest {
         // Assert
         assertNotNull(nonce);
         assertTrue(nonce.length() > 0);
+    }
+
+    @Test
+    void testGenerateDeviceCertificate_Success() throws Exception {
+        // Arrange
+        String deviceJwkJson = mockJWK.toJSONString();
+        when(mockECKey.getKeyID()).thenReturn("test-key-id");
+
+        // Act
+        String certificate = deviceRegService.generateDeviceCertificate(deviceJwkJson);
+
+        // Assert
+        assertNotNull(certificate);
+        assertTrue(certificate.contains(".")); // JWT format check
+    }
+
+    @Test
+    void testGenerateDeviceCertificate_InvalidJwk() {
+        // Arrange
+        String invalidJwkJson = "invalid-jwk";
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, () ->
+            deviceRegService.generateDeviceCertificate(invalidJwkJson)
+        );
     }
 }
