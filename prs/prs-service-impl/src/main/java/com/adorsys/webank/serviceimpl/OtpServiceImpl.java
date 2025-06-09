@@ -1,9 +1,11 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.config.*;
 import com.adorsys.webank.domain.*;
 import com.adorsys.webank.exceptions.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
@@ -12,6 +14,7 @@ import org.erdtman.jcs.*;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
+import org.slf4j.MDC;
 
 import java.nio.charset.*;
 import java.security.*;
@@ -25,7 +28,6 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
-
     @Value("${otp.salt}")
     private String salt;
 
@@ -34,10 +36,10 @@ public class OtpServiceImpl implements OtpServiceApi {
         this.otpRequestRepository = otpRequestRepository;
     }
 
-
     @Override
     public String generateOtp() {
-        log.debug("Generating new OTP");
+        String correlationId = MDC.get("correlationId");
+        log.debug("Generating new OTP [correlationId={}]", correlationId);
         SecureRandom secureRandom = new SecureRandom();
         int otp = 10000 + secureRandom.nextInt(90000);
         return String.valueOf(otp);
@@ -45,20 +47,25 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(JWK devicePub, String phoneNumber) {
-        log.info("Processing OTP send request for phone: {}", maskPhoneNumber(phoneNumber));
+    public String sendOtp(String phoneNumber) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Processing OTP send request for phone: {} [correlationId={}]", 
+                maskPhoneNumber(phoneNumber), correlationId);
         
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
-            log.warn("Invalid phone number format received");
+            log.warn("Invalid phone number format received [correlationId={}]", correlationId);
             throw new IllegalArgumentException("Invalid phone number format");
         }
+
+        ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();
 
         try {
             String otp = generateOtp();
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
             
-            log.debug("Generated public key hash: {}", publicKeyHash);
+            log.debug("Generated public key hash: {} [correlationId={}]", 
+                    publicKeyHash, correlationId);
 
             // 1. First try to update existing record if found
             int updatedRows = otpRequestRepository.updateOtpByPublicKeyHash(
@@ -68,13 +75,15 @@ public class OtpServiceImpl implements OtpServiceApi {
                     LocalDateTime.now()
             );
             
-            log.debug("Updated {} existing OTP records", updatedRows);
+            log.debug("Updated {} existing OTP records [correlationId={}]", 
+                    updatedRows, correlationId);
 
             OtpEntity otpRequest;
 
             if (updatedRows == 0) {
                 // 2. If no record was updated, create new one
-                log.debug("No existing OTP record found, creating new one");
+                log.debug("No existing OTP record found, creating new one [correlationId={}]", 
+                        correlationId);
                 otpRequest = OtpEntity.builder()
                         .phoneNumber(phoneNumber)
                         .publicKeyHash(publicKeyHash)
@@ -82,12 +91,19 @@ public class OtpServiceImpl implements OtpServiceApi {
                         .build();
             } else {
                 // 3. If record was updated, fetch it
-                log.debug("Fetching updated OTP record");
-                otpRequest = otpRequestRepository.findByPublicKeyHash(publicKeyHash)
-                        .orElseThrow(() -> {
-                            log.error("Failed to fetch updated OTP record for hash: {}", publicKeyHash);
-                            return new FailedToSendOTPException("Failed to fetch updated OTP record");
-                        });
+                log.debug("Fetching updated OTP record [correlationId={}]", correlationId);
+                Optional<OtpProjection> otpProjectionOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+                if (otpProjectionOpt.isEmpty()) {
+                    log.error("Failed to fetch updated OTP record for hash: {} [correlationId={}]", 
+                            publicKeyHash, correlationId);
+                    throw new FailedToSendOTPException("Failed to fetch updated OTP record");
+                }
+                OtpProjection otpProjection = otpProjectionOpt.get();
+                otpRequest = new OtpEntity();
+                otpRequest.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpRequest.setPublicKeyHash(otpProjection.getPublicKeyHash());
+                otpRequest.setStatus(otpProjection.getStatus());
+                otpRequest.setCreatedAt(otpProjection.getCreatedAt());
             }
 
             // Generate OTP hash
@@ -103,41 +119,53 @@ public class OtpServiceImpl implements OtpServiceApi {
             otpRequestRepository.save(otpRequest);
 
             if (log.isDebugEnabled()) {
-                log.debug("OTP code generated for phone: {}, OTP VALUE: {}", maskPhoneNumber(phoneNumber), otp);
+                log.debug("OTP code generated for phone: {}, OTP VALUE: {} [correlationId={}]", 
+                        maskPhoneNumber(phoneNumber), otp, correlationId);
             } else {
-                log.info("OTP sent successfully to phone: {}", maskPhoneNumber(phoneNumber));
+                log.info("OTP sent successfully to phone: {} [correlationId={}]", 
+                        maskPhoneNumber(phoneNumber), correlationId);
             }
             
             return otpHash;
         } catch (Exception e) {
-            log.error("Failed to send OTP to phone: {}", maskPhoneNumber(phoneNumber), e);
+            log.error("Failed to send OTP to phone: {} [correlationId={}]", 
+                    maskPhoneNumber(phoneNumber), correlationId, e);
             throw new FailedToSendOTPException("Failed to send OTP");
         }
     }
 
-
     @Override
-    public String validateOtp(String phoneNumber, JWK devicePub, String otpInput) {
-        log.info("Validating OTP for phone: {}", maskPhoneNumber(phoneNumber));
-        log.debug("Validating with OTP input: {}", otpInput);
-        
+    public String validateOtp(String phoneNumber, String otpInput) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Validating OTP for phone: {} [correlationId={}]", 
+                maskPhoneNumber(phoneNumber), correlationId);
+        log.debug("Validating with OTP input: {} [correlationId={}]", 
+                otpInput, correlationId);
+
+        ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();
+
         try {
             String devicePublicKey = devicePub.toJSONString();
             String publicKeyHash = computePublicKeyHash(devicePublicKey);
             
-            log.debug("Looking up OTP record for public key hash: {}", publicKeyHash);
+            log.debug("Looking up OTP record for public key hash: {} [correlationId={}]", 
+                    publicKeyHash, correlationId);
 
-            Optional<OtpEntity> otpEntityOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
-            if (otpEntityOpt.isEmpty()) {
-                log.warn("No OTP request found for public key hash: {}", publicKeyHash);
+            Optional<OtpProjection> otpProjectionOpt = otpRequestRepository.findByPublicKeyHash(publicKeyHash);
+            if (otpProjectionOpt.isEmpty()) {
+                log.warn("No OTP request found for public key hash: {} [correlationId={}]", 
+                        publicKeyHash, correlationId);
                 return "No OTP request found for this public key";
             }
 
-            OtpEntity otpEntity = otpEntityOpt.get();
+            OtpProjection otpProjection = otpProjectionOpt.get();
             LocalDateTime now = LocalDateTime.now();
-            if (otpEntity.getCreatedAt().isBefore(now.minusMinutes(5))) {
-                log.warn("OTP expired for phone: {}. Created at: {}", 
-                         maskPhoneNumber(phoneNumber), otpEntity.getCreatedAt());
+            if (otpProjection.getCreatedAt().isBefore(now.minusMinutes(5))) {
+                log.warn("OTP expired for phone: {}. Created at: {} [correlationId={}]", 
+                        maskPhoneNumber(phoneNumber), otpProjection.getCreatedAt(), correlationId);
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "OTP expired. Request a new one.";
@@ -152,42 +180,53 @@ public class OtpServiceImpl implements OtpServiceApi {
             String input = jc.getEncodedString();
             String newOtpHash = computeHash(input);
             
-            log.debug("Comparing OTP hashes for validation");
+            log.debug("Comparing OTP hashes for validation [correlationId={}]", correlationId);
 
-            if (newOtpHash.equals(otpEntity.getOtpHash())) {
-                log.info("OTP validated successfully for phone: {}", maskPhoneNumber(phoneNumber));
+            if (newOtpHash.equals(otpProjection.getOtpHash())) {
+                log.info("OTP validated successfully for phone: {} [correlationId={}]", 
+                        maskPhoneNumber(phoneNumber), correlationId);
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";
             } else {
-                log.warn("Invalid OTP provided for phone: {}", maskPhoneNumber(phoneNumber));
+                log.warn("Invalid OTP provided for phone: {} [correlationId={}]", 
+                        maskPhoneNumber(phoneNumber), correlationId);
+                OtpEntity otpEntity = new OtpEntity();
+                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Invalid OTP";
             }
         } catch (Exception e) {
-            log.error("Error validating OTP for phone: {}", maskPhoneNumber(phoneNumber), e);
+            log.error("Error validating OTP for phone: {} [correlationId={}]", 
+                    maskPhoneNumber(phoneNumber), correlationId, e);
             return "Error validating the OTP";
         }
     }
 
     @Override
     public String computeHash(String input) {
+        String correlationId = MDC.get("correlationId");
         try {
-            log.debug("Computing hash for input");
+            log.debug("Computing hash for input [correlationId={}]", correlationId);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             String hash = Base64.getEncoder().encodeToString(hashBytes);
-            log.debug("Hash computed successfully");
+            log.debug("Hash computed successfully [correlationId={}]", correlationId);
             return hash;
         } catch (NoSuchAlgorithmException e) {
-            log.error("Error computing hash", e);
+            log.error("Error computing hash [correlationId={}]", correlationId, e);
             throw new HashComputationException("Error computing hash");
         }
     }
 
     private String computePublicKeyHash(String devicePublicKey) {
-        log.debug("Computing hash for device public key");
+        String correlationId = MDC.get("correlationId");
+        log.debug("Computing hash for device public key [correlationId={}]", correlationId);
         return computeHash(devicePublicKey);
     }
     

@@ -1,28 +1,23 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.TokenRequest;
-import com.adorsys.webank.security.CertValidator;
-import com.adorsys.webank.security.JwtValidator;
 import com.adorsys.webank.service.TokenServiceApi;
-import com.nimbusds.jose.jwk.JWK;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class TokenRestServer implements TokenRestApi {
 
     private static final Logger log = LoggerFactory.getLogger(TokenRestServer.class);
     private final TokenServiceApi tokenServiceApi;
-    private final CertValidator certValidator;
-
-    public TokenRestServer(TokenServiceApi tokenServiceApi, CertValidator certValidator) {
-        this.tokenServiceApi = tokenServiceApi;
-        this.certValidator = certValidator;
-    }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public String requestRecoveryToken(String authorizationHeader, TokenRequest tokenRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received recovery token request [correlationId={}]", correlationId);
@@ -34,27 +29,9 @@ public class TokenRestServer implements TokenRestApi {
         MDC.put("oldAccountId", maskAccountId(oldAccountId));
         MDC.put("newAccountId", maskAccountId(newAccountId));
         
-        String jwtToken;
         try {
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.debug("Validating JWT token for recovery token request [correlationId={}]", correlationId);
+            log.debug("Processing recovery token request [correlationId={}]", correlationId);
             
-            JwtValidator.validateAndExtract(jwtToken, oldAccountId, newAccountId);
-
-            // Validate the JWT token
-            if (!certValidator.validateJWT(jwtToken)) {
-                log.warn("Unauthorized JWT token for recovery token request [correlationId={}]", correlationId);
-                return "Unauthorized";
-            }
-            
-            log.debug("JWT validation successful, generating recovery token [correlationId={}]", correlationId);
-        } catch (Exception e) {
-            log.error("JWT validation failed for recovery token request [correlationId={}]", 
-                    correlationId, e);
-            return "Invalid JWT: " + e.getMessage();
-        }
-
-        try {
             // Request the recovery token
             String token = tokenServiceApi.requestRecoveryToken(tokenRequest);
             log.info("Recovery token generated successfully [correlationId={}]", correlationId);
@@ -67,14 +44,6 @@ public class TokenRestServer implements TokenRestApi {
             MDC.remove("oldAccountId");
             MDC.remove("newAccountId");
         }
-    }
-
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            log.warn("Invalid authorization header format");
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
-        }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }
     
     /**

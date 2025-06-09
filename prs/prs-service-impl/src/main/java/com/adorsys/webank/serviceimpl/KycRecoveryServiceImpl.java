@@ -1,14 +1,15 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
+import com.adorsys.webank.projection.*;
 import org.slf4j.*;
 import org.springframework.transaction.annotation.*;
 import org.springframework.stereotype.Service;
-
+import org.slf4j.MDC;
 
 import java.util.*;
+
 @Service
 public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
@@ -22,32 +23,40 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
     @Override
     @Transactional
     public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
-        log.info("Verifying KYC recovery fields for account: {}", maskAccountId(accountId));
-        log.debug("Verifying with ID: {}, expiry date: {}", maskIdNumber(idNumber), expiryDate);
+        String correlationId = MDC.get("correlationId");
+        log.info("Verifying KYC recovery fields for account: {} [correlationId={}]", 
+                maskAccountId(accountId), correlationId);
+        log.debug("Verifying with ID: {}, expiry date: {} [correlationId={}]", 
+                maskIdNumber(idNumber), expiryDate, correlationId);
         
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
+        Optional<PersonalInfoProjection> personalInfoOpt = inforepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isEmpty()) {
-            log.warn("No record found for account: {}", maskAccountId(accountId));
+            log.warn("No record found for account: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
             return "Failed: No record found for accountId " + accountId;
         }
 
-        PersonalInfoEntity personalInfo = personalInfoOpt.get();
-        log.debug("Found personal info record for account: {}", maskAccountId(accountId));
+        PersonalInfoProjection personalInfo = personalInfoOpt.get();
+        log.debug("Found personal info record for account: {} [correlationId={}]", 
+                maskAccountId(accountId), correlationId);
 
         // Validate document details
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
-            log.warn("Document ID mismatch for account: {}", maskAccountId(accountId));
+            log.warn("Document ID mismatch for account: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
             return "Failed: Document ID mismatch";
         }
 
         if (!personalInfo.getExpirationDate().equals(expiryDate)) {
-            log.warn("Document expiry date mismatch for account: {}", maskAccountId(accountId));
+            log.warn("Document expiry date mismatch for account: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
             return "Failed: Document expiry date mismatch";
         }
 
         // If all validations pass
-        log.info("Document verification successful for account: {}", maskAccountId(accountId));
+        log.info("Document verification successful for account: {} [correlationId={}]", 
+                maskAccountId(accountId), correlationId);
         return "Document verification successful";
     }
     
