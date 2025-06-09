@@ -4,13 +4,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@ActiveProfiles("test")
 class EntityIndexesTest {
 
     @Test
