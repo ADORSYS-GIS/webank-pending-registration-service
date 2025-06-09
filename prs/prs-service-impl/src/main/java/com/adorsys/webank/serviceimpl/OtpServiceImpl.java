@@ -1,24 +1,28 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.config.*;
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
-import com.nimbusds.jose.jwk.*;
-import jakarta.transaction.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.stereotype.*;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.projection.OtpProjection;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.service.OtpServiceApi;
+import com.nimbusds.jose.jwk.ECKey;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.Optional;
 
 @Service
 public class OtpServiceImpl implements OtpServiceApi {
@@ -109,10 +113,8 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-    public String validateOtp(String phoneNumber,String otpInput) {
-
-        ECKey  devicePub = SecurityUtils.extractDeviceJwkFromContext();
-
+    public String validateOtp(String phoneNumber, String otpInput) {
+        ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();
 
         try {
             String devicePublicKey = devicePub.toJSONString();
@@ -124,16 +126,8 @@ public class OtpServiceImpl implements OtpServiceApi {
             }
 
             OtpProjection otpProjection = otpProjectionOpt.get();
-            LocalDateTime now = LocalDateTime.now();
-            if (otpProjection.getCreatedAt().isBefore(now.minusMinutes(5))) {
-                OtpEntity otpEntity = new OtpEntity();
-                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
-                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
-                otpEntity.setStatus(OtpStatus.INCOMPLETE);
-                otpRequestRepository.save(otpEntity);
-                return "OTP expired. Request a new one.";
-            }
-
+            
+            // Create OTP JSON for hash verification
             String otpJSON = "{\"otp\":\"" + otpInput + "\","
                     + "\"devicePub\":" + devicePub.toJSONString() + ","
                     + "\"phoneNumber\":\"" + phoneNumber + "\","
@@ -141,27 +135,43 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             JsonCanonicalizer jc = new JsonCanonicalizer(otpJSON);
             String input = jc.getEncodedString();
-            log.info(input);
+            log.info("Canonicalized input: {}", input);
             String newOtpHash = computeHash(input);
-            log.info("OTP newOtpHash:{}", newOtpHash);
+            log.info("Computed OTP hash: {}", newOtpHash);
 
-            if (newOtpHash.equals(otpProjection.getOtpHash())) {
-                OtpEntity otpEntity = new OtpEntity();
-                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
-                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
+            // Get the existing entity to update
+            Optional<OtpEntity> existingOtpOpt = otpRequestRepository.findById(otpProjection.getId());
+            if (existingOtpOpt.isEmpty()) {
+                log.error("No OTP entity found for public key hash: {}", otpProjection.getPublicKeyHash());
+                return "Error: OTP record not found";
+            }
+
+            // Update the existing entity
+            OtpEntity otpEntity = existingOtpOpt.get();
+            LocalDateTime now = LocalDateTime.now();
+            otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
+            otpEntity.setOtpCode(otpInput);
+            otpEntity.setOtpHash(otpProjection.getOtpHash());
+            otpEntity.setUpdatedAt(now);
+
+            if (otpProjection.getCreatedAt().isBefore(now.minusMinutes(5))) {
+                // Handle expired OTP
+                otpEntity.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpEntity);
+                return "OTP expired. Request a new one.";
+            } else if (newOtpHash.equals(otpProjection.getOtpHash())) {
+                // Handle valid OTP
                 otpEntity.setStatus(OtpStatus.COMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Otp Validated Successfully";
             } else {
-                OtpEntity otpEntity = new OtpEntity();
-                otpEntity.setPhoneNumber(otpProjection.getPhoneNumber());
-                otpEntity.setPublicKeyHash(otpProjection.getPublicKeyHash());
+                // Handle invalid OTP
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
                 return "Invalid OTP";
             }
         } catch (Exception e) {
-            log.error("Error validating OTP", e);
+            log.error("Error validating OTP: {}", e.getMessage(), e);
             return "Error validating the OTP";
         }
     }

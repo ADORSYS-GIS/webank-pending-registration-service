@@ -27,7 +27,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
 
         return emailOtpService.validateEmailOtp(
                 request.getEmail(),
-                request.getOtp(),
+                request.getOtpInput(),
                 request.getAccountId()
         );
     }
