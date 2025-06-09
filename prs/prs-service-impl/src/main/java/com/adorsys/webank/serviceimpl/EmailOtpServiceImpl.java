@@ -97,28 +97,23 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
     @Override
     public String validateEmailOtp(String email, String otpInput, String accountId) {
         log.info("Validating OTP for email: {}, accountId: {}", email, accountId);
+        validateOtpInput(otpInput, accountId);
+
         try {
-            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
-            if (personalInfoOpt.isEmpty()) {
-                throw new IllegalArgumentException("User record not found");
-            }
+            PersonalInfoProjection projection = getPersonalInfoProjection(accountId);
+            validateOtpExpiration(projection.getOtpExpirationDateTime(), accountId);
+            validateStoredOtp(projection.getEmailOtpCode(), accountId);
 
-            PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-            personalInfo.setAccountId(accountId);
-            personalInfo.setEmailOtpCode(personalInfoOpt.get().getEmailOtpCode());
-            personalInfo.setEmailOtpHash(personalInfoOpt.get().getEmailOtpHash());
-            personalInfo.setOtpExpirationDateTime(personalInfoOpt.get().getOtpExpirationDateTime());
-
-            validateOtpExpiration(personalInfo);
-
-            if (validateOtpHash(otpInput, accountId, personalInfo)) {
-                personalInfo.setEmail(email);
-                personalInfoRepository.save(personalInfo);
+            log.debug("Comparing OTPs - Stored: '{}', Input: '{}'", 
+                     projection.getEmailOtpCode(), otpInput);
+            
+            if (projection.getEmailOtpCode().trim().equals(otpInput.trim())) {
+                PersonalInfoEntity entity = createPersonalInfoEntity(accountId, email, projection);
+                personalInfoRepository.save(entity);
                 log.info("OTP verified successfully for email: {}", email);
                 return "Webank email verified successfully";
             }
 
-            personalInfoRepository.save(personalInfo);
             log.warn("Invalid OTP entered for email: {}", email);
             return "Invalid Webank OTP";
         } catch (IllegalArgumentException e) {
@@ -126,24 +121,54 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             throw e;
         } catch (Exception e) {
             log.error("Error validating OTP for accountId: {}", accountId, e);
-            return "Webank OTP validation error";
+            throw new IllegalStateException("Failed to validate OTP: " + e.getMessage(), e);
         }
     }
 
-    private void validateOtpExpiration(PersonalInfoEntity personalInfo) {
-        LocalDateTime expiration = personalInfo.getOtpExpirationDateTime();
+    private void validateOtpInput(String otpInput, String accountId) {
+        if (otpInput == null || otpInput.trim().isEmpty()) {
+            log.warn("Empty OTP provided for accountId: {}", accountId);
+            throw new IllegalArgumentException("OTP cannot be empty");
+        }
+    }
 
+    private PersonalInfoProjection getPersonalInfoProjection(String accountId) {
+        return personalInfoRepository.findByAccountId(accountId)
+            .orElseThrow(() -> {
+                log.warn("User record not found for accountId: {}", accountId);
+                return new IllegalArgumentException("User record not found");
+            });
+    }
+
+    private void validateOtpExpiration(LocalDateTime expiration, String accountId) {
         if (expiration == null) {
-            log.error("No OTP expiration date found for accountId: {}", personalInfo.getAccountId());
+            log.warn("No expiration date found for OTP for accountId: {}", accountId);
             throw new IllegalArgumentException("OTP expiration date missing");
         }
-
         if (LocalDateTime.now().isAfter(expiration)) {
-            personalInfoRepository.save(personalInfo);
-            log.warn("OTP expired for accountId: {}", personalInfo.getAccountId());
-            throw new IllegalArgumentException("Webank OTP expired");
+            log.warn("OTP expired for accountId: {}", accountId);
+            throw new IllegalArgumentException("OTP has expired. Please request a new one.");
         }
     }
+
+    private void validateStoredOtp(String storedOtpCode, String accountId) {
+        if (storedOtpCode == null || storedOtpCode.trim().isEmpty()) {
+            log.warn("No OTP code found for accountId: {}", accountId);
+            throw new IllegalArgumentException("No OTP code found. Please request a new one.");
+        }
+    }
+
+    private PersonalInfoEntity createPersonalInfoEntity(String accountId, String email, PersonalInfoProjection projection) {
+        PersonalInfoEntity entity = new PersonalInfoEntity();
+        entity.setAccountId(accountId);
+        entity.setEmail(email);
+        entity.setEmailOtpCode(projection.getEmailOtpCode());
+        entity.setEmailOtpHash(projection.getEmailOtpHash());
+        entity.setOtpExpirationDateTime(projection.getOtpExpirationDateTime());
+        return entity;
+    }
+
+
 
     private void validateEmailFormat(String email) {
         log.debug("Validating email format for: {}", email);
@@ -173,14 +198,6 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             log.error("Failed to send email to {}", toEmail, e);
             throw new FailedToSendOTPException("Failed to send Webank email with attachment: " + e.getMessage());
         }
-    }
-
-    private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
-        log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, accountId);
-        boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
-        log.debug("OTP hash validation result: {}", isValid);
-        return isValid;
     }
 
     String computeOtpHash(String emailOtp, String accountId) {

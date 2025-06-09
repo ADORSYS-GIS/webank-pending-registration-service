@@ -8,12 +8,12 @@ import lombok.Setter;
 
 public class EmailOtpValidationRequest {
     private String email;
-    private String otp;
+    private String otpInput;
     private String accountId;
 
-    public EmailOtpValidationRequest(String email, String otp, String accountId) {
+    public EmailOtpValidationRequest(String email, String otpInput, String accountId) {
         this.email = email;
-        this.otp = otp;
+        this.otpInput = otpInput;
         this.accountId = accountId;
     }
 }
