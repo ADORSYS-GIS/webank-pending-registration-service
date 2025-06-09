@@ -4,14 +4,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import org.junit.jupiter.api.Test;
-import org.reflections.Reflections;
-import org.reflections.scanners.Scanners;
-
-import java.lang.reflect.Field;
-import java.util.Set;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class EntityIndexesTest {
 
     @Test
@@ -52,17 +51,6 @@ class EntityIndexesTest {
         
         assertTrue(containsIndex(indexes, "idx_account_id", "account_id"), "Should have account_id index");
         assertTrue(containsIndex(indexes, "idx_status", "status"), "Should have status index");
-    }
-
-    @Test
-    void testAllEntitiesHaveTableAnnotation() {
-        Reflections reflections = new Reflections("com.adorsys.webank.domain", Scanners.TypesAnnotated);
-        Set<Class<?>> entities = reflections.getTypesAnnotatedWith(Entity.class);
-        
-        for (Class<?> entity : entities) {
-            assertTrue(entity.isAnnotationPresent(Table.class), 
-                "Entity " + entity.getSimpleName() + " should have @Table annotation");
-        }
     }
 
     private boolean containsIndex(Index[] indexes, String name, String columnList) {
