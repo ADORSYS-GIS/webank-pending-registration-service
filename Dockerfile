@@ -2,7 +2,25 @@ FROM vegardit/graalvm-maven:latest-java17 AS builder
 
 WORKDIR /build_dir
 
-COPY . .
+COPY pom.xml .
+COPY prs/pom.xml prs/
+COPY prs/prs-db-repository/pom.xml prs/prs-db-repository/
+COPY prs/prs-middleware/pom.xml prs/prs-middleware/
+COPY prs/prs-rest-api/pom.xml prs/prs-rest-api/
+COPY prs/prs-rest-server/pom.xml prs/prs-rest-server/
+COPY prs/prs-service-api/pom.xml prs/prs-service-api/
+COPY prs/prs-service-impl/pom.xml prs/prs-service-impl/
+
+# Download dependencies (this layer will be cached if pom.xml files don't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY prs/prs-db-repository/src prs/prs-db-repository/src
+COPY prs/prs-middleware/src prs/prs-middleware/src
+COPY prs/prs-rest-api/src prs/prs-rest-api/src
+COPY prs/prs-rest-server/src prs/prs-rest-server/src
+COPY prs/prs-service-api/src prs/prs-service-api/src
+COPY prs/prs-service-impl/src prs/prs-service-impl/src
 
 RUN \
     mvn package -Pnative -DskipTests \
