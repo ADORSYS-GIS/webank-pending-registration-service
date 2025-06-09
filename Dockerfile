@@ -24,7 +24,7 @@ RUN \
   --mount=type=cache,target=./prs/prs-service-impl/target \
   --mount=type=cache,target=/root/.m2/repository \
     mvn -Pnative install \
-    && cp prs/prs-rest-server/target/prs-rest-server ./server 
+    && cp prs/prs-rest-server/target/prs-rest-server ./server
 
 FROM debian:12-slim AS deps
 
@@ -33,19 +33,19 @@ RUN apt-get update && apt-get install -y \
     libc6 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /deps/lib/x86_64-linux-gnu /deps/lib64
-
-RUN cp /lib/x86_64-linux-gnu/libz.so.1 /deps/lib/x86_64-linux-gnu/ && \
-    cp /lib/x86_64-linux-gnu/libc.so.6 /deps/lib/x86_64-linux-gnu/ && \
-    cp /lib64/ld-linux-x86-64.so.2 /deps/lib64/
-
-RUN find /lib/x86_64-linux-gnu -name "*.so*" -exec cp {} /deps/lib/x86_64-linux-gnu/ \; || true
+# Create dependency directories and copy all required libraries in one layer
+RUN mkdir -p /deps/lib /deps/lib64 /deps/usr-lib && \
+    find /lib/*-linux-gnu -name "*.so*" -exec cp {} /deps/lib/ \; 2>/dev/null || true && \
+    find /usr/lib/*-linux-gnu -name "*.so*" -exec cp {} /deps/usr-lib/ \; 2>/dev/null || true && \
+    cp /lib64/ld-linux-*.so.* /deps/lib64/ 2>/dev/null || true && \
+    find /lib -maxdepth 1 -name "*.so*" -exec cp {} /deps/lib/ \; 2>/dev/null || true
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
 
-COPY --from=deps /deps/lib/x86_64-linux-gnu/ /lib/x86_64-linux-gnu/
+COPY --from=deps /deps/lib/ /lib/
+COPY --from=deps /deps/usr-lib/ /usr/lib/
 COPY --from=deps /deps/lib64/ /lib64/
 
 COPY --from=builder /build_dir/server .

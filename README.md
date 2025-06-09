@@ -12,14 +12,21 @@ This project supports building native images using GraalVM Native Image. The nat
 
 ## Setup
 
-1. Install SDKMAN if not already installed:
+1. Clone the Repository
+
+```bash
+git clone https://github.com/ADORSYS-GIS/webank-pending-registration-service.git
+cd webank-pending-registration-service
+```
+
+2. Install SDKMAN if not already installed:
 
 ```bash
 curl -s "https://get.sdkman.io" | bash
 source "$HOME/.sdkman/bin/sdkman-init.sh"
 ```
 
-2. Install and use GraalVM:
+3. Install and use GraalVM:
 
 ```bash
 # List available GraalVM versions
@@ -39,7 +46,7 @@ java -version  # Should show GraalVM
 native-image --version  # Should show native-image version
 ```
 
-3. Enable GraalVM for the project:
+4. Enable GraalVM for the project:
 
 ```bash
 # From project root
@@ -88,7 +95,6 @@ mvn clean install
 cd prs/prs-rest-server
 mvn spring-boot:run
 ```
-
 
 ### Using Docker
 
