@@ -23,7 +23,7 @@ class CertValidatorTest {
         String serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
 
         // Create and configure ServerKeyProperties
-        ServerKeyProperties keyProperties = new ServerKeyProperties();
+        com.adorsys.webank.properties.ServerKeyProperties keyProperties = new com.adorsys.webank.properties.ServerKeyProperties();
         keyProperties.setPublicKey(serverPublicKeyJson);
         // You can also setPrivateKey if needed
 
@@ -62,7 +62,7 @@ class CertValidatorTest {
 
     @Test
     void validateJWT_invalidPublicKey_returnsFalse() throws JOSEException {
-        ServerKeyProperties invalidProps = new ServerKeyProperties();
+        com.adorsys.webank.properties.ServerKeyProperties invalidProps = new com.adorsys.webank.properties.ServerKeyProperties();
         invalidProps.setPublicKey("invalid_json");
 
         KeyLoader invalidLoader = new KeyLoader(invalidProps);
