@@ -1,19 +1,13 @@
 package com.adorsys.webank.dto;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
-
-
+@RequiredArgsConstructor
 public class EmailOtpValidationRequest {
     private String email;
-    private String otp;
+    private String otpInput;
     private String accountId;
-
-    public EmailOtpValidationRequest(String email, String otp, String accountId) {
-        this.email = email;
-        this.otp = otp;
-        this.accountId = accountId;
-    }
 }
