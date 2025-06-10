@@ -1,19 +1,19 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.DeviceRegInitRequest;
-import com.adorsys.webank.dto.DeviceValidateRequest;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.nimbusds.jose.jwk.JWK;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import com.adorsys.webank.config.*;
+import com.adorsys.webank.dto.*;
+import com.adorsys.webank.exceptions.*;
+import com.nimbusds.jose.jwk.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.*;
+import org.mockito.*;
+import org.mockito.junit.jupiter.*;
+import org.springframework.test.util.*;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
+import java.io.*;
+import java.security.*;
+import java.text.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
     private DeviceRegServiceImpl deviceRegService;
 
     @Mock
-    private JWK mockJWK;
+    private ECKey mockECKey;
 
 
     @BeforeEach
@@ -35,19 +35,25 @@ import static org.mockito.Mockito.*;
     @Test
     void testInitiateDeviceRegistration() {
         DeviceRegInitRequest request = new DeviceRegInitRequest();
-        String nonce = deviceRegService.initiateDeviceRegistration(mockJWK, request);
+        String nonce = deviceRegService.initiateDeviceRegistration(request);
         assertNotNull(nonce);
     }
 
     @Test
-    void testValidateDeviceRegistration_ErrorOnNonceMismatch() throws IOException {
+    void testValidateDeviceRegistration_ErrorOnNonceMismatch() throws IOException, ParseException {
         DeviceValidateRequest request = mock(DeviceValidateRequest.class);
         when(request.getInitiationNonce()).thenReturn("invalidNonce");
         when(request.getPowNonce()).thenReturn("testNonce");
         when(request.getPowHash()).thenReturn("testHash");
 
-        String result = deviceRegService.validateDeviceRegistration(mockJWK, request);
-        assertTrue(result.contains("Error: Registration time elapsed"));
+        // Mock SecurityUtils to return the ECKey
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext)
+                .thenReturn(mockECKey);
+
+            String result = deviceRegService.validateDeviceRegistration(request);
+            assertTrue(result.contains("Error: Registration time elapsed"));
+        }
     }
 
     @Test
