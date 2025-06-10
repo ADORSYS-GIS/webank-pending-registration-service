@@ -1,33 +1,47 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.config.*;
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.*;
-import com.nimbusds.jose.jwk.*;
-import com.nimbusds.jwt.*;
-import org.erdtman.jcs.*;
-import org.slf4j.*;
+import com.adorsys.webank.config.JwtUtils;
+import com.adorsys.webank.config.KeyLoader;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.dto.DeviceRegInitRequest;
+import com.adorsys.webank.dto.DeviceValidateRequest;
+import com.adorsys.webank.model.ProofOfWorkData;
+import com.adorsys.webank.service.DeviceRegServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.stereotype.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.nio.charset.*;
-import java.security.*;
-import java.time.*;
-import java.time.format.*;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.Date;
+
+
 @Service
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private static final Logger log = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
 
-    @Value("${otp.salt}")
-    private String salt;
+    private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private KeyLoader keyLoader;
+    private final KeyLoader keyLoader;
 
     @Value("${jwt.issuer}")
     private String issuer;
@@ -35,12 +49,18 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
 
+    public DeviceRegServiceImpl(ObjectMapper objectMapper, PasswordEncoder passwordEncoder, KeyLoader keyLoader) {
+        this.objectMapper = objectMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.keyLoader = keyLoader;
+    }
+
     @Override
     public String initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Initiating device registration [correlationId={}]", correlationId);
         
-        String nonce = generateNonce(salt);
+        String nonce = generateNonce();
         log.info("Device registration initiated successfully [correlationId={}]", correlationId);
         return nonce;
     }
@@ -51,39 +71,41 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         log.info("Validating device registration [correlationId={}]", correlationId);
         
         String initiationNonce = deviceValidateRequest.getInitiationNonce();
-        String nonce = generateNonce(salt);
+        // Step 1: Validate the nonce timestamp
+        String nonceValidationError = validateNonceTimestamp(initiationNonce);
+        if (nonceValidationError != null) {
+            return nonceValidationError;
+        }
+
         String powNonce = deviceValidateRequest.getPowNonce();
         String newPowHash = deviceValidateRequest.getPowHash();
-        String powHash;
-        
+
+        String powJSON;
+
         // Extract device public key from security context
         ECKey devicePub = SecurityUtils.extractDeviceJwkFromContext();
-        
+
+        // Step 2: Create and canonicalize the PoW JSON using ProofOfWorkData POJO
+        ProofOfWorkData powData = ProofOfWorkData.create(initiationNonce, devicePub, powNonce);
+
         log.debug("Validating with initiation nonce: {}, device public key ID: {} [correlationId={}]", 
                 maskData(initiationNonce), maskKeyId(devicePub.getKeyID()), correlationId);
         
         try {
-            // Make a JSON object out of initiationNonce, devicePub, powNonce
-            log.debug("Constructing proof of work JSON for validation [correlationId={}]", correlationId);
-            String powJSON = "{\"initiationNonce\":\"" + initiationNonce + "\",\"devicePub\":" + devicePub.toJSONString() + ",\"powNonce\":\"" + powNonce + "\"}";
-            JsonCanonicalizer jc = new JsonCanonicalizer(powJSON);
-            String hashInput = jc.getEncodedString();
-            powHash = calculateSHA256(hashInput);
+            powJSON = objectMapper.writeValueAsString(powData);
+            String hashInput = new JsonCanonicalizer(powJSON).getEncodedString();
+
+            // Step 3: Verify the proof of work
+            String powValidationError = validateProofOfWork(hashInput, powJSON, newPowHash);
             log.debug("Calculated proof of work hash for validation [correlationId={}]", correlationId);
 
-            if (!initiationNonce.equals(nonce)) {
-                log.warn("Registration time elapsed, verification failed [correlationId={}]", correlationId);
-                return "Error: Registration time elapsed, please try again";
-            } else if (!powHash.equals(newPowHash)) {
-                log.warn("Verification of proof of work failed [correlationId={}]", correlationId);
-                return "Error: Verification of PoW failed";
+            if (powValidationError != null) {
+                return powValidationError;
             }
-            
-            log.debug("Proof of work validation successful [correlationId={}]", correlationId);
 
-        } catch (NoSuchAlgorithmException e) {
-            log.error("Error calculating SHA-256 hash for device validation [correlationId={}]", correlationId, e);
-            return "Error: Unable to hash the parameters";
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize PoW JSON", e);
+            return "Error processing proof of work";
         }
         
         log.debug("Canonicalizing device public key [correlationId={}]", correlationId);
@@ -93,7 +115,24 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         log.info("Device validation successful, generating certificate [correlationId={}]", correlationId);
         return generateDeviceCertificate(devicePublicKey);
     }
-    
+    private String validateNonceTimestamp(String initiationNonce) {
+        try {
+            LocalDateTime currentTime = LocalDateTime.now();
+            LocalDateTime timeToCheck = currentTime.minusMinutes(0);
+            int flattenedMinute = timeToCheck.getMinute() / 15 * 15;
+            LocalDateTime flattenedTimestamp = timeToCheck.withMinute(flattenedMinute).withSecond(0).withNano(0);
+            String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+            if (!passwordEncoder.matches(timestampString, initiationNonce)) {
+                log.warn("Nonce validation failed: Registration time elapsed");
+                return "Error: Registration time elapsed, please try again";
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Error validating nonce timestamp", e);
+            return "Error: Unable to validate registration time";
+        }
+    }
     String calculateSHA256(String input) throws NoSuchAlgorithmException {
         log.debug("Calculating SHA-256 hash");
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -112,11 +151,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         return hexString.toString();
     }
 
-    public static String generateNonce(String salt) {
-        if (salt == null) {
-            LoggerFactory.getLogger(DeviceRegServiceImpl.class).error("Salt cannot be null when generating nonce");
-            throw new HashComputationException("Salt cannot be null");
-        }
+    public String generateNonce() {
         
         LocalDateTime timestamp = LocalDateTime.now();
 
@@ -124,21 +159,28 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         int flattenedMinute = (timestamp.getMinute() / 15) * 15;
         LocalDateTime flattenedTimestamp = timestamp.withMinute(flattenedMinute).withSecond(0).withNano(0);
 
+        String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        // Use the PasswordEncoder to generate a secure hash
+        return passwordEncoder.encode(timestampString);
+    }
+
+    private String validateProofOfWork(String hashInput, String powJSON, String providedHash) {
         try {
-            String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            String input = timestampString + salt;
+            String calculatedHash = calculateSHA256(hashInput);
+            log.debug("Calculated hash: {}", calculatedHash);
+            log.debug("Provided hash: {}", providedHash);
+            log.debug("PoW Verification - Input JSON: {}", powJSON);
+            log.debug("PoW Verification - Provided Hash: {}", providedHash);
 
-            // Compute SHA-256 hash
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-            // Convert hash to Base64
-            String nonce = Base64.getEncoder().encodeToString(hashBytes);
-            LoggerFactory.getLogger(DeviceRegServiceImpl.class).debug("Generated nonce for timestamp: {}", flattenedTimestamp);
-            return nonce;
-        } catch (NoSuchAlgorithmException e) {
-            LoggerFactory.getLogger(DeviceRegServiceImpl.class).error("Error computing hash for nonce generation", e);
-            throw new HashComputationException("Error computing hash");
+            if (!calculatedHash.equals(providedHash)) {
+                log.warn("PoW Verification Failed - Hash mismatch");
+                return "Error: Verification of PoW failed";
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Error calculating SHA-256 hash", e);
+            return "Error: Unable to verify proof of work";
         }
     }
 
