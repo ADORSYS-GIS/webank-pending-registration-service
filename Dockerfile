@@ -42,27 +42,34 @@ RUN case "${TARGETPLATFORM}" in \
         "linux/amd64") \
             ARCH_DIR="x86_64-linux-gnu" \
             LOADER="ld-linux-x86-64.so.2" \
+            LOADER_PATH="/lib64" \
             ;; \
         "linux/arm64") \
             ARCH_DIR="aarch64-linux-gnu" \
             LOADER="ld-linux-aarch64.so.1" \
+            LOADER_PATH="/lib" \
             ;; \
         *) \
             echo "Unsupported platform: ${TARGETPLATFORM}" && exit 1 \
             ;; \
     esac && \
     echo "ARCH_DIR=${ARCH_DIR}" > /tmp/arch_info && \
-    echo "LOADER=${LOADER}" >> /tmp/arch_info
+    echo "LOADER=${LOADER}" >> /tmp/arch_info && \
+    echo "LOADER_PATH=${LOADER_PATH}" >> /tmp/arch_info
 
 # Create architecture-agnostic directory structure
 RUN . /tmp/arch_info && \
-    mkdir -p /deps/lib/${ARCH_DIR} /deps/lib64
+    mkdir -p /deps/lib/${ARCH_DIR} /deps/lib64 /deps/lib
 
 # Copy architecture-specific libraries
 RUN . /tmp/arch_info && \
     cp /lib/${ARCH_DIR}/libz.so.1 /deps/lib/${ARCH_DIR}/ && \
     cp /lib/${ARCH_DIR}/libc.so.6 /deps/lib/${ARCH_DIR}/ && \
-    cp /lib64/${LOADER} /deps/lib64/
+    if [ "${LOADER_PATH}" = "/lib64" ]; then \
+        cp ${LOADER_PATH}/${LOADER} /deps/lib64/; \
+    else \
+        cp ${LOADER_PATH}/${LOADER} /deps/lib/; \
+    fi
 
 # Copy additional shared libraries (with error handling)
 RUN . /tmp/arch_info && \
