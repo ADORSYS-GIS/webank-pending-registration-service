@@ -40,25 +40,35 @@ jobs:
                 </servers>
               </settings>" > ~/.m2/settings.xml
 
-    - name: Database Backup
-      run: |
-        pg_dump -h ${{ secrets.DB_HOST }} -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} > backup_$(date +%Y%m%d_%H%M%S).sql
-      env:
-        PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+    # 1. Authenticate to your cluster
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-region: ${{ vars.AWS_REGION }}
+        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
 
-    - name: Run Flyway Migration
+    - name: Set up kubeconfig
+      uses: aws-actions/amazon-eks-login@v1
+      with:
+        cluster-name: ${{ vars.EKS_CLUSTER_NAME }}
+        region: ${{ vars.AWS_REGION }}
+    # 2. Trigger the Flyway Job from devop repo
+    - name: Apply Flyway Job manifest
       run: |
-        mvn flyway:migrate -s ~/.m2/settings.xml \
-          -Dflyway.url=jdbc:postgresql://${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }} \
-          -Dflyway.user=${{ secrets.DB_USER }} \
-          -Dflyway.password=${{ secrets.DB_PASSWORD }} \
-          -Dflyway.schemas=public \
-          -Dflyway.locations=filesystem:prs/prs-rest-server/src/main/resources/db/migration
+        kubectl apply -f https://github.com/ADORSYS-GIS/webank-devops/blob/feat/Implement_flyway_migration/charts/webank-prs/templates/flyway-migration-job.yaml
 
-    - name: Verify Migration
+    - name: Wait for Flyway migration to finish
       run: |
-        mvn flyway:info -s ~/.m2/settings.xml \
-          -Dflyway.url=jdbc:postgresql://${{ secrets.DB_HOST }}:5432/${{ secrets.DB_NAME }} \
-          -Dflyway.user=${{ secrets.DB_USER }} \
-          -Dflyway.password=${{ secrets.DB_PASSWORD }} \
-          -Dflyway.schemas=public 
+        kubectl wait --for=condition=complete \
+          --timeout=300s job --selector=job-name=webank-prs-flyway-migration
+
+    # 3. Clean up old jobs
+    - name: Cleanup Flyway jobs
+      if: always()
+      run: |
+        kubectl delete jobs --selector=job-name=webank-prs-flyway-migration || true
+
+    # 4. Verify migration status
+    - name: Check migration logs
+      run: |
+        kubectl logs job/webank-prs-flyway-migration 
