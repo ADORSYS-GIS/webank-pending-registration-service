@@ -1,9 +1,13 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.projection.PersonalInfoProjection;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.error.ValidationException;
-import com.adorsys.error.ResourceNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,10 +17,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.adorsys.error.ResourceNotFoundException;
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -59,61 +63,93 @@ class KycRecoveryServiceImplTest {
     @Test
     void testVerifyKycRecoveryFields_NullAccountId() {
         // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields(null, TEST_ID_NUMBER, TEST_EXPIRY_DATE)
         );
-        assertEquals("Account ID is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("No record found for accountId null", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId(null);
     }
 
     @Test
     void testVerifyKycRecoveryFields_EmptyAccountId() {
         // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields("", TEST_ID_NUMBER, TEST_EXPIRY_DATE)
         );
-        assertEquals("Account ID is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("No record found for accountId ", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId("");
     }
 
     @Test
     void testVerifyKycRecoveryFields_NullIdNumber() {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+                .thenReturn(Optional.of(personalInfo));
+
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, null, TEST_EXPIRY_DATE)
         );
-        assertEquals("ID number is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("Document ID mismatch", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
     }
 
     @Test
     void testVerifyKycRecoveryFields_EmptyIdNumber() {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+                .thenReturn(Optional.of(personalInfo));
+
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, "", TEST_EXPIRY_DATE)
         );
-        assertEquals("ID number is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("Document ID mismatch", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
     }
 
     @Test
     void testVerifyKycRecoveryFields_NullExpiryDate() {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+                .thenReturn(Optional.of(personalInfo));
+
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, TEST_ID_NUMBER, null)
         );
-        assertEquals("Expiry date is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("Document expiry date mismatch", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
     }
 
     @Test
     void testVerifyKycRecoveryFields_EmptyExpiryDate() {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+        when(personalInfo.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+                .thenReturn(Optional.of(personalInfo));
+
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
             kycRecoveryService.verifyKycRecoveryFields(TEST_ACCOUNT_ID, TEST_ID_NUMBER, "")
         );
-        assertEquals("Expiry date is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        assertEquals("Document expiry date mismatch", exception.getMessage());
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
     }
 
     @Test

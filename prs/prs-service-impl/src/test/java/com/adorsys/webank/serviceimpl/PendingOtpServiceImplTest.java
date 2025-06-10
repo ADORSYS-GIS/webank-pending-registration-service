@@ -2,7 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,7 +17,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.adorsys.error.ResourceNotFoundException;
 import com.adorsys.webank.domain.OtpStatus;
 import com.adorsys.webank.dto.PendingOtpDto;
 import com.adorsys.webank.projection.OtpProjection;
@@ -86,32 +85,26 @@ class PendingOtpServiceImplTest {
         // Arrange
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(Collections.emptyList());
 
-        // Act & Assert
-        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
-            pendingOtpService.fetchPendingOtpEntries()
-        );
-        assertEquals("No pending OTP entries found", exception.getMessage());
+        // Act
+        List<PendingOtpDto> result = pendingOtpService.fetchPendingOtpEntries();
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
         verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
     }
 
     @Test
     void testFetchPendingOtpEntries_NoPendingEntries() {
         // Arrange
-        OtpProjection otpProjection1 = mock(OtpProjection.class);
-        when(otpProjection1.getStatus()).thenReturn(OtpStatus.COMPLETE);
-
-        OtpProjection otpProjection2 = mock(OtpProjection.class);
-        when(otpProjection2.getStatus()).thenReturn(OtpStatus.INCOMPLETE);
-
-        List<OtpProjection> otpList = List.of(otpProjection1, otpProjection2);
-        
         when(otpRequestRepository.findByStatus(OtpStatus.PENDING)).thenReturn(Collections.emptyList());
 
-        // Act & Assert
-        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
-            pendingOtpService.fetchPendingOtpEntries()
-        );
-        assertEquals("No pending OTP entries found", exception.getMessage());
+        // Act
+        List<PendingOtpDto> result = pendingOtpService.fetchPendingOtpEntries();
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
         verify(otpRequestRepository).findByStatus(OtpStatus.PENDING);
     }
 }

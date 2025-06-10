@@ -1,12 +1,21 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.projection.PersonalInfoProjection;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import com.nimbusds.jose.jwk.Curve;
-import jakarta.mail.internet.MimeMessage;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.lang.reflect.Field;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,19 +25,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.slf4j.MDC;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.lang.reflect.Field;
-import java.security.MessageDigest;
-import java.time.LocalDateTime;
-import java.util.Optional;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import jakarta.mail.internet.MimeMessage;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -49,6 +60,7 @@ public class EmailOtpServiceImplTest {
     private static final String TEST_OTP = "123456";
     private static final String TEST_SALT = "test-salt";
     private static final String TEST_CORRELATION_ID = "test-correlation-id";
+    private static final String TEST_ACCOUNT_ID = "test-account-id";
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -63,19 +75,14 @@ public class EmailOtpServiceImplTest {
         mailSenderField.set(emailOtpService, mailSender);
 
         // Inject salt and fromEmail using reflection
-        setField("salt", TEST_SALT);
-        setField("fromEmail", "no-reply@test.com");
-    }
-
-    private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
-        Field field = EmailOtpServiceImpl.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(emailOtpService, value);
+        ReflectionTestUtils.setField(emailOtpService, "salt", TEST_SALT);
+        ReflectionTestUtils.setField(emailOtpService, "fromEmail", "no-reply@test.com");
     }
 
     @Test
     public void testGenerateOtp() {
         String otp = emailOtpService.generateOtp();
+        assertNotNull(otp);
         assertEquals(6, otp.length());
         assertTrue(otp.matches("\\d+"));
     }
@@ -88,12 +95,13 @@ public class EmailOtpServiceImplTest {
         when(projection.getAccountId()).thenReturn(accountId);
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
-        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
+        MimeMessage mimeMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         // Act & Assert
         assertDoesNotThrow(() -> {
             String result = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
-            assertEquals("OTP sent successfully to " + TEST_EMAIL, result);
+            assertEquals("Email OTP sent successfully", result);
         });
 
         verify(mailSender, times(1)).send(any(MimeMessage.class));
@@ -123,7 +131,7 @@ public class EmailOtpServiceImplTest {
         String result = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
 
         // Assert
-        assertEquals("Webank email verified successfully", result);
+        assertEquals("Email OTP validated successfully", result);
         verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
     }
 
@@ -136,7 +144,7 @@ public class EmailOtpServiceImplTest {
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(FailedToSendOTPException.class, () ->
                 emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
         );
     }

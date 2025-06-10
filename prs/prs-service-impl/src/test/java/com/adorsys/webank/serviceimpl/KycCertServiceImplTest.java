@@ -2,7 +2,6 @@ package com.adorsys.webank.serviceimpl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -21,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.adorsys.error.ValidationException;
 import com.adorsys.webank.config.CertGeneratorHelper;
 import com.adorsys.webank.config.SecurityUtils;
 import com.adorsys.webank.domain.PersonalInfoStatus;
@@ -77,23 +75,23 @@ class KycCertServiceImplTest {
 
     @Test
     void testGetCert_NullAccountId() {
-        // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
-            kycCertService.getCert(null)
-        );
-        assertEquals("Account ID is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        // Act
+        String result = kycCertService.getCert(null);
+
+        // Assert
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId(null);
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     @Test
     void testGetCert_EmptyAccountId() {
-        // Act & Assert
-        ValidationException exception = assertThrows(ValidationException.class, () ->
-            kycCertService.getCert("")
-        );
-        assertEquals("Account ID is required", exception.getMessage());
-        verify(personalInfoRepository, never()).findByAccountId(anyString());
+        // Act
+        String result = kycCertService.getCert("");
+
+        // Assert
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId("");
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 

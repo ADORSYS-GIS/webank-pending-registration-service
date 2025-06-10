@@ -36,8 +36,6 @@ import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
 
-import jakarta.persistence.EntityNotFoundException;
-
 @ExtendWith(MockitoExtension.class)
 class KycServiceImplTest {
 
@@ -207,7 +205,7 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(EntityNotFoundException.class, () -> {
+       assertThrows(KycProcessingException.class, () -> {
            kycService.sendKycLocation(request);
        });
    }
@@ -254,7 +252,7 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(EntityNotFoundException.class, () -> {
+       assertThrows(KycProcessingException.class, () -> {
            kycService.sendKycEmail(request);
        });
    }
@@ -316,8 +314,18 @@ class KycServiceImplTest {
        // Given
        PersonalInfoProjection info = mock(PersonalInfoProjection.class);
        when(info.getAccountId()).thenReturn(TEST_ACCOUNT_ID);
+       when(info.getDocumentUniqueId()).thenReturn(TEST_ID_NUMBER);
+       when(info.getExpirationDate()).thenReturn(TEST_EXPIRY_DATE);
+       when(info.getStatus()).thenReturn(PersonalInfoStatus.PENDING);
+       when(info.getLocation()).thenReturn(TEST_LOCATION);
+       when(info.getEmail()).thenReturn(TEST_EMAIL);
+       when(info.getRejectionReason()).thenReturn(null);
 
        UserDocumentsProjection doc = mock(UserDocumentsProjection.class);
+       when(doc.getFrontID()).thenReturn(TEST_FRONT_ID);
+       when(doc.getBackID()).thenReturn(TEST_BACK_ID);
+       when(doc.getSelfieID()).thenReturn(TEST_SELFIE_ID);
+       when(doc.getTaxID()).thenReturn(TEST_TAX_ID);
 
        when(personalInfoRepository.findByDocumentUniqueId(TEST_ID_NUMBER))
            .thenReturn(Arrays.asList(info));
