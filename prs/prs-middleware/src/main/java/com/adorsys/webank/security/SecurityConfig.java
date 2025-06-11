@@ -40,6 +40,8 @@ public class SecurityConfig {
                     .addFilterBefore(requestParameterExtractorFilter, UsernamePasswordAuthenticationFilter.class)
                     .authorizeHttpRequests(auth -> auth
                             .requestMatchers("/api/prs/dev/**").authenticated()
+                            .requestMatchers("/h2-console/**").permitAll()
+                            .requestMatchers("/swagger-ui.html/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                             .requestMatchers("/api/prs/email-otp/**").hasAuthority(Role.ACCOUNT_CERTIFIED.getRoleName())
                             .requestMatchers("/api/prs/kyc/**").hasAuthority(Role.ACCOUNT_CERTIFIED.getRoleName())
                             .requestMatchers("/api/prs/otp/**").hasAuthority(Role.ACCOUNT_CERTIFIED.getRoleName())
