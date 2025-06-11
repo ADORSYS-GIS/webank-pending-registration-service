@@ -32,4 +32,6 @@ public interface OtpRequestRepository extends JpaRepository<OtpEntity, UUID> {
             @Param("status") OtpStatus status,
             @Param("updatedAt") LocalDateTime updatedAt
     );
+
+    Optional<OtpEntity> findEntityByPublicKeyHash(String publicKeyHash);
 }
