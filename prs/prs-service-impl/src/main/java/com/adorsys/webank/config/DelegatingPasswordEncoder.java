@@ -10,7 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * Configuration class for security-related beans.
  */
 @Configuration
-public class ServiceImplSecurityConfig {
+public class DelegatingPasswordEncoder {
 
     /**
      * Creates and configures an Argon2PasswordEncoder bean with recommended parameters.

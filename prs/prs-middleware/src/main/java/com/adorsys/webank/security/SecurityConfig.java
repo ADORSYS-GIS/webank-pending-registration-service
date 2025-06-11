@@ -34,7 +34,6 @@ public class SecurityConfig {
         try {
             http
                     .csrf(AbstractHttpConfigurer::disable)
-                    .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                     .sessionManagement(session -> session
                             .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                     .formLogin(AbstractHttpConfigurer::disable)
@@ -103,20 +102,6 @@ public class SecurityConfig {
             throw new SecurityConfigurationException("Failed to build security filter chain", e);
         }
     }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:8080");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
-
     /**
      * Custom JWT authentication converter to extract authorities from the JWT token.
      * This can be extended to include roles or other claims as needed.

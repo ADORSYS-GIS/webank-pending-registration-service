@@ -4,11 +4,11 @@ import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.model.EmailOtpData;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.serviceimpl.helper.MailHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
-import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,10 +20,8 @@ import org.mockito.quality.Strictness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -41,10 +39,10 @@ public class EmailOtpServiceImplTest {
     private PersonalInfoRepository personalInfoRepository;
 
     @Mock
-    private JavaMailSender mailSender;
+    private ObjectMapper objectMapper;
     
     @Mock
-    private ObjectMapper objectMapper;
+    private MailHelper mailHelper;
     
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -65,27 +63,10 @@ public class EmailOtpServiceImplTest {
         MDC.put("correlationId", TEST_CORRELATION_ID);
 
         // Initialize the service with required dependencies
-        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, objectMapper, passwordEncoder);
-        
-        // Set up mail sender
-        Field mailSenderField = EmailOtpServiceImpl.class.getDeclaredField("mailSender");
-        mailSenderField.setAccessible(true);
-        mailSenderField.set(emailOtpService, mailSender);
-        
-        // Set from email
-        Field fromEmailField = EmailOtpServiceImpl.class.getDeclaredField("fromEmail");
-        fromEmailField.setAccessible(true);
-        fromEmailField.set(emailOtpService, "no-reply@test.com");
+        emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, objectMapper, passwordEncoder, mailHelper);
         
         // Set up password encoder mock
         when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> "encoded_" + invocation.getArgument(0));
-    }
-
-    @SuppressWarnings("unused")
-    private void setField(String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
-        Field field = EmailOtpServiceImpl.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(emailOtpService, value);
     }
 
     @Test
@@ -103,15 +84,17 @@ public class EmailOtpServiceImplTest {
         when(projection.getAccountId()).thenReturn(accountId);
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
-        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((jakarta.mail.Session) null));
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"emailOtp\":\"123456\",\"accountId\":\"test\"}");
+        
+        // Mock MailSendingHelper to do nothing when sendOtpEmail is called
+        doNothing().when(mailHelper).sendOtpEmail(anyString(), anyString());
 
         // Act
         String result = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
 
         // Assert
         assertEquals("OTP sent successfully to " + TEST_EMAIL, result);
-        verify(mailSender, times(1)).send(any(MimeMessage.class));
+        verify(mailHelper, times(1)).sendOtpEmail(eq(TEST_EMAIL), anyString());
     }
 
     @Test
@@ -219,18 +202,5 @@ public class EmailOtpServiceImplTest {
 
     private String computePublicKeyHash(String publicKeyJson) {
         return emailOtpService.computeHash(publicKeyJson);
-    }
-
-    private String computeOtpHash(String otp, String accountId) {
-        return emailOtpService.computeOtpHash(otp, accountId);
-    }
-
-    @SuppressWarnings("unused")
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder hex = new StringBuilder();
-        for (byte b : bytes) {
-            hex.append(String.format("%02x", b));
-        }
-        return hex.toString();
     }
 }

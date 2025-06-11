@@ -15,9 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,21 +31,13 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class OtpServiceImpl implements OtpServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(OtpServiceImpl.class);
-
-    // Field declarations moved to the top
     private final OtpRequestRepository otpRequestRepository;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
-
-    // Constructor
-    public OtpServiceImpl(OtpRequestRepository otpRequestRepository, ObjectMapper objectMapper, PasswordEncoder passwordEncoder) {
-        this.otpRequestRepository = otpRequestRepository;
-        this.objectMapper = objectMapper;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     public String generateOtp() {
@@ -113,7 +105,8 @@ public class OtpServiceImpl implements OtpServiceApi {
             otpRequest.setOtpCode(otp);
             otpRequestRepository.save(otpRequest);
 
-            logOtpGeneration(phoneNumber, otp);
+            log.info("OTP sent successfully to phone: {} [correlationId={}]", phoneNumber, correlationId);
+
             return otpHash;
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
@@ -129,19 +122,6 @@ public class OtpServiceImpl implements OtpServiceApi {
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             log.warn("Invalid phone number format received [correlationId={}]", correlationId);
             throw new IllegalArgumentException("Invalid phone number format");
-        }
-    }
-
-
-
-    private void logOtpGeneration(String phoneNumber, String otp) {
-        String correlationId = MDC.get("correlationId");
-        if (log.isDebugEnabled()) {
-            log.debug("OTP code generated for phone: {}, OTP VALUE: {} [correlationId={}]", 
-                    maskPhoneNumber(phoneNumber), otp, correlationId);
-        } else {
-            log.info("OTP sent successfully to phone: {} [correlationId={}]", 
-                    maskPhoneNumber(phoneNumber), correlationId);
         }
     }
 

@@ -16,9 +16,9 @@ import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,12 +35,12 @@ import java.util.Date;
 
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class DeviceRegServiceImpl implements DeviceRegServiceApi {
-    private static final Logger log = LoggerFactory.getLogger(DeviceRegServiceImpl.class);
 
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
-
     private final KeyLoader keyLoader;
 
     @Value("${jwt.issuer}")
@@ -48,12 +48,6 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
     @Value("${jwt.expiration-time-ms}")
     private Long expirationTimeMs;
-
-    public DeviceRegServiceImpl(ObjectMapper objectMapper, PasswordEncoder passwordEncoder, KeyLoader keyLoader) {
-        this.objectMapper = objectMapper;
-        this.passwordEncoder = passwordEncoder;
-        this.keyLoader = keyLoader;
-    }
 
     @Override
     public String initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
