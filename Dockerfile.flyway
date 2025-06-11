@@ -2,7 +2,7 @@
 FROM flyway/flyway:9.16.1-alpine
 
 # Copying SQL migration scripts into the Flyway working directory
-COPY src/main/resources/db/migration /flyway/sql
+COPY prs/prs-rest-server/src/main/resources/db/migration /flyway/sql
 
 # The default entrypoint and command will run 'flyway migrate'
 #Yeppp i think thats all for now...
