@@ -10,7 +10,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "otp_requests", indexes = @Index(name = "idx_public_key_hash", columnList = "publicKeyHash"))
+@Table(name = "otp_requests", indexes = {
+    @Index(name = "idx_public_key_hash", columnList = "publicKeyHash"),
+    @Index(name = "idx_phone_number", columnList = "phone_number"),
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_created_at", columnList = "created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
