@@ -4,6 +4,9 @@ on:
   push:
     branches:
     - develop
+  pull_request:
+    branches:
+    - develop
 
 jobs:
   build:
@@ -56,3 +59,4 @@ jobs:
     - name: Push Flyway image to GHCR
       run: |
         docker push ghcr.io/adorsys-gis/webank-prs:flyway-${{ github.sha }}
+        docker push ghcr.io/adorsys-gis/webank-prs:flyway-latest
