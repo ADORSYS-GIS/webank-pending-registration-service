@@ -1,16 +1,25 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.domain.UserDocumentsEntity;
+import com.adorsys.webank.domain.UserDocumentsStatus;
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
-import jakarta.persistence.*;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
+import com.adorsys.webank.exceptions.KycProcessingException;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.projection.UserDocumentsProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.repository.UserDocumentsRepository;
+import com.adorsys.webank.service.KycServiceApi;
+import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class KycServiceImpl implements KycServiceApi {
@@ -332,6 +341,6 @@ public class KycServiceImpl implements KycServiceApi {
             }
         }
         
-        return email.substring(0, 1) + "********";
+        return email.charAt(0) + "********";
     }
 }
