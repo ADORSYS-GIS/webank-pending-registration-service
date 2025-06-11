@@ -68,7 +68,7 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
         // Extract and validate the ClaimingAccountID
         String claimingAccountId = claimsSet.getStringClaim("newAccountId");
         if (!newAccountId.equals(claimingAccountId)) {
-            throw new IllegalArgumentException("Claiming account ID mismatch");
+            throw new ValidationException("Claiming account ID mismatch");
         }
 
         // Restore the old account (assuming a method to find the account by ID)

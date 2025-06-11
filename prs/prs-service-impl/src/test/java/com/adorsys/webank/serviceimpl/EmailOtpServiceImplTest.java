@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.model.EmailOtpData;
 import com.adorsys.webank.projection.PersonalInfoProjection;
@@ -100,9 +101,10 @@ public class EmailOtpServiceImplTest {
     @Test
     public void testSendEmailOtp_InvalidEmail() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        assertThrows(IllegalArgumentException.class, () ->
+        ValidationException exception = assertThrows(ValidationException.class, () ->
                 emailOtpService.sendEmailOtp(accountId, "invalid-email")
         );
+        assertEquals("Invalid email format", exception.getMessage());
     }
 
     @Test
@@ -166,9 +168,10 @@ public class EmailOtpServiceImplTest {
 
         when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
 
-        assertThrows(IllegalArgumentException.class, () ->
+        ValidationException exception = assertThrows(ValidationException.class, () ->
                 emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
         );
+        assertEquals("OTP has expired. Please request a new one.", exception.getMessage());
     }
 
     @Test

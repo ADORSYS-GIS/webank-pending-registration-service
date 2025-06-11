@@ -1,11 +1,11 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.domain.UserDocumentsStatus;
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.KycProcessingException;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
@@ -39,7 +39,7 @@ public class KycServiceImpl implements KycServiceApi {
         if (kycDocumentRequest == null) {
             log.warn("Invalid KYC Document Request received for accountId: {} [correlationId={}]", 
                     maskAccountId(AccountId), correlationId);
-            throw new IllegalArgumentException("Invalid KYC Document Request");
+            throw new ValidationException("Invalid KYC Document Request");
         }
 
         try {
@@ -83,7 +83,7 @@ public class KycServiceImpl implements KycServiceApi {
         } catch (Exception e) {
             log.error("Failed to send KYC Document for accountId: {} [correlationId={}]", 
                     maskAccountId(AccountId), correlationId, e);
-            throw new KycProcessingException("Failed to send KYC Document: " + e.getMessage());
+            throw new ValidationException("Failed to send KYC Document: " + e.getMessage());
         }
     }
 
@@ -93,7 +93,7 @@ public class KycServiceImpl implements KycServiceApi {
         if (kycInfoRequest == null) {
             log.warn("Invalid KYC Info Request received for accountId: {} [correlationId={}]", 
                     maskAccountId(AccountId), correlationId);
-            throw new IllegalArgumentException("Invalid KYC Info Request");
+            throw new ValidationException("Invalid KYC Info Request");
         }
 
         try {
@@ -137,7 +137,7 @@ public class KycServiceImpl implements KycServiceApi {
         } catch (Exception e) {
             log.error("Failed to send KYC Info for accountId: {} [correlationId={}]", 
                     maskAccountId(AccountId), correlationId, e);
-            throw new KycProcessingException("Failed to send KYC Info: " + e.getMessage());
+            throw new ValidationException("Failed to send KYC Info: " + e.getMessage());
         }
     }
 
@@ -146,7 +146,7 @@ public class KycServiceImpl implements KycServiceApi {
         String correlationId = MDC.get("correlationId");
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
             log.warn("Invalid KYC Location Request received [correlationId={}]", correlationId);
-            throw new IllegalArgumentException("Invalid KYC Location Request");
+            throw new ValidationException("Invalid KYC Location Request");
         }
 
         String accountId = kycLocationRequest.getAccountId();
@@ -168,12 +168,12 @@ public class KycServiceImpl implements KycServiceApi {
             } else {
                 log.warn("No KYC record found for accountId: {} [correlationId={}]", 
                         maskAccountId(accountId), correlationId);
-                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
+                throw new ValidationException("No KYC record found for the provided accountId.");
             }
         } catch (Exception e) {
             log.error("Failed to update KYC Location for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
-            throw new KycProcessingException("Failed to update KYC Location: " + e.getMessage());
+            throw new ValidationException("Failed to update KYC Location: " + e.getMessage());
         }
     }
 
@@ -182,7 +182,7 @@ public class KycServiceImpl implements KycServiceApi {
         String correlationId = MDC.get("correlationId");
         if (kycEmailRequest == null || kycEmailRequest.getEmail() == null) {
             log.warn("Invalid KYC Email Request received [correlationId={}]", correlationId);
-            throw new IllegalArgumentException("Invalid KYC Email Request");
+            throw new ValidationException("Invalid KYC Email Request");
         }
 
         String accountId = kycEmailRequest.getAccountId();
@@ -205,12 +205,12 @@ public class KycServiceImpl implements KycServiceApi {
             } else {
                 log.warn("No KYC record found for accountId: {} [correlationId={}]", 
                         maskAccountId(accountId), correlationId);
-                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
+                throw new ValidationException("No KYC record found for the provided accountId.");
             }
         } catch (Exception e) {
             log.error("Failed to update KYC Email for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
-            throw new KycProcessingException("Failed to update KYC Email: " + e.getMessage());
+            throw new ValidationException("Failed to update KYC Email: " + e.getMessage());
         }
     }
 

@@ -130,7 +130,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         ValidationException exception = assertThrows(ValidationException.class, () ->
             accountRecoveryService.processRecovery(publicKey, newAccountId, mismatchedRecoveryJwt)
         );
-        assertEquals("Claiming account ID mismatch", exception.getMessage());
+        assertEquals("An unexpected error occurred: Claiming account ID mismatch", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 

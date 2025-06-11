@@ -47,9 +47,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
         log.error("Validation error: ", ex);
+        // Check if the message contains specific error types to determine the appropriate status code
+        String message = ex.getMessage();
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
+
+        if (message != null) {
+            if (message.contains("OTP") || message.contains("phone number")) {
+                status = HttpStatus.BAD_REQUEST;
+                errorCode = ErrorCode.VALIDATION_ERROR;
+            } else if (message.contains("KYC")) {
+                status = HttpStatus.BAD_REQUEST;
+                errorCode = ErrorCode.VALIDATION_ERROR;
+            } else if (message.contains("hash") || message.contains("computation")) {
+                status = HttpStatus.INTERNAL_SERVER_ERROR;
+                errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
+            }
+        }
+
         return ResponseEntity
-                .status(ex.getErrorCode().getHttpStatus())
-                .body(ErrorResponse.createErrorResponse(ex.getErrorCode(), ex.getMessage()));
+                .status(status)
+                .body(ErrorResponse.createErrorResponse(errorCode, message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

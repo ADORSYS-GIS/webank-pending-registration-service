@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
@@ -30,7 +31,6 @@ import com.adorsys.webank.dto.KycEmailRequest;
 import com.adorsys.webank.dto.KycInfoRequest;
 import com.adorsys.webank.dto.KycLocationRequest;
 import com.adorsys.webank.dto.UserInfoResponse;
-import com.adorsys.webank.exceptions.KycProcessingException;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
@@ -90,7 +90,7 @@ class KycServiceImplTest {
    @Test
    void sendKycDocument_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycDocument(TEST_ACCOUNT_ID, null);
        });
    }
@@ -110,7 +110,7 @@ class KycServiceImplTest {
            .thenThrow(new RuntimeException("Database error"));
 
        // When & Then
-       assertThrows(KycProcessingException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycDocument(TEST_ACCOUNT_ID, request);
        });
    }
@@ -139,7 +139,7 @@ class KycServiceImplTest {
    @Test
    void sendKycInfo_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycInfo(TEST_ACCOUNT_ID, null);
        });
    }
@@ -158,7 +158,7 @@ class KycServiceImplTest {
            .thenThrow(new RuntimeException("Database error"));
 
        // When & Then
-       assertThrows(KycProcessingException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycInfo(TEST_ACCOUNT_ID, request);
        });
    }
@@ -188,7 +188,7 @@ class KycServiceImplTest {
    @Test
    void sendKycLocation_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycLocation(null);
        });
    }
@@ -205,7 +205,7 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(KycProcessingException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycLocation(request);
        });
    }
@@ -235,7 +235,7 @@ class KycServiceImplTest {
    @Test
    void sendKycEmail_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycEmail(null);
        });
    }
@@ -252,7 +252,7 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(KycProcessingException.class, () -> {
+       assertThrows(ValidationException.class, () -> {
            kycService.sendKycEmail(request);
        });
    }

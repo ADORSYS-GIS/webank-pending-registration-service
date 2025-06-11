@@ -1,8 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.exceptions.HashComputationException;
 import com.adorsys.webank.model.EmailOtpData;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
@@ -60,7 +59,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (accountId == null || accountId.trim().isEmpty()) {
             log.error("Invalid accountId provided: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("Account ID cannot be null or empty");
+            throw new ValidationException("Account ID cannot be null or empty");
         }
 
         try {
@@ -97,7 +96,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         } catch (Exception e) {
             log.error("Failed to send Email OTP to account: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId, e);
-            throw new FailedToSendOTPException("Failed to send Webank email OTP: " + e.getMessage());
+            throw new ValidationException("Failed to send Webank email OTP: " + e.getMessage());
         }
     }
 
@@ -133,14 +132,14 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             log.warn("Invalid Email OTP entered for account: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId);
             return "Invalid Webank OTP";
-        } catch (IllegalArgumentException e) {
+        } catch (ValidationException e) {
             log.error("Validation error for account: {}: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), e.getMessage(), correlationId);
             throw e;
         } catch (Exception e) {
             log.error("Error validating Email OTP for account: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId, e);
-            throw new IllegalStateException("Failed to validate OTP: " + e.getMessage(), e);
+            throw new ValidationException("Failed to validate OTP: " + e.getMessage());
         }
     }
 
@@ -149,7 +148,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (otpInput == null || otpInput.trim().isEmpty()) {
             log.warn("Empty OTP provided for accountId: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("OTP cannot be empty");
+            throw new ValidationException("OTP cannot be empty");
         }
     }
 
@@ -159,7 +158,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             .orElseThrow(() -> {
                 log.warn("User record not found for account: {} [correlationId={}]",
                         mailHelper.maskAccountId(accountId), correlationId);
-                return new IllegalArgumentException("User record not found");
+                return new ValidationException("User record not found");
             });
     }
 
@@ -168,12 +167,12 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (expiration == null) {
             log.error("No OTP expiration date found for account: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("OTP expiration date missing");
+            throw new ValidationException("OTP expiration date missing");
         }
         if (LocalDateTime.now().isAfter(expiration)) {
             log.warn("Email OTP expired for account: {}, expired at: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), expiration, correlationId);
-            throw new IllegalArgumentException("OTP has expired. Please request a new one.");
+            throw new ValidationException("OTP has expired. Please request a new one.");
         }
         
         log.debug("Email OTP expiration valid for account: {}, expires at: {} [correlationId={}]",
@@ -185,7 +184,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (storedOtpCode == null || storedOtpCode.trim().isEmpty()) {
             log.warn("No OTP code found for accountId: {} [correlationId={}]",
                     mailHelper.maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("No OTP code found. Please request a new one.");
+            throw new ValidationException("No OTP code found. Please request a new one.");
         }
     }
 
@@ -205,7 +204,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         if (!email.matches(EMAIL_REGEX)) {
             log.warn("Invalid email format provided: {} [correlationId={}]",
                     mailHelper.maskEmail(email), correlationId);
-            throw new IllegalArgumentException("Invalid email format");
+            throw new ValidationException("Invalid email format");
         }
         log.debug("Email format validation successful [correlationId={}]", correlationId);
     }
@@ -221,7 +220,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             return passwordEncoder.encode(canonicalizeJson(input));
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
-            throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
+            throw new ValidationException("Failed to compute OTP hash: " + e.getMessage());
         }
     }
 
@@ -236,7 +235,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             return result;
         } catch (NoSuchAlgorithmException e) {
             log.error("Error computing hash [correlationId={}]", correlationId, e);
-            throw new HashComputationException("Error computing hash");
+            throw new ValidationException("Error computing hash");
         }
     }
 
@@ -256,7 +255,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             return jc.getEncodedString();
         } catch (Exception e) {
             log.error("Error canonicalizing JSON [correlationId={}]", correlationId, e);
-            throw new HashComputationException("Error canonicalizing JSON: " + e.getMessage());
+            throw new ValidationException("Error canonicalizing JSON: " + e.getMessage());
         }
     }
 }

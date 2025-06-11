@@ -1,12 +1,9 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.config.SecurityUtils;
 import com.adorsys.webank.domain.OtpEntity;
 import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.adorsys.webank.exceptions.OtpProcessingException;
-import com.adorsys.webank.exceptions.OtpValidationException;
 import com.adorsys.webank.model.OtpData;
 import com.adorsys.webank.repository.OtpRequestRepository;
 import com.adorsys.webank.service.OtpServiceApi;
@@ -85,7 +82,7 @@ public class OtpServiceImpl implements OtpServiceApi {
         } else {
             // 3. If record was updated, fetch it
             otpRequest = otpRequestRepository.findEntityByPublicKeyHash(publicKeyHash)
-                    .orElseThrow(() -> new FailedToSendOTPException("Failed to fetch updated OTP record"));
+                    .orElseThrow(() -> new ValidationException("Failed to fetch updated OTP record"));
         }
 
         // Generate OTP hash using structured POJO instead of Map
@@ -110,10 +107,10 @@ public class OtpServiceImpl implements OtpServiceApi {
             return otpHash;
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
-            throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
+            throw new ValidationException("Failed to compute OTP hash: " + e.getMessage());
         } catch (IOException e) {
             log.error("I/O error while processing OTP request", e);
-            throw new OtpProcessingException("Failed to process OTP request due to I/O error", e);
+            throw new ValidationException("Failed to process OTP request due to I/O error");
         }
     }
 
@@ -121,7 +118,7 @@ public class OtpServiceImpl implements OtpServiceApi {
         String correlationId = MDC.get("correlationId");
         if (phoneNumber == null || !phoneNumber.matches("\\+?[1-9]\\d{1,14}")) {
             log.warn("Invalid phone number format received [correlationId={}]", correlationId);
-            throw new IllegalArgumentException("Invalid phone number format");
+            throw new ValidationException("Invalid phone number format");
         }
     }
 
@@ -153,7 +150,7 @@ public class OtpServiceImpl implements OtpServiceApi {
      */
     private OtpEntity findOtpRequestByHash(String publicKeyHash) {
         return otpRequestRepository.findEntityByPublicKeyHash(publicKeyHash)
-                .orElseThrow(() -> new OtpValidationException("No OTP request found for this public key"));
+                .orElseThrow(() -> new ValidationException("No OTP request found for this public key"));
     }
 
     /**
@@ -164,7 +161,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             log.warn("OTP expired for id: {}", otpEntity.getId());
             otpEntity.setStatus(OtpStatus.INCOMPLETE); // Using INCOMPLETE as there's no EXPIRED status
             otpRequestRepository.save(otpEntity);
-            throw new OtpValidationException("OTP expired. Request a new one.");
+            throw new ValidationException("OTP expired. Request a new one.");
         }
     }
 
@@ -198,13 +195,13 @@ public class OtpServiceImpl implements OtpServiceApi {
             } else {
                 otpEntity.setStatus(OtpStatus.INCOMPLETE);
                 otpRequestRepository.save(otpEntity);
-                throw new OtpValidationException("Invalid OTP");
+                throw new ValidationException("Invalid OTP");
             }
         } catch (IOException e) {
             log.error("Failed to serialize OTP validation data to JSON", e);
             otpEntity.setStatus(OtpStatus.INCOMPLETE);
             otpRequestRepository.save(otpEntity);
-            throw new OtpValidationException("Error processing OTP data", e);
+            throw new ValidationException("Error processing OTP data");
         }
     }
 
@@ -220,7 +217,7 @@ public class OtpServiceImpl implements OtpServiceApi {
             return hash;
         } catch (NoSuchAlgorithmException e) {
             log.error("Error computing hash [correlationId={}]", correlationId, e);
-            throw new HashComputationException("Error computing hash");
+            throw new ValidationException("Error computing hash");
         }
     }
 
