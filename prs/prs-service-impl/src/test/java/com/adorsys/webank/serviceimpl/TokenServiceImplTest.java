@@ -40,8 +40,6 @@ class TokenServiceImplTest {
     @InjectMocks
     private TokenServiceImpl tokenService;
 
-    private ECKey serverPrivateKey;
-    private ECKey serverPublicKey;
     private static final String TEST_ISSUER = "test-issuer";
     private static final Long TEST_EXPIRATION_TIME_MS = 3600000L; // 1 hour
     private static final String TEST_OLD_ACCOUNT_ID = "old123456789";
@@ -51,8 +49,8 @@ class TokenServiceImplTest {
     @BeforeEach
     void setUp() throws Exception {
         // Generate test keys
-        serverPrivateKey = new ECKeyGenerator(Curve.P_256).generate();
-        serverPublicKey = serverPrivateKey.toPublicJWK();
+        ECKey serverPrivateKey = new ECKeyGenerator(Curve.P_256).generate();
+        ECKey serverPublicKey = serverPrivateKey.toPublicJWK();
 
         // Set up mocks
         when(keyLoader.loadPrivateKey()).thenReturn(serverPrivateKey);

@@ -173,17 +173,20 @@ class KycStatusUpdateServiceImplTest {
         when(inforepository.findByAccountId(TEST_ACCOUNT_ID))
             .thenReturn(Optional.of(projection));
         
-        // Act
-        String result = kycStatusUpdateService.updateKycStatus(
-            TEST_ACCOUNT_ID, 
-            "rejected", 
-            TEST_ID_NUMBER, 
-            TEST_EXPIRY_DATE, 
-            "   "
+        // Act & Assert
+        assertEquals("Failed: Rejection reason is required when status is REJECTED",
+            kycStatusUpdateService.updateKycStatus(
+                TEST_ACCOUNT_ID, 
+                "rejected", 
+                TEST_ID_NUMBER, 
+                TEST_EXPIRY_DATE, 
+                "   "
+            )
         );
-        
-        // Assert
-      // @Test
+        verify(inforepository, never()).save(any());
+    }
+
+    // @Test
     // void updateKycStatus_ClearsRejectionReasonWhenNotRejected() {
     //     // Arrange
     //     PersonalInfoProjection projection = createValidProjection();
@@ -253,9 +256,7 @@ class KycStatusUpdateServiceImplTest {
     //     assertEquals("A****B", service.maskAccountId("AB"));
     //     assertEquals("********", service.maskAccountId(""));
     //     assertEquals("********", service.maskAccountId(null));
-    // }   assertEquals("Failed: Rejection reason is required when status is REJECTED", result);
-        verify(inforepository, never()).save(any());
-    }
+    // }
 
     @Test
     void updateKycStatus_InvalidStatusValue() {

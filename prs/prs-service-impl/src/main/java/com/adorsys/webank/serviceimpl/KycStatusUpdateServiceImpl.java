@@ -1,15 +1,18 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
-import org.springframework.transaction.annotation.*;
-import org.slf4j.MDC;
+import java.util.Optional;
 
-import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.KycStatusUpdateServiceApi;
 
 @Service
 public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {

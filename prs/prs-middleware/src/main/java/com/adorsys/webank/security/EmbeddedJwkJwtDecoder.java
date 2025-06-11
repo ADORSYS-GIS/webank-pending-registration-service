@@ -1,7 +1,6 @@
 package com.adorsys.webank.security;
 
 import com.nimbusds.jwt.*;
-import com.nimbusds.jose.util.JSONObjectUtils;
 import lombok.*;
 import lombok.extern.slf4j.*;
 import org.springframework.context.annotation.*;
@@ -9,8 +8,6 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.*;
 import java.time.Instant;
 import java.util.*;
-import com.adorsys.webank.exceptions.SecurityConfigurationException;
-import com.adorsys.webank.exceptions.JwtPayloadParseException;
 
 /**
  * Uses JwtValidator to validate JWTs, and returns Spring Security's Jwt object.
@@ -21,6 +18,7 @@ import com.adorsys.webank.exceptions.JwtPayloadParseException;
 @RequiredArgsConstructor
 public class EmbeddedJwkJwtDecoder implements JwtDecoder {
 
+
     @Override
     public Jwt decode(String token) throws JwtException {
         log.info("Starting decode process for JWT");
@@ -28,7 +26,7 @@ public class EmbeddedJwkJwtDecoder implements JwtDecoder {
 
         if (token == null || token.isEmpty()) {
             log.error("JWT token is null or empty");
-            throw new SecurityConfigurationException("JWT token is null or empty", null);
+            throw new BadJwtException("JWT token is null or empty");
         }
         
         try {
@@ -72,12 +70,9 @@ public class EmbeddedJwkJwtDecoder implements JwtDecoder {
                     claims
             );
 
-        } catch (java.text.ParseException e) {
-            log.error("Failed to parse JWT", e);
-            throw new JwtPayloadParseException("Failed to parse JWT: " + e.getMessage(), e);
         } catch (Exception e) {
             log.error("JWT validation failed", e);
-            throw new SecurityConfigurationException("Invalid JWT: " + e.getMessage(), e);
+            throw new BadJwtException("Invalid JWT", e);
         }
     }
-}
+        }

@@ -1,73 +1,67 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.exceptions.HashComputationException;
+import com.adorsys.webank.model.EmailOtpData;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.EmailOtpServiceApi;
+import com.adorsys.webank.serviceimpl.helper.MailHelper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.MDC;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
-import org.erdtman.jcs.JsonCanonicalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Service;
-
-import com.adorsys.error.ValidationException;
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.exceptions.HashComputationException;
-import com.adorsys.webank.projection.PersonalInfoProjection;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.service.EmailOtpServiceApi;
-
-import jakarta.annotation.Resource;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImpl.class);
     private final PersonalInfoRepository personalInfoRepository;
-    private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final MailHelper mailHelper;
 
-    @Resource
-    private JavaMailSender mailSender;
-
-    @Value("${otp.salt}")
-    private String salt;
-
-    @Value("${spring.mail.username}")
-    private String fromEmail;
-
-    public EmailOtpServiceImpl(PersonalInfoRepository personalInfoRepository) {
-        this.personalInfoRepository = personalInfoRepository;
-    }
+    // Constants
+    private static final int OTP_EXPIRATION_MINUTES = 5;
+    private static final String EMAIL_REGEX = "^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
 
     @Override
     public String generateOtp() {
-        log.debug("Generating new OTP");
+        String correlationId = MDC.get("correlationId");
+        log.debug("Generating new Email OTP [correlationId={}]", correlationId);
         SecureRandom secureRandom = new SecureRandom();
         int otp = 100000 + secureRandom.nextInt(900000);
-        log.debug("Generated OTP: {}", otp);
+        log.debug("Email OTP generated successfully [correlationId={}]", correlationId);
         return String.valueOf(otp);
     }
 
     @Override
     public String sendEmailOtp(String accountId, String email) {
-        if (accountId == null || accountId.isEmpty()) {
-            throw new ValidationException("Account ID is required");
-        }
-        if (email == null || email.isEmpty()) {
-            throw new ValidationException("Email is required");
-        }
-        log.info("Initiating OTP send process for email: {}, accountId: {}", email, accountId);
+        String correlationId = MDC.get("correlationId");
+        log.info("Initiating Email OTP send process for account: {} [correlationId={}]",
+                mailHelper.maskAccountId(accountId), correlationId);
+        log.debug("Target email: {} [correlationId={}]", mailHelper.maskEmail(email), correlationId);
+        
         validateEmailFormat(email);
+
+        if (accountId == null || accountId.trim().isEmpty()) {
+            log.error("Invalid accountId provided: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
+            throw new IllegalArgumentException("Account ID cannot be null or empty");
+        }
 
         try {
             String otp = generateOtp();
@@ -75,144 +69,173 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
             PersonalInfoEntity personalInfo;
 
             if (personalInfoOpt.isEmpty()) {
-                log.info("No user found for accountId: {}. Creating new record.", accountId);
+                log.info("No user found for account: {}. Creating new record. [correlationId={}]",
+                        mailHelper.maskAccountId(accountId), correlationId);
                 personalInfo = PersonalInfoEntity.builder()
                         .accountId(accountId)
                         .build();
             } else {
                 personalInfo = new PersonalInfoEntity();
                 personalInfo.setAccountId(accountId);
-                log.debug("Existing PersonalInfoEntity found: {}", personalInfo);
+                log.debug("Existing record found for account: {} [correlationId={}]",
+                        mailHelper.maskAccountId(accountId), correlationId);
             }
 
-            LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(5);
+            LocalDateTime otpExpiration = LocalDateTime.now().plusMinutes(OTP_EXPIRATION_MINUTES);
             personalInfo.setEmailOtpCode(otp);
             personalInfo.setEmailOtpHash(computeOtpHash(otp, accountId));
             personalInfo.setOtpExpirationDateTime(otpExpiration);
 
             personalInfoRepository.save(personalInfo);
-            log.debug("PersonalInfoEntity saved: {}", personalInfo);
+            log.debug("OTP record saved for account: {} with expiration: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), otpExpiration, correlationId);
 
-            sendOtpEmail(email, otp);
-            return "Email OTP sent successfully";
+            mailHelper.sendOtpEmail(email, otp);
+            log.info("Email OTP sent successfully to account: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
+            return "OTP sent successfully to " + email;
         } catch (Exception e) {
-            log.error("Failed to send OTP to {} for accountId: {}", email, accountId, e);
+            log.error("Failed to send Email OTP to account: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId, e);
             throw new FailedToSendOTPException("Failed to send Webank email OTP: " + e.getMessage());
         }
     }
 
     @Override
-    public String validateEmailOtp(String email, String otp, String accountId) {
-        if (email == null || email.isEmpty()) {
-            throw new ValidationException("Email is required");
-        }
-        if (otp == null || otp.isEmpty()) {
-            throw new ValidationException("OTP is required");
-        }
-        if (accountId == null || accountId.isEmpty()) {
-            throw new ValidationException("Account ID is required");
-        }
-        log.info("Validating OTP for email: {}, accountId: {}", email, accountId);
+    public String validateEmailOtp(String email, String otpInput, String accountId) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Validating Email OTP for account: {} [correlationId={}]",
+                mailHelper.maskAccountId(accountId), correlationId);
+        log.debug("Email being validated: {} [correlationId={}]", mailHelper.maskEmail(email), correlationId);
+        
+        validateOtpInput(otpInput, accountId);
+        
         try {
-            Optional<PersonalInfoProjection> personalInfoOpt = personalInfoRepository.findByAccountId(accountId);
-            if (personalInfoOpt.isEmpty()) {
-                throw new IllegalArgumentException("User record not found");
+            PersonalInfoProjection projection = getPersonalInfoProjection(accountId);
+            validateOtpExpiration(projection.getOtpExpirationDateTime(), accountId);
+            validateStoredOtp(projection.getEmailOtpCode(), accountId);
+            
+            log.debug("Comparing OTPs - Stored: '{}', Input: '{}' [correlationId={}]", 
+                    projection.getEmailOtpCode(), otpInput, correlationId);
+
+            EmailOtpData otpData = EmailOtpData.create(otpInput, accountId);
+            String input = objectMapper.writeValueAsString(otpData);
+
+            boolean isValid = passwordEncoder.matches(canonicalizeJson(input), projection.getEmailOtpHash());
+            if (isValid) {
+                PersonalInfoEntity entity = createPersonalInfoEntity(accountId, email, projection);
+                personalInfoRepository.save(entity);
+                log.info("Email OTP verified successfully for account: {} [correlationId={}]",
+                        mailHelper.maskAccountId(accountId), correlationId);
+                return "Webank email verified successfully";
             }
 
-            PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-            personalInfo.setAccountId(accountId);
-            personalInfo.setEmailOtpCode(personalInfoOpt.get().getEmailOtpCode());
-            personalInfo.setEmailOtpHash(personalInfoOpt.get().getEmailOtpHash());
-            personalInfo.setOtpExpirationDateTime(personalInfoOpt.get().getOtpExpirationDateTime());
-
-            validateOtpExpiration(personalInfo);
-
-            if (validateOtpHash(otp, accountId, personalInfo)) {
-                personalInfo.setEmail(email);
-                personalInfoRepository.save(personalInfo);
-                log.info("OTP verified successfully for email: {}", email);
-                return "Email OTP validated successfully";
-            }
-
-            personalInfoRepository.save(personalInfo);
-            log.warn("Invalid OTP entered for email: {}", email);
-            throw new ValidationException("Invalid OTP");
+            log.warn("Invalid Email OTP entered for account: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
+            return "Invalid Webank OTP";
         } catch (IllegalArgumentException e) {
-            log.error("Validation error for accountId: {}: {}", accountId, e.getMessage());
+            log.error("Validation error for account: {}: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), e.getMessage(), correlationId);
             throw e;
         } catch (Exception e) {
-            log.error("Error validating OTP for accountId: {}", accountId, e);
-            throw new FailedToSendOTPException("Webank OTP validation error: " + e.getMessage());
+            log.error("Error validating Email OTP for account: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId, e);
+            throw new IllegalStateException("Failed to validate OTP: " + e.getMessage(), e);
         }
     }
 
-    private void validateOtpExpiration(PersonalInfoEntity personalInfo) {
-        LocalDateTime expiration = personalInfo.getOtpExpirationDateTime();
+    private void validateOtpInput(String otpInput, String accountId) {
+        String correlationId = MDC.get("correlationId");
+        if (otpInput == null || otpInput.trim().isEmpty()) {
+            log.warn("Empty OTP provided for accountId: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
+            throw new IllegalArgumentException("OTP cannot be empty");
+        }
+    }
 
+    private PersonalInfoProjection getPersonalInfoProjection(String accountId) {
+        String correlationId = MDC.get("correlationId");
+        return personalInfoRepository.findByAccountId(accountId)
+            .orElseThrow(() -> {
+                log.warn("User record not found for account: {} [correlationId={}]",
+                        mailHelper.maskAccountId(accountId), correlationId);
+                return new IllegalArgumentException("User record not found");
+            });
+    }
+
+    private void validateOtpExpiration(LocalDateTime expiration, String accountId) {
+        String correlationId = MDC.get("correlationId");
         if (expiration == null) {
-            log.error("No OTP expiration date found for accountId: {}", personalInfo.getAccountId());
+            log.error("No OTP expiration date found for account: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
             throw new IllegalArgumentException("OTP expiration date missing");
         }
-
         if (LocalDateTime.now().isAfter(expiration)) {
-            personalInfoRepository.save(personalInfo);
-            log.warn("OTP expired for accountId: {}", personalInfo.getAccountId());
-            throw new FailedToSendOTPException("Webank OTP expired");
+            log.warn("Email OTP expired for account: {}, expired at: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), expiration, correlationId);
+            throw new IllegalArgumentException("OTP has expired. Please request a new one.");
         }
+        
+        log.debug("Email OTP expiration valid for account: {}, expires at: {} [correlationId={}]",
+                mailHelper.maskAccountId(accountId), expiration, correlationId);
+    }
+
+    private void validateStoredOtp(String storedOtpCode, String accountId) {
+        String correlationId = MDC.get("correlationId");
+        if (storedOtpCode == null || storedOtpCode.trim().isEmpty()) {
+            log.warn("No OTP code found for accountId: {} [correlationId={}]",
+                    mailHelper.maskAccountId(accountId), correlationId);
+            throw new IllegalArgumentException("No OTP code found. Please request a new one.");
+        }
+    }
+
+    private PersonalInfoEntity createPersonalInfoEntity(String accountId, String email, PersonalInfoProjection projection) {
+        PersonalInfoEntity entity = new PersonalInfoEntity();
+        entity.setAccountId(accountId);
+        entity.setEmail(email);
+        entity.setEmailOtpCode(projection.getEmailOtpCode());
+        entity.setEmailOtpHash(projection.getEmailOtpHash());
+        entity.setOtpExpirationDateTime(projection.getOtpExpirationDateTime());
+        return entity;
     }
 
     private void validateEmailFormat(String email) {
-        log.debug("Validating email format for: {}", email);
-        if (!email.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
-            log.warn("Invalid email format: {}", email);
+        String correlationId = MDC.get("correlationId");
+        log.debug("Validating email format: {} [correlationId={}]", mailHelper.maskEmail(email), correlationId);
+        if (!email.matches(EMAIL_REGEX)) {
+            log.warn("Invalid email format provided: {} [correlationId={}]",
+                    mailHelper.maskEmail(email), correlationId);
             throw new IllegalArgumentException("Invalid email format");
         }
-    }
-
-    private void sendOtpEmail(String toEmail, String otp) {
-        log.info("Sending OTP email from {} to {}", fromEmail, toEmail);
-        MimeMessage message = mailSender.createMimeMessage();
-
-        try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, true);
-            helper.setFrom(fromEmail);
-            helper.setTo(toEmail);
-            helper.setSubject("Webank Verification Code");
-            helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
-
-            ByteArrayResource resource = new ByteArrayResource("This is a sample attachment".getBytes());
-            helper.addAttachment("webank_otp_info.txt", resource);
-
-            mailSender.send(message);
-            log.info("OTP email sent successfully to {}", toEmail);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}", toEmail, e);
-            throw new FailedToSendOTPException("Failed to send Webank email with attachment: " + e.getMessage());
-        }
-    }
-
-    private boolean validateOtpHash(String inputOtp, String accountId, PersonalInfoEntity personalInfo) {
-        log.debug("Validating OTP hash for input OTP");
-        String currentHash = computeOtpHash(inputOtp, accountId);
-        boolean isValid = currentHash.equals(personalInfo.getEmailOtpHash());
-        log.debug("OTP hash validation result: {}", isValid);
-        return isValid;
+        log.debug("Email format validation successful [correlationId={}]", correlationId);
     }
 
     String computeOtpHash(String emailOtp, String accountId) {
-        log.debug("Computing OTP hash");
-        String input = String.format("{\"emailOtp\":\"%s\", \"accountId\":\"%s\", \"salt\":\"%s\"}",
-                emailOtp, accountId, salt);
-        log.trace("Hash input: {}", input);
-        return computeHash(canonicalizeJson(input));
+        String correlationId = MDC.get("correlationId");
+        log.debug("Computing OTP hash for account: {} [correlationId={}]",
+                mailHelper.maskAccountId(accountId), correlationId);
+        try {
+            EmailOtpData otpData = EmailOtpData.create(emailOtp, accountId);
+            String input = objectMapper.writeValueAsString(otpData);
+            log.trace("Hash input: {}", input);
+            return passwordEncoder.encode(canonicalizeJson(input));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize OTP hash data", e);
+            throw new HashComputationException("Failed to compute OTP hash: " + e.getMessage());
+        }
     }
 
     public String computeHash(String input) {
+        String correlationId = MDC.get("correlationId");
         try {
+            log.debug("Computing hash for input [correlationId={}]", correlationId);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(hashBytes);
+            String result = bytesToHex(hashBytes);
+            log.debug("Hash computation completed [correlationId={}]", correlationId);
+            return result;
         } catch (NoSuchAlgorithmException e) {
+            log.error("Error computing hash [correlationId={}]", correlationId, e);
             throw new HashComputationException("Error computing hash");
         }
     }
@@ -226,16 +249,14 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         return hexString.toString();
     }
 
-    String canonicalizeJson(String json) {
+    String canonicalizeJson(String jsonString) {
+        String correlationId = MDC.get("correlationId");
         try {
-            log.trace("Canonicalizing JSON: {}", json);
-            JsonCanonicalizer jc = new JsonCanonicalizer(json);
-            String canonicalJson = jc.getEncodedString();
-            log.trace("Canonicalized JSON: {}", canonicalJson);
-            return canonicalJson;
+            JsonCanonicalizer jc = new JsonCanonicalizer(jsonString);
+            return jc.getEncodedString();
         } catch (Exception e) {
-            log.error("JSON canonicalization failed", e);
-            throw new HashComputationException("Webank JSON canonicalization error");
+            log.error("Error canonicalizing JSON [correlationId={}]", correlationId, e);
+            throw new HashComputationException("Error canonicalizing JSON: " + e.getMessage());
         }
     }
 }

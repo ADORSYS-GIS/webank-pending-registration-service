@@ -124,7 +124,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     @Test
     void testProcessRecovery_ClaimingAccountIdMismatch() throws Exception {
         // Arrange
-        String mismatchedRecoveryJwt = generateMismatchedRecoveryJwt(newAccountId);
+        String mismatchedRecoveryJwt = generateMismatchedRecoveryJwt();
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
@@ -164,7 +164,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         return signedJWT.serialize();
     }
 
-    private String generateMismatchedRecoveryJwt(String newAccountId) throws JOSEException {
+    private String generateMismatchedRecoveryJwt() throws JOSEException {
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .claim("TimeStamp", System.currentTimeMillis())
                 .claim("newAccountId", "wrongAccountId")
