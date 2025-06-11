@@ -28,6 +28,16 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(RequestParameterExtractorFilter.class);
     @Autowired
     private final EndpointParameterMapper endpointParameterMapper;
+    /**
+     * List of paths to skip for parameter extraction.
+     * These paths are typically used for static resources or API documentation.
+     */
+    private static final List<String> SKIP_PATHS = Arrays.asList(
+            "/h2-console",
+            "/swagger-ui.html",
+            "/v3/api-docs",
+            "/swagger-ui/"
+    );
 
     /**
      * Retrieves the required parameters for the given endpoint path.
@@ -150,6 +160,15 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+
+
+        String requestURI = request.getRequestURI();
+        if (SKIP_PATHS.stream().anyMatch(requestURI::startsWith)) {
+            log.debug("Skipping filter for: {}", requestURI);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         try {
             HttpServletRequest wrappedRequest = new CachingRequestBodyWrapper(request);
             Map<String, String> params = new HashMap<>();
