@@ -52,10 +52,11 @@ jobs:
             type=sha,format=long
             type=ref,event=branch
             type=schedule,pattern={{date 'YYYYMMDD-hhmmss' tz='Africa/Douala'}}
-            type=semver,enable=true,priority=900
+            type=semver,pattern={{version}},enable=true,priority=900
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
+          
 
           flavor: |
             latest=false
