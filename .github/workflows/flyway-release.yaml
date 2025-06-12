@@ -52,11 +52,13 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_PAT }}
 
-    - name: Build Flyway image
-      run: |
-        docker build -t ghcr.io/adorsys-gis/webank-prs:flyway-${{ github.sha }} -t ghcr.io/adorsys-gis/webank-prs:flyway-latest -f Dockerfile.flyway .
+    - name: Build and push Flyway image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile.flyway
+        push: true
+        tags: |
+          ghcr.io/adorsys-gis/webank-prs:flyway-${{ github.sha }}
+          ghcr.io/adorsys-gis/webank-prs:flyway-latest
 
-    - name: Push Flyway image to GHCR
-      run: |
-        docker push ghcr.io/adorsys-gis/webank-prs:flyway-${{ github.sha }}
-        docker push ghcr.io/adorsys-gis/webank-prs:flyway-latest
