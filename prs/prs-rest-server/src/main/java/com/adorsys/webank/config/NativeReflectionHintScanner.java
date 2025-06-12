@@ -1,9 +1,7 @@
 package com.adorsys.webank.config;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -12,7 +10,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
-import org.springframework.web.bind.annotation.RestController;
 
 public class NativeReflectionHintScanner {
 
