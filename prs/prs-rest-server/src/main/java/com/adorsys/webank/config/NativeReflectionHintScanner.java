@@ -11,7 +11,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class NativeReflectionHintScanner {
+
+    private static final Logger log = LoggerFactory.getLogger(NativeReflectionHintScanner.class);
 
     private static final List<Class<? extends Annotation>> TARGET_ANNOTATIONS = List.of(
             Entity.class,
@@ -32,17 +37,16 @@ public class NativeReflectionHintScanner {
             candidates.addAll(reflections.getTypesAnnotatedWith(annotation));
         }
 
-        System.out.println("🔍 Classes that may need @RegisterReflectionForBinding:");
+        log.info("Classes that may need @RegisterReflectionForBinding:");
         candidates.stream()
                 .sorted(Comparator.comparing(Class::getName))
-                .forEach(clazz -> System.out.println("→ " + clazz.getName()));
+                .forEach(clazz -> log.info("→ {}", clazz.getName()));
 
-        System.out.println("\n📌 Suggested @RegisterReflectionForBinding usage:\n");
-        System.out.println("@RegisterReflectionForBinding({");
-        System.out.println(candidates.stream()
+        log.info("\n Suggested @RegisterReflectionForBinding usage:\n");
+        log.info("@RegisterReflectionForBinding({");
+        log.info(candidates.stream()
                 .map(c -> c.getName() + ".class")
                 .collect(Collectors.joining(",\n")));
-        System.out.println("})");
+        log.info("})");
     }
 }
-
