@@ -6,6 +6,7 @@ import com.adorsys.webank.service.*;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jwt.*;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
@@ -15,9 +16,8 @@ import org.slf4j.MDC;
 import java.util.*;
 
 @Service
+@Slf4j
 public class TokenServiceImpl implements TokenServiceApi {
-
-    private static final Logger log = LoggerFactory.getLogger(TokenServiceImpl.class);
 
     @Autowired
     private KeyLoader keyLoader;

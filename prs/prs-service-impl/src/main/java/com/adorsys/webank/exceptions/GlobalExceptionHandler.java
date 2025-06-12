@@ -97,6 +97,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Handles AccountNotFoundException and returns appropriate HTTP response.
+     *
+     * @param ex The AccountNotFoundException that was thrown
+     * @return ResponseEntity with error details and NOT_FOUND status
+     */
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotFoundException(AccountNotFoundException ex) {
+        log.warn("Account not found: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                "ACCOUNT_NOT_FOUND",
+                ex.getMessage(),
+                HttpStatus.NOT_FOUND.value()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    /**
      * Handles any unhandled exceptions and returns appropriate HTTP response.
      *
      * @param ex The Exception that was thrown

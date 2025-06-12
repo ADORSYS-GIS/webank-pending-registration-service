@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Tag(name = "Account Recovery", description = "Endpoints for finalizing account recovery requests")
-@RequestMapping("/api/prs/recovery")
+@RequestMapping("/api/prs/kyc/recovery")
 public interface AccountRecoveryValidationRequestRestApi {
 
     @Operation(summary = "Validate recovery token", description = "Processes the final step in account recovery by validating the JWT and associating the new account ID.")
