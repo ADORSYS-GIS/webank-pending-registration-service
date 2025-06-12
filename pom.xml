@@ -47,8 +47,8 @@
 			**/*Properties*.java
 		</sonar.coverage.exclusions>
 		<sonar.moduleName>${project.artifactId}</sonar.moduleName>
-
 		<skipITs>false</skipITs>
+		<native.maven.plugin.version>0.10.6</native.maven.plugin.version>
 		
 		<!-- Logging properties -->
 		<logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
