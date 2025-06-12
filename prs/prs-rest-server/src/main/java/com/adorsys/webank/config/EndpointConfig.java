@@ -1,8 +1,12 @@
 package com.adorsys.webank.config;
 
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class EndpointConfig {
@@ -30,10 +34,8 @@ public class EndpointConfig {
         ENDPOINT_PARAMETERS.put("api/prs/kyc/documents", Arrays.asList("frontId", "backId", "selfieId", "taxId", "accountId"));
         ENDPOINT_PARAMETERS.put("api/prs/kyc/record", List.of("accountId"));
         ENDPOINT_PARAMETERS.put("api/prs/kyc/findById/{DocumentUniqueId}", List.of("DocumentUniqueId"));
-
+        ENDPOINT_PARAMETERS.put("api/prs/kyc/status/update", Arrays.asList("idNumber", "expiryDate", "accountId", "status", "rejectionReason"));
 
         return com.adorsys.webank.security.extractor.EndpointParameterMapper.builder().endpointParameters(ENDPOINT_PARAMETERS).build();
-
-
     }
 }

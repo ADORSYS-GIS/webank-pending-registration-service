@@ -145,8 +145,5 @@ class DeviceRegServiceTest {
         
         // The nonce is now a password-encoded string, so we'll just check it's not empty
         assertFalse(nonce.isEmpty(), "Nonce should not be empty");
-        assertTrue(nonce.length() > 0, "Nonce should have a length greater than 0");
     }
-
-
 }

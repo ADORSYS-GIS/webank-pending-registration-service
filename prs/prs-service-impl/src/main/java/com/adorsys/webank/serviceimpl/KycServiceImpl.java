@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +143,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
+    @Transactional
     public String sendKycLocation(KycLocationRequest kycLocationRequest) {
         String correlationId = MDC.get("correlationId");
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
@@ -150,26 +152,26 @@ public class KycServiceImpl implements KycServiceApi {
         }
 
         String accountId = kycLocationRequest.getAccountId();
+
+        PersonalInfoEntity personalInfo = inforepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.warn("No KYC record found for accountId: {} [correlationId={}]", 
+                            maskAccountId(accountId), correlationId);
+                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                });
+
         try {
             log.info("Processing KYC Location update for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
             log.debug("Location: {} [correlationId={}]", 
                     kycLocationRequest.getLocation(), correlationId);
 
-            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
-            if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-                personalInfo.setAccountId(accountId);
-                personalInfo.setLocation(kycLocationRequest.getLocation());
-                inforepository.save(personalInfo);
-                log.info("KYC Location updated successfully for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                return "KYC Location updated successfully.";
-            } else {
-                log.warn("No KYC record found for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
-            }
+            personalInfo.setLocation(kycLocationRequest.getLocation());
+            inforepository.save(personalInfo);
+            log.info("KYC Location updated successfully for accountId: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
+            return "KYC Location updated successfully.";
+
         } catch (Exception e) {
             log.error("Failed to update KYC Location for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
@@ -178,35 +180,34 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
+    @Transactional
     public String sendKycEmail(KycEmailRequest kycEmailRequest) {
         String correlationId = MDC.get("correlationId");
-        if (kycEmailRequest == null || kycEmailRequest.getEmail() == null) {
+        if (kycEmailRequest == null || kycEmailRequest.getEmail() == null || kycEmailRequest.getEmail().isEmpty()) {
             log.warn("Invalid KYC Email Request received [correlationId={}]", correlationId);
             throw new IllegalArgumentException("Invalid KYC Email Request");
         }
 
         String accountId = kycEmailRequest.getAccountId();
+
+        PersonalInfoEntity personalInfo = inforepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.warn("No KYC record found for accountId: {} [correlationId={}]", 
+                            maskAccountId(accountId), correlationId);
+                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                });
         try {
             log.info("Processing KYC Email update for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
             log.debug("Email: {} [correlationId={}]", 
-                    maskEmail(kycEmailRequest.getEmail()), correlationId);
+                    kycEmailRequest.getEmail(), correlationId);
 
-            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
+            personalInfo.setEmail(kycEmailRequest.getEmail());
+            inforepository.save(personalInfo);
+            log.info("KYC Email updated successfully for accountId: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
+            return "KYC Email updated successfully.";
 
-            if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-                personalInfo.setAccountId(accountId);
-                personalInfo.setEmail(kycEmailRequest.getEmail());
-                inforepository.save(personalInfo);
-                log.info("KYC Email updated successfully for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                return "KYC Email updated successfully.";
-            } else {
-                log.warn("No KYC record found for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                throw new EntityNotFoundException("No KYC record found for the provided accountId.");
-            }
         } catch (Exception e) {
             log.error("Failed to update KYC Email for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
