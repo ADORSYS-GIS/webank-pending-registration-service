@@ -6,22 +6,20 @@ import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
 import com.adorsys.webank.projection.*;
 import com.nimbusds.jose.jwk.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.*;
 import org.springframework.stereotype.*;
 
 import java.util.*;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class KycCertServiceImpl implements KycCertServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycCertServiceImpl.class);
     private final PersonalInfoRepository personalInfoRepository;
     private final CertGeneratorHelper certGeneratorHelper;
-
-    public KycCertServiceImpl(PersonalInfoRepository personalInfoRepository, CertGeneratorHelper certGeneratorHelper) {
-        this.personalInfoRepository = personalInfoRepository;
-        this.certGeneratorHelper = certGeneratorHelper;
-    }
 
     @Override
     public String getCert(String accountId) {

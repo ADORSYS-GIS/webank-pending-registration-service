@@ -12,6 +12,8 @@ import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
 import com.adorsys.webank.service.KycServiceApi;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -23,16 +25,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class KycServiceImpl implements KycServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycServiceImpl.class);
     private final UserDocumentsRepository repository;
     private final PersonalInfoRepository inforepository;
-
-    public KycServiceImpl(PersonalInfoRepository inforepository, UserDocumentsRepository repository) {
-        this.inforepository = inforepository;
-        this.repository = repository;
-    }
 
     @Override
     public String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest) {
@@ -318,30 +316,9 @@ public class KycServiceImpl implements KycServiceApi {
      * Shows only first 2 and last 2 characters
      */
     private String maskIdNumber(String idNumber) {
-        if (idNumber == null || idNumber.length() < 5) {
+        if (idNumber == null || idNumber.length() <= 4) {
             return "********";
         }
-        return idNumber.substring(0, 2) + "****" + idNumber.substring(idNumber.length() - 2);
-    }
-    
-    /**
-     * Masks an email address for logging purposes
-     * Shows only first character and domain
-     */
-    private String maskEmail(String email) {
-        if (email == null || email.isEmpty()) {
-            return "********";
-        }
-        
-        if (email.contains("@")) {
-            int atIndex = email.indexOf('@');
-            if (atIndex > 0) {
-                String firstChar = email.substring(0, 1);
-                String domain = email.substring(atIndex);
-                return firstChar + "****" + domain;
-            }
-        }
-        
-        return email.charAt(0) + "********";
+        return idNumber.substring(0, 2) + "********" + idNumber.substring(idNumber.length() - 2);
     }
 }
