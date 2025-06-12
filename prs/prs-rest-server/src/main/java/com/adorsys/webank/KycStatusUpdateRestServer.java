@@ -1,15 +1,13 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.KycStatusUpdateDto;
+import com.adorsys.webank.service.KycStatusUpdateServiceApi;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.adorsys.webank.dto.KycInfoRequest;
-import com.adorsys.webank.service.KycStatusUpdateServiceApi;
-
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
@@ -20,19 +18,19 @@ public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String updateKycStatus(String authorizationHeader, String accountId, String status, KycInfoRequest kycInfoRequest) {
+    public String updateKycStatus(String authorizationHeader, KycStatusUpdateDto kycStatusUpdateDto) {
         String correlationId = MDC.get("correlationId");
-        log.info("Received KYC status update request for status: {} [correlationId={}]", status, correlationId);
+        log.info("Received KYC status update request for status: {} [correlationId={}]", kycStatusUpdateDto.getStatus(), correlationId);
         
-        log.debug("Updating KYC status to {} for account ID: {} [correlationId={}]", 
-                status, maskAccountId(accountId), correlationId);
+        log.debug("Updating KYC status to {} for account ID: {} [correlationId={}]",
+                kycStatusUpdateDto.getStatus(), maskAccountId(kycStatusUpdateDto.getAccountId()), correlationId);
         
         String result = kycStatusUpdateServiceApi.updateKycStatus(
-            accountId, 
-            status, 
-            kycInfoRequest.getIdNumber(),  
-            kycInfoRequest.getExpiryDate(), 
-            kycInfoRequest.getRejectionReason()
+                kycStatusUpdateDto.getAccountId(),
+                kycStatusUpdateDto.getStatus(),
+                kycStatusUpdateDto.getIdNumber(),
+                kycStatusUpdateDto.getExpiryDate(),
+                kycStatusUpdateDto.getRejectionReason()
         );
         
         log.info("KYC status update completed [correlationId={}]", correlationId);

@@ -2,7 +2,6 @@ package com.adorsys.webank.serviceimpl;
 
 import java.text.ParseException;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.adorsys.error.ValidationException;
@@ -13,15 +12,13 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AccountRecoveryValidationRequestServiceImpl implements AccountRecoveryValidationRequestServiceApi {
 
     private final CertGeneratorHelper certGeneratorHelper;
-
-    @Autowired
-    public AccountRecoveryValidationRequestServiceImpl(CertGeneratorHelper certGeneratorHelper) {
-        this.certGeneratorHelper = certGeneratorHelper;
-    }
 
     @Override
     public AccountRecoveryResponse processRecovery(JWK publicKey, String newAccountId, String recoveryJwt) {

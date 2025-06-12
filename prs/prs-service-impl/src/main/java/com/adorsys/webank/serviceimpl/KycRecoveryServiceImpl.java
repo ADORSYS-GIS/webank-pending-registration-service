@@ -2,27 +2,23 @@ package com.adorsys.webank.serviceimpl;
 
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.service.KycRecoveryServiceApi;
-import com.adorsys.error.ResourceNotFoundException;
-import com.adorsys.error.ValidationException;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycRecoveryServiceImpl.class);
     private final PersonalInfoRepository inforepository;
-
-    public KycRecoveryServiceImpl(PersonalInfoRepository inforepository) {
-        this.inforepository = inforepository;
-    }
 
     @Override
     @Transactional
@@ -38,7 +34,7 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
         if (personalInfoOpt.isEmpty()) {
             log.warn("No record found for account: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
-            throw new ResourceNotFoundException("No record found for accountId " + accountId);
+            return "Failed: No record found for accountId " + accountId;
         }
 
         PersonalInfoProjection personalInfo = personalInfoOpt.get();
@@ -49,13 +45,13 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
             log.warn("Document ID mismatch for account: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
-            throw new ValidationException("Document ID mismatch");
+            return "Failed: Document ID mismatch";
         }
 
         if (!personalInfo.getExpirationDate().equals(expiryDate)) {
             log.warn("Document expiry date mismatch for account: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
-            throw new ValidationException("Document expiry date mismatch");
+            return "Failed: Document expiry date mismatch";
         }
 
         // If all validations pass

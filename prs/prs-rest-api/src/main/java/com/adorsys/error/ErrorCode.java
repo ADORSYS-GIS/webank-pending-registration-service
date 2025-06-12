@@ -25,7 +25,10 @@ public enum ErrorCode {
     INVALID_NONCE(400, "Invalid Nonce"),
     INVALID_POW_HASH(400, "Invalid Proof of Work Hash"),
     DEVICE_REGISTRATION_FAILED(400, "Device Registration Failed"),
-    DEVICE_VALIDATION_FAILED(400, "Device Validation Failed");
+    DEVICE_VALIDATION_FAILED(400, "Device Validation Failed"),
+    ACCOUNT_NOT_FOUND(404, "Account not found"),
+    HASH_COMPUTATION_ERROR(500, "Error computing hash"),
+    OTP_SEND_ERROR(500, "Failed to send OTP");
 
     private final int httpStatus;
     private final String defaultMessage;

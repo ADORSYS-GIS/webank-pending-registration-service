@@ -1,37 +1,40 @@
 package com.adorsys.webank.serviceimpl;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.domain.UserDocumentsStatus;
-import com.adorsys.webank.dto.*;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
 import com.adorsys.webank.service.KycServiceApi;
-import jakarta.persistence.EntityNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class KycServiceImpl implements KycServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycServiceImpl.class);
     private final UserDocumentsRepository repository;
     private final PersonalInfoRepository inforepository;
-
-    public KycServiceImpl(PersonalInfoRepository inforepository, UserDocumentsRepository repository) {
-        this.inforepository = inforepository;
-        this.repository = repository;
-    }
 
     @Override
     public String sendKycDocument(String AccountId, KycDocumentRequest kycDocumentRequest) {
@@ -142,6 +145,7 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
+    @Transactional
     public String sendKycLocation(KycLocationRequest kycLocationRequest) {
         String correlationId = MDC.get("correlationId");
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
@@ -150,26 +154,26 @@ public class KycServiceImpl implements KycServiceApi {
         }
 
         String accountId = kycLocationRequest.getAccountId();
+
+        PersonalInfoEntity personalInfo = inforepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.warn("No KYC record found for accountId: {} [correlationId={}]", 
+                            maskAccountId(accountId), correlationId);
+                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                });
+
         try {
             log.info("Processing KYC Location update for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
             log.debug("Location: {} [correlationId={}]", 
                     kycLocationRequest.getLocation(), correlationId);
 
-            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
-            if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-                personalInfo.setAccountId(accountId);
-                personalInfo.setLocation(kycLocationRequest.getLocation());
-                inforepository.save(personalInfo);
-                log.info("KYC Location updated successfully for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                return "KYC Location updated successfully.";
-            } else {
-                log.warn("No KYC record found for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                throw new ValidationException("No KYC record found for the provided accountId.");
-            }
+            personalInfo.setLocation(kycLocationRequest.getLocation());
+            inforepository.save(personalInfo);
+            log.info("KYC Location updated successfully for accountId: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
+            return "KYC Location updated successfully.";
+
         } catch (Exception e) {
             log.error("Failed to update KYC Location for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
@@ -178,35 +182,34 @@ public class KycServiceImpl implements KycServiceApi {
     }
 
     @Override
+    @Transactional
     public String sendKycEmail(KycEmailRequest kycEmailRequest) {
         String correlationId = MDC.get("correlationId");
-        if (kycEmailRequest == null || kycEmailRequest.getEmail() == null) {
+        if (kycEmailRequest == null || kycEmailRequest.getEmail() == null || kycEmailRequest.getEmail().isEmpty()) {
             log.warn("Invalid KYC Email Request received [correlationId={}]", correlationId);
             throw new ValidationException("Invalid KYC Email Request");
         }
 
         String accountId = kycEmailRequest.getAccountId();
+
+        PersonalInfoEntity personalInfo = inforepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.warn("No KYC record found for accountId: {} [correlationId={}]", 
+                            maskAccountId(accountId), correlationId);
+                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                });
         try {
             log.info("Processing KYC Email update for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
             log.debug("Email: {} [correlationId={}]", 
-                    maskEmail(kycEmailRequest.getEmail()), correlationId);
+                    kycEmailRequest.getEmail(), correlationId);
 
-            Optional<PersonalInfoProjection> existingInfo = getPersonalInfoAccountId(accountId);
+            personalInfo.setEmail(kycEmailRequest.getEmail());
+            inforepository.save(personalInfo);
+            log.info("KYC Email updated successfully for accountId: {} [correlationId={}]", 
+                    maskAccountId(accountId), correlationId);
+            return "KYC Email updated successfully.";
 
-            if (existingInfo.isPresent()) {
-                PersonalInfoEntity personalInfo = new PersonalInfoEntity();
-                personalInfo.setAccountId(accountId);
-                personalInfo.setEmail(kycEmailRequest.getEmail());
-                inforepository.save(personalInfo);
-                log.info("KYC Email updated successfully for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                return "KYC Email updated successfully.";
-            } else {
-                log.warn("No KYC record found for accountId: {} [correlationId={}]", 
-                        maskAccountId(accountId), correlationId);
-                throw new ValidationException("No KYC record found for the provided accountId.");
-            }
         } catch (Exception e) {
             log.error("Failed to update KYC Email for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId, e);
@@ -317,30 +320,9 @@ public class KycServiceImpl implements KycServiceApi {
      * Shows only first 2 and last 2 characters
      */
     private String maskIdNumber(String idNumber) {
-        if (idNumber == null || idNumber.length() < 5) {
+        if (idNumber == null || idNumber.length() <= 4) {
             return "********";
         }
-        return idNumber.substring(0, 2) + "****" + idNumber.substring(idNumber.length() - 2);
-    }
-    
-    /**
-     * Masks an email address for logging purposes
-     * Shows only first character and domain
-     */
-    private String maskEmail(String email) {
-        if (email == null || email.isEmpty()) {
-            return "********";
-        }
-        
-        if (email.contains("@")) {
-            int atIndex = email.indexOf('@');
-            if (atIndex > 0) {
-                String firstChar = email.substring(0, 1);
-                String domain = email.substring(atIndex);
-                return firstChar + "****" + domain;
-            }
-        }
-        
-        return email.charAt(0) + "********";
+        return idNumber.substring(0, 2) + "********" + idNumber.substring(idNumber.length() - 2);
     }
 }
