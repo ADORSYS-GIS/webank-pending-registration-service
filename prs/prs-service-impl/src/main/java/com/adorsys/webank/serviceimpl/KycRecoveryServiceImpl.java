@@ -3,6 +3,8 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.repository.*;
 import com.adorsys.webank.service.*;
 import com.adorsys.webank.projection.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.*;
 import org.springframework.transaction.annotation.*;
 import org.springframework.stereotype.Service;
@@ -11,14 +13,11 @@ import org.slf4j.MDC;
 import java.util.*;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycRecoveryServiceImpl.class);
     private final PersonalInfoRepository inforepository;
-
-    public KycRecoveryServiceImpl(PersonalInfoRepository inforepository) {
-        this.inforepository = inforepository;
-    }
 
     @Override
     @Transactional
