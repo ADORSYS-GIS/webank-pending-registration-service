@@ -1,12 +1,13 @@
 package com.adorsys.webank;
+
+import com.adorsys.webank.dto.KycRecoveryDto;
+import com.adorsys.webank.service.KycRecoveryServiceApi;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.web.bind.annotation.RestController;
-import com.adorsys.webank.service.KycRecoveryServiceApi;
-import com.adorsys.webank.dto.KycInfoRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
@@ -17,17 +18,17 @@ public class KycRecoveryServer implements KycRecoveryRestApi {
     
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String verifyKycRecoveryFields(String authorizationHeader, String accountId, KycInfoRequest kycInfoRequest) {
+    public String verifyKycRecoveryFields(String authorizationHeader, KycRecoveryDto kycRecoveryDto) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC recovery fields verification request [correlationId={}]", correlationId);
         
         log.debug("Verifying KYC recovery fields for account ID: {} [correlationId={}]", 
-                maskAccountId(accountId), correlationId);
+                maskAccountId(kycRecoveryDto.getAccountId()), correlationId);;
         
         String result = kycRecoveryServiceApi.verifyKycRecoveryFields(
-                accountId,
-                kycInfoRequest.getIdNumber(),
-                kycInfoRequest.getExpiryDate()
+                kycRecoveryDto.getAccountId(),
+                kycRecoveryDto.getIdNumber(),
+                kycRecoveryDto.getExpiryDate()
         );
         
         log.info("KYC recovery fields verification completed [correlationId={}]", correlationId);

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Tag(name = "Recovery", description = "Operations related to account recovery and token management")
-@RequestMapping("/api/prs/recovery")
+@RequestMapping("/api/prs/kyc/recovery")
 public interface TokenRestApi {
 
     @Operation(summary = "Request Recovery Token", description = "Generates and returns a recovery token to reset account credentials or regain access.")
