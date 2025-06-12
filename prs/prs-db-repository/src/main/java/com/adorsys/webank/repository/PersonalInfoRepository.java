@@ -8,10 +8,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface PersonalInfoRepository extends JpaRepository<PersonalInfoEntity, UUID> {
+public interface PersonalInfoRepository extends JpaRepository<PersonalInfoEntity, String> {
     Optional<PersonalInfoProjection> findByAccountId(String accountId);
     List<PersonalInfoProjection> findByStatus(PersonalInfoStatus status);
     List<PersonalInfoProjection> findByDocumentUniqueId(String documentUniqueId);
