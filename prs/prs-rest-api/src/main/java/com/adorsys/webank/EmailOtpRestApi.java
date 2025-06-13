@@ -3,6 +3,7 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.EmailOtpRequest;
 import com.adorsys.webank.dto.EmailOtpValidationRequest;
 import com.adorsys.webank.dto.response.EmailResponse;
+import com.adorsys.webank.dto.response.EmailValidationResponse;
 import com.adorsys.webank.dto.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -122,7 +123,7 @@ public interface EmailOtpRestApi {
         )
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<EmailResponse> validateEmailOtp(
+    ResponseEntity<EmailValidationResponse> validateEmailOtp(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody EmailOtpValidationRequest request

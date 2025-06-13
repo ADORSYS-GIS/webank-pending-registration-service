@@ -3,101 +3,67 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.EmailOtpRequest;
 import com.adorsys.webank.dto.EmailOtpValidationRequest;
 import com.adorsys.webank.dto.response.EmailResponse;
-import com.adorsys.webank.security.CertValidator;
-import com.adorsys.webank.security.JwtValidator;
+import com.adorsys.webank.dto.response.EmailValidationResponse;
 import com.adorsys.webank.service.EmailOtpServiceApi;
-import com.nimbusds.jose.jwk.JWK;
-import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
+
 
 @RestController
+@RequiredArgsConstructor
 public class EmailOtpRestServer implements EmailOtpRestApi {
+    private static final Logger log = LoggerFactory.getLogger(EmailOtpRestServer.class);
     private final EmailOtpServiceApi emailOtpService;
-    private final CertValidator certValidator;
-
-    public EmailOtpRestServer(EmailOtpServiceApi emailOtpService , CertValidator certValidator) {
-        this.emailOtpService = emailOtpService;
-        this.certValidator = certValidator;
-
-    }
 
     @Override
-    public ResponseEntity<EmailResponse> sendEmailOtp(String authorizationHeader,
-                               EmailOtpRequest request) {
-        String jwtToken;
-        try {
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            String email = request.getEmail();
-            JwtValidator.validateAndExtract(jwtToken, email, request.getAccountId());
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Invalid or unauthorized JWT."));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse("Invalid JWT: " + e.getMessage()));
-        }
+    public ResponseEntity<EmailResponse> sendEmailOtp(String authorizationHeader, EmailOtpRequest request) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received request to send email OTP [correlationId={}]", correlationId);
         
-        String result = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
+        String maskedEmail = maskEmail(request.getEmail());
+        log.debug("Processing email OTP request for email: {} [correlationId={}]", maskedEmail, correlationId);
         
-        EmailResponse response = new EmailResponse();
-        response.setStatus(EmailResponse.EmailStatus.SUCCESS);
-        response.setTimestamp(LocalDateTime.now());
-        response.setMessage(result);
-        
+        EmailResponse response = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
+        log.info("Email OTP request processed [correlationId={}]", correlationId);
         return ResponseEntity.ok(response);
     }
 
     @Override
-    public ResponseEntity<EmailResponse> validateEmailOtp(String authorizationHeader,
-                                   EmailOtpValidationRequest request) {
-        String jwtToken;
-        try {
-            jwtToken = extractJwtFromHeader(authorizationHeader);
-            String email = request.getEmail();
-            String otpInput = request.getOtp();
-            String accountId = request.getAccountId();
-            JwtValidator.validateAndExtract(jwtToken, email, otpInput, accountId);
+    public ResponseEntity<EmailValidationResponse> validateEmailOtp(String authorizationHeader, EmailOtpValidationRequest request) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received request to validate email OTP [correlationId={}]", correlationId);
+        
+        String maskedEmail = maskEmail(request.getEmail());
+        log.debug("Validating OTP for email: {} [correlationId={}]", maskedEmail, correlationId);
 
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Invalid or unauthorized JWT."));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse("Invalid JWT: " + e.getMessage()));
-        }
-
-        String result = emailOtpService.validateEmailOtp(
+        EmailValidationResponse response = emailOtpService.validateEmailOtp(
                 request.getEmail(),
-                request.getOtp(),
+                request.getOtpInput(),
                 request.getAccountId()
         );
-        
-        EmailResponse response = new EmailResponse();
-        response.setStatus(EmailResponse.EmailStatus.SUCCESS);
-        response.setTimestamp(LocalDateTime.now());
-        response.setMessage(result);
-        
+        log.info("Email OTP validation processed [correlationId={}]", correlationId);
         return ResponseEntity.ok(response);
     }
 
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null ||
-                !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException(
-                    "Authorization header must start with 'Bearer '"
-            );
+    /**
+     * Masks an email address for logging purposes
+     * Shows only first 2 and domain part
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.isEmpty() || !email.contains("@")) {
+            return "********";
         }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
-    }
-    
-    private EmailResponse createErrorResponse(String message) {
-        EmailResponse response = new EmailResponse();
-        response.setStatus(EmailResponse.EmailStatus.FAILED);
-        response.setTimestamp(LocalDateTime.now());
-        response.setMessage("Error: " + message);
-        return response;
+        
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 2) {
+            return email.charAt(0) + "****" + email.substring(atIndex);
+        }
+        
+        return email.substring(0, 2) + "****" + email.substring(atIndex);
     }
 }

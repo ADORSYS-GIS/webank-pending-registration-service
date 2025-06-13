@@ -260,7 +260,7 @@ public interface KycRestApi {
         )
     })
     @GetMapping(value = "/pending", produces = "application/json")
-    ResponseEntity<List<UserInfoResponse>> getPendingKycRecords(
+    List<UserInfoResponse> getPendingKycRecords(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader
     );
@@ -309,7 +309,7 @@ public interface KycRestApi {
         )
     })
     @GetMapping(value = "/findById/{DocumentUniqueId}", produces = "application/json")
-    ResponseEntity<List<UserInfoResponse>> findByDocumentUniqueId(
+    List<UserInfoResponse> findByDocumentUniqueId(
         @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
         @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
         @Parameter(description = "Unique document identifier", required = true, example = "DOC12345678")

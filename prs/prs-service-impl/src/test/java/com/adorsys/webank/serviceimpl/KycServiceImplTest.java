@@ -5,6 +5,7 @@
 //import com.adorsys.webank.domain.UserDocumentsEntity;
 //import com.adorsys.webank.dto.*;
 //import com.adorsys.webank.exceptions.FailedToSendOTPException;
+//import com.adorsys.webank.projection.PersonalInfoProjection;
 //import com.adorsys.webank.repository.PersonalInfoRepository;
 //import com.adorsys.webank.repository.UserDocumentsRepository;
 //import jakarta.persistence.EntityNotFoundException;
@@ -87,7 +88,8 @@
 //        KycInfoRequest request = new KycInfoRequest(
 //            TEST_ID_NUMBER,
 //            TEST_EXPIRY_DATE,
-//            TEST_ACCOUNT_ID
+//            TEST_ACCOUNT_ID,
+//            null // rejectionReason
 //        );
 //
 //        when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
@@ -118,7 +120,7 @@
 //        );
 //
 //        PersonalInfoEntity existingInfo = new PersonalInfoEntity();
-//        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+//        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
 //            .thenReturn(Optional.of(existingInfo));
 //        when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
 //            .thenReturn(existingInfo);
@@ -130,6 +132,24 @@
 //        assertEquals("KYC Location updated successfully.", result);
 //        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
 //    }
+//
+//    @Test
+//    void sendKycLocation_NotFound() {
+//        // Given
+//        KycLocationRequest request = new KycLocationRequest(
+//            TEST_LOCATION,
+//            TEST_ACCOUNT_ID
+//        );
+//
+//        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+//            .thenReturn(Optional.empty());
+//
+//        // When & Then
+//        assertThrows(EntityNotFoundException.class, () -> {
+//            kycService.sendKycLocation(request);
+//        });
+//    }
+//
 //    @Test
 //    void sendKycEmail_Success() {
 //        // Given
@@ -139,7 +159,7 @@
 //        );
 //
 //        PersonalInfoEntity existingInfo = new PersonalInfoEntity();
-//        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
+//        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
 //            .thenReturn(Optional.of(existingInfo));
 //        when(personalInfoRepository.save(any(PersonalInfoEntity.class)))
 //            .thenReturn(existingInfo);
@@ -152,16 +172,32 @@
 //        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
 //    }
 //
+//    @Test
+//    void sendKycEmail_NotFound() {
+//        // Given
+//        KycEmailRequest request = new KycEmailRequest(
+//            TEST_EMAIL,
+//            TEST_ACCOUNT_ID
+//        );
+//
+//        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+//            .thenReturn(Optional.empty());
+//
+//        // When & Then
+//        assertThrows(EntityNotFoundException.class, () -> {
+//            kycService.sendKycEmail(request);
+//        });
+//    }
 //
 //    @Test
 //    void getPersonalInfoAccountId_Success() {
 //        // Given
-//        PersonalInfoEntity info = new PersonalInfoEntity();
+//        PersonalInfoProjection info = mock(PersonalInfoProjection.class);
 //        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID))
 //            .thenReturn(Optional.of(info));
 //
 //        // When
-//        Optional<PersonalInfoEntity> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
+//        Optional<PersonalInfoProjection> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
 //
 //        // Then
 //        assertTrue(result.isPresent());
@@ -175,12 +211,11 @@
 //            .thenReturn(Optional.empty());
 //
 //        // When
-//        Optional<PersonalInfoEntity> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
+//        Optional<PersonalInfoProjection> result = kycService.getPersonalInfoAccountId(TEST_ACCOUNT_ID);
 //
 //        // Then
 //        assertFalse(result.isPresent());
 //    }
-//
 //
 //    @Test
 //    void sendKycDocument_ValidFileSize_Success() {

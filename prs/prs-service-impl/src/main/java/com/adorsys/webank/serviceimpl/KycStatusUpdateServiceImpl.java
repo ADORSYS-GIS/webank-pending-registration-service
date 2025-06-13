@@ -1,72 +1,95 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
-import org.springframework.transaction.annotation.*;
-
-import java.util.*;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.KycStatusUpdateServiceApi;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class KycStatusUpdateServiceImpl implements KycStatusUpdateServiceApi {
 
-    private static final Logger log = LoggerFactory.getLogger(KycStatusUpdateServiceImpl.class);
     private final PersonalInfoRepository inforepository;
-
-    public KycStatusUpdateServiceImpl(PersonalInfoRepository inforepository) {
-        this.inforepository = inforepository;
-    }
 
     @Override
     @Transactional
     public String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason) {
-        log.info("Updating KYC status for accountId {} to {} with rejection reason: {}",
-                accountId, newStatus, rejectionReason);
+        String correlationId = MDC.get("correlationId");
+        log.info("Updating KYC status for account: {} to status: {} [correlationId={}]",
+                maskAccountId(accountId), newStatus, correlationId);
 
-        Optional<PersonalInfoEntity> personalInfoOpt = inforepository.findByAccountId(accountId);
-        if (personalInfoOpt.isPresent()) {
-            PersonalInfoEntity personalInfo = personalInfoOpt.get();
+        PersonalInfoEntity personalInfo = inforepository.findById(accountId)
+                .orElseThrow(() -> {
+                    log.warn("No personal info record found for accountId: {} [correlationId={}]",
+                            maskAccountId(accountId), correlationId);
+                    return new EntityNotFoundException("No KYC record found for accountId: " + accountId);
+                });
 
-            // Validate document details
-            if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
-                log.error("Document ID mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getDocumentUniqueId(), idNumber);
-                return "Failed: Document ID mismatch";
-            }
-
-            if (!personalInfo.getExpirationDate().equals(expiryDate)) {
-                log.error("Document expiry date mismatch for accountId {}: expected {}, got {}", accountId, personalInfo.getExpirationDate(), expiryDate);
-                return "Failed: Document expiry date mismatch";
-            }
-
-            try {
-                // Convert newStatus string to Enum
-                PersonalInfoStatus kycStatus = PersonalInfoStatus.valueOf(newStatus.toUpperCase());
-                personalInfo.setStatus(kycStatus);  // Update status field
-                
-                // Set rejection fields if status is REJECTED
-                if (kycStatus == PersonalInfoStatus.REJECTED) {
-                    if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
-                        return "Failed: Rejection reason is required when status is REJECTED";
-                    }
-                    personalInfo.setRejectionReason(rejectionReason);
-                } else {
-                    // Clear rejection fields if status is not REJECTED
-                    personalInfo.setRejectionReason(null);
-                }
-                
-                inforepository.save(personalInfo); // Save the updated record
-
-                log.info("Successfully updated KYC status for accountId {}", accountId);
-                return "KYC status for " + accountId + " updated to " + newStatus;
-            } catch (IllegalArgumentException e) {
-                log.error("Invalid KYC status value: {}", newStatus);
-                return "Failed: Invalid KYC status value '" + newStatus + "'";
-            }
-        } else {
-            log.warn("No record found for accountId {}", accountId);
-            return "Failed: No record found for accountId " + accountId;
+        String validationError = validateDocumentDetails(personalInfo, idNumber, expiryDate, correlationId);
+        if (validationError != null) {
+            return validationError;
         }
+
+        return updateStatus(personalInfo, newStatus, rejectionReason, correlationId);
+    }
+
+    private String validateDocumentDetails(PersonalInfoEntity personalInfo, String idNumber, String expiryDate, String correlationId) {
+        if (idNumber == null || !idNumber.equals(personalInfo.getDocumentUniqueId())) {
+            log.warn("Document ID mismatch for account: {} [correlationId={}]",
+                    maskAccountId(personalInfo.getAccountId()), correlationId);
+            return "Failed: Document ID mismatch";
+        }
+
+        if (expiryDate == null || !expiryDate.equals(personalInfo.getExpirationDate())) {
+            log.warn("Document expiry date mismatch for account: {} [correlationId={}]",
+                    maskAccountId(personalInfo.getAccountId()), correlationId);
+            return "Failed: Document expiry date mismatch";
+        }
+        return null;
+    }
+
+    private String updateStatus(PersonalInfoEntity personalInfo, String newStatus, String rejectionReason, String correlationId) {
+        try {
+            PersonalInfoStatus kycStatus = PersonalInfoStatus.valueOf(newStatus.toUpperCase());
+
+            if (kycStatus == PersonalInfoStatus.REJECTED) {
+                if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+                    log.warn("Missing rejection reason for REJECTED status for account: {} [correlationId={}]",
+                            maskAccountId(personalInfo.getAccountId()), correlationId);
+                    return "Failed: Rejection reason is required when status is REJECTED";
+                }
+                personalInfo.setRejectionReason(rejectionReason);
+            } else {
+                personalInfo.setRejectionReason(null); // Clear rejection reason if status is not REJECTED
+            }
+
+            personalInfo.setStatus(kycStatus);
+            inforepository.save(personalInfo);
+            log.info("Successfully updated KYC status for account: {} to {} [correlationId={}]",
+                    maskAccountId(personalInfo.getAccountId()), newStatus, correlationId);
+
+            return "KYC status updated successfully to " + newStatus;
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid KYC status provided: {} for account: {} [correlationId={}]",
+                    newStatus, maskAccountId(personalInfo.getAccountId()), correlationId, e);
+            return "Failed: Invalid KYC status value '" + newStatus + "'";
+        }
+    }
+
+    private String maskAccountId(String accountId) {
+        if (accountId == null || accountId.length() <= 4) {
+            return "****";
+        }
+        return accountId.substring(0, 2) + "****" + accountId.substring(accountId.length() - 2);
     }
 }

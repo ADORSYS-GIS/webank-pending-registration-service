@@ -13,9 +13,6 @@ import java.time.LocalDateTime;
 @Schema(description = "KYC personal information submission response")
 public class KycInfoResponse {
     
-    @Schema(description = "Unique KYC info record identifier", example = "kyc_info_1234567890", required = true)
-    private String kycId;
-    
     @Schema(description = "KYC processing status", example = "PENDING", required = true)
     private KycResponse.KycStatus status;
     

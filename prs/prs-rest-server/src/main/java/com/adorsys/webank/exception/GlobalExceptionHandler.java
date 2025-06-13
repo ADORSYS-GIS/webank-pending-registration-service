@@ -1,6 +1,7 @@
 package com.adorsys.webank.exception;
 
 import com.adorsys.webank.dto.response.ErrorResponse;
+import com.adorsys.webank.exceptions.*;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,9 +19,82 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+
 @ControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // --- Begin merged business exception handlers ---
+    @ExceptionHandler(OtpValidationException.class)
+    public ResponseEntity<ErrorResponse> handleOtpValidationException(OtpValidationException ex, WebRequest request) {
+        log.warn("OTP validation failed: {}", ex.getMessage());
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        ErrorResponse errorResponse = new ErrorResponse(
+                "OTP_VALIDATION_ERROR",
+                ex.getMessage(),
+                null,
+                LocalDateTime.now(),
+                path
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(HashComputationException.class)
+    public ResponseEntity<ErrorResponse> handleHashComputationException(HashComputationException ex, WebRequest request) {
+        log.error("Hash computation error: {}", ex.getMessage(), ex);
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        ErrorResponse errorResponse = new ErrorResponse(
+                "HASH_COMPUTATION_ERROR",
+                "An error occurred during hash computation",
+                ex.getMessage(),
+                LocalDateTime.now(),
+                path
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    @ExceptionHandler(KycProcessingException.class)
+    public ResponseEntity<ErrorResponse> handleKycProcessingException(KycProcessingException ex, WebRequest request) {
+        log.warn("KYC processing error: {}", ex.getMessage());
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        ErrorResponse errorResponse = new ErrorResponse(
+                "KYC_PROCESSING_ERROR",
+                ex.getMessage(),
+                null,
+                LocalDateTime.now(),
+                path
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(OtpProcessingException.class)
+    public ResponseEntity<ErrorResponse> handleOtpProcessingException(OtpProcessingException ex, WebRequest request) {
+        log.error("OTP processing error: {}", ex.getMessage(), ex);
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        ErrorResponse errorResponse = new ErrorResponse(
+                "OTP_PROCESSING_ERROR",
+                ex.getMessage(),
+                null,
+                LocalDateTime.now(),
+                path
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotFoundException(AccountNotFoundException ex, WebRequest request) {
+        log.warn("Account not found: {}", ex.getMessage());
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        ErrorResponse errorResponse = new ErrorResponse(
+                "ACCOUNT_NOT_FOUND",
+                ex.getMessage(),
+                null,
+                LocalDateTime.now(),
+                path
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+    // --- End merged business exception handlers ---
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ApiResponse(

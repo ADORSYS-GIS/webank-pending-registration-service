@@ -18,9 +18,13 @@ public class DeviceResponse {
     @Schema(description = "Timestamp when the operation was performed", example = "2025-01-20T15:30:00")
     private LocalDateTime timestamp;
     
-    @Schema(description = "Initialization response message with nonce information", 
-            example = "Device registration initialized. Use the following nonce for validation: abc123def456")
+    @Schema(description = "Initialization response message with information",
+            example = "Device registration initialized.")
     private String message;
+
+    @Schema(description = "Unique nonce generated during device registration initialization",
+            example = "abc123def456")
+    private String nonce;
 
     public enum InitStatus {
         INITIALIZED,

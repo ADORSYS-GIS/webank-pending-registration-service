@@ -1,12 +1,12 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.OtpRequest;
-import com.adorsys.webank.dto.OtpValidationRequest;
-import com.adorsys.webank.dto.response.ErrorResponse;
 import com.adorsys.webank.dto.response.OtpResponse;
 import com.adorsys.webank.dto.response.OtpValidationResponse;
+import org.springframework.http.ResponseEntity;
+import com.adorsys.webank.dto.OtpValidationRequest;
+import com.adorsys.webank.dto.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,8 +15,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+
 
 @Tag(name = "OTP Management", description = "APIs for OTP generation, sending, and validation")
 @RequestMapping("/api/prs/otp")
@@ -74,11 +78,7 @@ public interface OtpRestApi {
         )
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    ResponseEntity<OtpResponse> sendOtp(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
-        @RequestBody OtpRequest request
-    );
+    ResponseEntity<OtpResponse> sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request);
 
     @Operation(
         summary = "Validate OTP",
@@ -138,9 +138,5 @@ public interface OtpRestApi {
         )
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<OtpValidationResponse> validateOtp(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
-        @RequestBody OtpValidationRequest request
-    );
+    ResponseEntity<OtpValidationResponse> validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request);
 }

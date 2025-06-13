@@ -1,186 +1,186 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.*;
-import com.adorsys.webank.dto.response.*;
-import com.adorsys.webank.security.*;
 import com.adorsys.webank.service.*;
 import org.slf4j.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.adorsys.webank.dto.response.KycDocumentResponse;
+import com.adorsys.webank.dto.response.KycInfoResponse;
+import com.adorsys.webank.dto.response.KycLocationResponse;
+import com.adorsys.webank.dto.response.KycEmailResponse;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
+@RequiredArgsConstructor
 public class KycRestServer implements KycRestApi {
     private static final Logger log = LoggerFactory.getLogger(KycRestServer.class);
     private final KycServiceApi kycServiceApi;
-    private final CertValidator certValidator;
-
-    public KycRestServer(KycServiceApi kycServiceApi, CertValidator certValidator) {
-        this.kycServiceApi = kycServiceApi;
-        this.certValidator = certValidator;
-    }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received KYC info request [correlationId={}]", correlationId);
+        
+        String accountId = kycInfoRequest.getAccountId();
+        MDC.put("accountId", maskAccountId(accountId));
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending info is: {}, for accountId: {}", jwtToken, kycInfoRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken, kycInfoRequest.getIdNumber(), kycInfoRequest.getExpiryDate(), kycInfoRequest.getAccountId());
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            KycInfoResponse response = kycServiceApi.sendKycInfo(kycInfoRequest.getAccountId(), kycInfoRequest);
-            return ResponseEntity.ok(response);
+            log.debug("Processing KYC info for account [correlationId={}]", correlationId);
+            KycInfoResponse result = kycServiceApi.sendKycInfo(accountId, kycInfoRequest);
+            log.info("KYC info processed successfully [correlationId={}]", correlationId);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Error processing KYC info request: {}", e.getMessage());
-            KycInfoResponse errorResponse = createInfoErrorResponse(e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            log.error("Failed to process KYC info [correlationId={}]", correlationId, e);
+            throw e;
+        } finally {
+            MDC.remove("accountId");
         }
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public ResponseEntity<KycLocationResponse> sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received KYC location request [correlationId={}]", correlationId);
+        
+        String accountId = kycLocationRequest.getAccountId();
+        MDC.put("accountId", maskAccountId(accountId));
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending location is: {}, for accountId: {}", jwtToken, kycLocationRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken, kycLocationRequest.getLocation(), kycLocationRequest.getAccountId());
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            KycLocationResponse response = kycServiceApi.sendKycLocation(kycLocationRequest);
-            return ResponseEntity.ok(response);
+            log.debug("Processing KYC location for account [correlationId={}]", correlationId);
+            KycLocationResponse result = kycServiceApi.sendKycLocation(kycLocationRequest);
+            log.info("KYC location processed successfully [correlationId={}]", correlationId);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Error processing KYC location request: {}", e.getMessage());
-            KycLocationResponse errorResponse = createLocationErrorResponse(e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            log.error("Failed to process KYC location [correlationId={}]", correlationId, e);
+            throw e;
+        } finally {
+            MDC.remove("accountId");
         }
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public ResponseEntity<KycEmailResponse> sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received KYC email request [correlationId={}]", correlationId);
+        
+        String accountId = kycEmailRequest.getAccountId();
+        String email = kycEmailRequest.getEmail();
+        
+        MDC.put("accountId", maskAccountId(accountId));
+        MDC.put("email", maskEmail(email));
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from user sending email is: {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken);
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            KycEmailResponse response = kycServiceApi.sendKycEmail(kycEmailRequest);
-            return ResponseEntity.ok(response);
+            log.debug("Processing KYC email for account [correlationId={}]", correlationId);
+            KycEmailResponse result = kycServiceApi.sendKycEmail(kycEmailRequest);
+            log.info("KYC email processed successfully [correlationId={}]", correlationId);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Error processing KYC email request: {}", e.getMessage());
-            KycEmailResponse errorResponse = createEmailErrorResponse(e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            log.error("Failed to process KYC email [correlationId={}]", correlationId, e);
+            throw e;
+        } finally {
+            MDC.remove("accountId");
+            MDC.remove("email");
         }
     }
 
     @Override
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
     public ResponseEntity<KycDocumentResponse> sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received KYC document request [correlationId={}]", correlationId);
+        
+        String accountId = kycDocumentRequest.getAccountId();
+        MDC.put("accountId", maskAccountId(accountId));
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from sending document is: {}, for accountId: {}", jwtToken, kycDocumentRequest.getAccountId());
-            JwtValidator.validateAndExtract(jwtToken,
-                    kycDocumentRequest.getFrontId(), kycDocumentRequest.getBackId(),
-                    kycDocumentRequest.getSelfieId(), kycDocumentRequest.getTaxId(),
-                    kycDocumentRequest.getAccountId());
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            KycDocumentResponse response = kycServiceApi.sendKycDocument(kycDocumentRequest.getAccountId(), kycDocumentRequest);
-            return ResponseEntity.ok(response);
+            log.debug("Processing KYC document for account [correlationId={}]", correlationId);
+            KycDocumentResponse result = kycServiceApi.sendKycDocument(accountId, kycDocumentRequest);
+            log.info("KYC document processed successfully [correlationId={}]", correlationId);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Error processing KYC document request: {}", e.getMessage());
-            KycDocumentResponse errorResponse = createDocumentErrorResponse(e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            log.error("Failed to process KYC document [correlationId={}]", correlationId, e);
+            throw e;
+        } finally {
+            MDC.remove("accountId");
         }
     }
 
     @Override
-    public ResponseEntity<List<UserInfoResponse>> getPendingKycRecords(String authorizationHeader) {
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
+    public List<UserInfoResponse> getPendingKycRecords(String authorizationHeader) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received request to get pending KYC records [correlationId={}]", correlationId);
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from agent doing verification is : {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken);
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            List<UserInfoResponse> results = kycServiceApi.getPendingKycRecords();
-            return ResponseEntity.ok(results);
+            log.debug("Retrieving pending KYC records [correlationId={}]", correlationId);
+            List<UserInfoResponse> records = kycServiceApi.getPendingKycRecords();
+            log.info("Retrieved {} pending KYC records [correlationId={}]", 
+                    records.size(), correlationId);
+            return records;
         } catch (Exception e) {
-            log.error("Error retrieving pending KYC records: {}", e.getMessage());
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
+            log.error("Failed to retrieve pending KYC records [correlationId={}]", correlationId, e);
+            throw e;
         }
     }
 
     @Override
-    public ResponseEntity<List<UserInfoResponse>> findByDocumentUniqueId(String authorizationHeader, String DocumentUniqueId) {
+    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
+    public List<UserInfoResponse> findByDocumentUniqueId(String authorizationHeader, String documentUniqueId) {
+        String correlationId = MDC.get("correlationId");
+        log.info("Received request to find KYC by document ID [correlationId={}]", correlationId);
+        
+        MDC.put("documentId", maskDocumentId(documentUniqueId));
+        
         try {
-            String jwtToken = extractJwtFromHeader(authorizationHeader);
-            log.info("jwtToken from agent doing recovery is : {}", jwtToken);
-            JwtValidator.validateAndExtract(jwtToken, DocumentUniqueId);
-
-            if (!certValidator.validateJWT(jwtToken)) {
-                throw new SecurityException("Invalid or unauthorized JWT.");
-            }
-
-            List<UserInfoResponse> results = kycServiceApi.findByDocumentUniqueId(DocumentUniqueId);
-            return ResponseEntity.ok(results);
+            log.debug("Searching for document with ID [correlationId={}]", correlationId);
+            List<UserInfoResponse> records = kycServiceApi.findByDocumentUniqueId(documentUniqueId);
+            log.info("Found {} records with document ID [correlationId={}]", 
+                    records.size(), correlationId);
+            return records;
         } catch (Exception e) {
-            log.error("Error finding KYC records by document ID: {}", e.getMessage());
-            throw new IllegalArgumentException("JWT validation failed: " + e.getMessage());
+            log.error("Failed to find KYC by document ID [correlationId={}]", correlationId, e);
+            throw e;
+        } finally {
+            MDC.remove("documentId");
         }
     }
-
-    private String extractJwtFromHeader(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
+    
+    /**
+     * Masks an account ID for logging purposes
+     */
+    private String maskAccountId(String accountId) {
+        if (accountId == null || accountId.length() < 5) {
+            return "********";
         }
-        return authorizationHeader.substring(7); // Remove "Bearer " prefix
+        return accountId.substring(0, 2) + "****" + accountId.substring(accountId.length() - 2);
     }
     
-    private KycDocumentResponse createDocumentErrorResponse(String message) {
-        KycDocumentResponse response = new KycDocumentResponse();
-        response.setKycId("error_doc_" + System.currentTimeMillis());
-        response.setStatus(KycResponse.KycStatus.REJECTED);
-        response.setSubmittedAt(LocalDateTime.now());
-        response.setMessage("Error: " + message);
-        return response;
+    /**
+     * Masks a document ID for logging purposes
+     */
+    private String maskDocumentId(String documentId) {
+        if (documentId == null || documentId.length() < 5) {
+            return "********";
+        }
+        return documentId.substring(0, 2) + "****" + documentId.substring(documentId.length() - 2);
     }
     
-    private KycInfoResponse createInfoErrorResponse(String message) {
-        KycInfoResponse response = new KycInfoResponse();
-        response.setKycId("error_info_" + System.currentTimeMillis());
-        response.setStatus(KycResponse.KycStatus.REJECTED);
-        response.setSubmittedAt(LocalDateTime.now());
-        response.setMessage("Error: " + message);
-        return response;
-    }
-    
-    private KycLocationResponse createLocationErrorResponse(String message) {
-        KycLocationResponse response = new KycLocationResponse();
-        response.setKycId("error_loc_" + System.currentTimeMillis());
-        response.setStatus(KycResponse.KycStatus.REJECTED);
-        response.setSubmittedAt(LocalDateTime.now());
-        response.setMessage("Error: " + message);
-        return response;
-    }
-    
-    private KycEmailResponse createEmailErrorResponse(String message) {
-        KycEmailResponse response = new KycEmailResponse();
-        response.setKycId("error_email_" + System.currentTimeMillis());
-        response.setStatus(KycResponse.KycStatus.REJECTED);
-        response.setSubmittedAt(LocalDateTime.now());
-        response.setMessage("Error: " + message);
-        return response;
+    /**
+     * Masks an email address for logging purposes
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.isEmpty() || !email.contains("@")) {
+            return "********";
+        }
+        return email.substring(0, 1) + "********";
     }
 }
