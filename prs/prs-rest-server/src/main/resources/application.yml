@@ -1,0 +1,124 @@
+spring:
+  application:
+    # The name of the application, used for identification and in OpenAPI documentation.
+    name: webank-prs
+  mail:
+    # SMTP server host for sending emails.
+    host: smtp.gmail.com
+    # SMTP server port.
+    port: 587
+    # Username for the email account (injected from EMAIL environment variable).
+    username: ${EMAIL}
+    # Password for the email account (injected from PASSWORD environment variable).
+    password: ${PASSWORD}
+    properties:
+      mail:
+        smtp:
+          # Enable SMTP authentication.
+          auth: true
+          # Enable STARTTLS for secure communication.
+          starttls:
+            enable: true
+            required: true
+          # Trust the specified SSL host.
+          ssl:
+            trust: smtp.gmail.com
+  mvc:
+    # Enable logging of request details for debugging.
+    log-request-details: true
+
+# Configuration for OpenAPI/Swagger documentation.
+springdoc:
+  api-docs:
+    # Enable or disable the API documentation endpoint.
+    enabled: true
+    # Path to the API documentation endpoint.
+    path: /v3/api-docs
+  swagger-ui:
+    # Path to the Swagger UI.
+    path: /swagger-ui.html
+    # Enable or disable the Swagger UI.
+    enabled: true
+    # Sort operations by method in the Swagger UI.
+    operationsSorter: method
+    # Sort tags alphabetically in the Swagger UI.
+    tagsSorter: alpha
+    # Enable the "Try it out" feature in the Swagger UI.
+    tryItOutEnabled: true
+    # Enable filtering in the Swagger UI.
+    filter: true
+    # Display the request duration in the Swagger UI.
+    displayRequestDuration: true
+  # Default media type for response bodies.
+  default-produces-media-type: application/json
+  # Default media type for request bodies.
+  default-consumes-media-type: application/json
+
+# Configuration for One-Time Passwords (OTP).
+otp:
+  # Salt for hashing OTPs (injected from OTP_SALT environment variable).
+  salt: ${OTP_SALT}
+
+# Server-related configuration.
+server:
+  # Server's private key in JWK format (injected from SERVER_PRIVATE_KEY_JSON environment variable).
+  privateKey: ${SERVER_PRIVATE_KEY_JSON}
+  # Server's public key in JWK format (injected from SERVER_PUBLIC_KEY_JSON environment variable).
+  publicKey: ${SERVER_PUBLIC_KEY_JSON}
+  # Strategy for handling forwarded headers.
+  forward-headers-strategy: framework
+  error:
+    # Always include the error message in the response.
+    include-message: always
+    # Always include binding errors in the response.
+    include-binding-errors: always
+    # Never include the stack trace in the response.
+    include-stacktrace: never
+    # Include the exception class name in the response.
+    include-exception: true
+
+# Configuration for JSON Web Tokens (JWT).
+jwt:
+  # The issuer of the JWT (injected from JWT_ISSUER environment variable).
+  issuer: ${JWT_ISSUER}
+  # Expiration time for JWTs in milliseconds (injected from JWT_EXPIRATION_TIME_MS environment variable).
+  expiration-time-ms: ${JWT_EXPIRATION_TIME_MS}
+
+# Configuration for Spring Boot Actuator endpoints.
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose the health, info, prometheus, and metrics endpoints.
+        include: health,info,prometheus,metrics
+      # Base path for actuator endpoints.
+      base-path: /api/prs/actuator
+  endpoint:
+    prometheus:
+      # Enable the Prometheus endpoint.
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        # Enable exporting metrics to Prometheus.
+        enabled: true
+
+# Logging configuration.
+logging:
+  level:
+    root: INFO
+    com:
+      adorsys:
+        webank: DEBUG
+    org:
+      springframework:
+        web: DEBUG
+        security: DEBUG
+        http: DEBUG
+      web:
+        servlet:
+          mvc:
+            method:
+              annotation:
+                RequestMappingHandlerMapping: TRACE
+          DispatcherServlet: DEBUG

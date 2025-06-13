@@ -1,15 +1,19 @@
 package com.adorsys.webank.serviceimpl.security;
 
-import com.adorsys.webank.config.*;
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.jwk.*;
+import com.adorsys.webank.config.CertGeneratorHelper;
+import com.adorsys.webank.config.KeyLoader;
+import com.adorsys.webank.properties.JwtProperties;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
-import org.junit.jupiter.api.*;
-import org.springframework.test.util.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.security.*;
-import java.security.interfaces.*;
-import java.util.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,12 +26,12 @@ public class CertGeneratorHelperTest {
 
     @BeforeEach
     public void setUp() throws Exception {
-    KeyLoader keyLoader = mock(KeyLoader.class);
-        certGeneratorHelper = new CertGeneratorHelper(keyLoader);
+        KeyLoader keyLoader = mock(KeyLoader.class);
+        JwtProperties jwtProperties = mock(JwtProperties.class);
+        certGeneratorHelper = new CertGeneratorHelper(keyLoader, jwtProperties);
 
-        // Set issuer and expirationTimeMs using reflection
-        ReflectionTestUtils.setField(certGeneratorHelper, "issuer", "test-issuer");
-        ReflectionTestUtils.setField(certGeneratorHelper, "expirationTimeMs", 3600000L); // 1 hour
+        when(jwtProperties.getIssuer()).thenReturn("test-issuer");
+        when(jwtProperties.getExpirationTimeMs()).thenReturn(3600000L);
 
         // Generate EC key pair
         KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
@@ -66,13 +70,15 @@ public class CertGeneratorHelperTest {
 
     @Test
     public void testGenerateCertificateWithNullDeviceKey() {
-        String result = certGeneratorHelper.generateCertificate(null);
-        assertTrue(result.startsWith("Error generating device certificate"), "Should return error for null input");
+        assertThrows(IllegalArgumentException.class, () -> {
+            certGeneratorHelper.generateCertificate(null);
+        });
     }
 
     @Test
     public void testGenerateCertificateWithEmptyDeviceKey() {
-        String result = certGeneratorHelper.generateCertificate("   ");
-        assertTrue(result.startsWith("Error generating device certificate"), "Should return error for empty input");
+        assertThrows(IllegalArgumentException.class, () -> {
+            certGeneratorHelper.generateCertificate("   ");
+        });
     }
 }

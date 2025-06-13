@@ -1,15 +1,16 @@
 package com.adorsys.webank.config;
 
+import com.adorsys.webank.properties.JwtProperties;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import  com.nimbusds.jose.jwk.ECKey;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,18 +25,12 @@ import java.util.Date;
 public class CertGeneratorHelper {
 
     private final KeyLoader keyLoader;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
-
+    private final JwtProperties jwtProperties;
 
     public String generateCertificate(String deviceJwkJson) {
         if (deviceJwkJson == null || deviceJwkJson.trim().isEmpty()) {
             log.error("Device JWK is null or empty");
-            return "Error generating device certificate: Device JWK JSON must not be null or empty.";
+            throw new IllegalArgumentException("Device JWK JSON must not be null or empty.");
         }
 
         try {
@@ -53,11 +48,11 @@ public class CertGeneratorHelper {
                     .build();
 
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer(issuer)
+                    .issuer(jwtProperties.getIssuer())
                     .audience(deviceJwk.getKeyID())
                     .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject()))
                     .issueTime(new Date(issuedAt * 1000))
-                    .expirationTime(new Date((issuedAt + (expirationTimeMs / 1000)) * 1000))
+                    .expirationTime(new Date((issuedAt + (jwtProperties.getExpirationTimeMs() / 1000)) * 1000))
                     .build();
 
             SignedJWT signedJWT = new SignedJWT(header, claimsSet);

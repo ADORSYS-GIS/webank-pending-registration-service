@@ -1,14 +1,15 @@
 package com.adorsys.webank.serviceimpl;
-import com.nimbusds.jose.crypto.ECDSASigner;
 import com.adorsys.webank.config.*;
 import com.adorsys.webank.dto.*;
+import com.adorsys.webank.properties.JwtProperties;
 import com.adorsys.webank.service.*;
 import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jwt.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
 import org.springframework.stereotype.*;
 import org.springframework.transaction.annotation.*;
 import org.slf4j.MDC;
@@ -17,16 +18,11 @@ import java.util.*;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TokenServiceImpl implements TokenServiceApi {
 
-    @Autowired
-    private KeyLoader keyLoader;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
+    private final KeyLoader keyLoader;
+    private final JwtProperties jwtProperties;
 
     @Override
     @Transactional
@@ -68,12 +64,12 @@ public class TokenServiceImpl implements TokenServiceApi {
 
             // Create JWT Claims
             long issuedAt = System.currentTimeMillis() / 1000; // Convert to seconds
-            long expirationTime = issuedAt + (expirationTimeMs / 1000); // Convert milliseconds to seconds
+            long expirationTime = issuedAt + (jwtProperties.getExpirationTimeMs() / 1000); // Convert milliseconds to seconds
 
             log.debug("Creating JWT claims with issuer: {}, expiration: {} seconds [correlationId={}]", 
-                    issuer, expirationTimeMs/1000, correlationId);
+                    jwtProperties.getIssuer(), jwtProperties.getExpirationTimeMs()/1000, correlationId);
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer(issuer)
+                    .issuer(jwtProperties.getIssuer())
                     .subject("RecoveryToken")
                     .claim("oldAccountId", oldAccountId)
                     .claim("newAccountId", newAccountId)
@@ -88,7 +84,7 @@ public class TokenServiceImpl implements TokenServiceApi {
 
             String signedToken = signedJWT.serialize();
             log.info("Recovery token generated successfully with expiration in {} seconds [correlationId={}]", 
-                    expirationTimeMs/1000, correlationId);
+                    jwtProperties.getExpirationTimeMs()/1000, correlationId);
             
             if (log.isTraceEnabled()) {
                 log.trace("Token: {} [correlationId={}]", signedToken, correlationId);

@@ -2,13 +2,16 @@ package com.adorsys.webank.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.annotation.Validated;
+
 import jakarta.validation.constraints.NotBlank;
 
 @Data
-@Component
+@Validated
+@Configuration
 @ConfigurationProperties(prefix = "server")
-public class ServerKeyProperties {
+public class ServerKeysProperties {
     /**
      * Server private key in JWK format (usually injected from environment variable SERVER_PRIVATE_KEY_JSON)
      */

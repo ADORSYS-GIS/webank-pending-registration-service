@@ -6,6 +6,7 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.dto.response.DeviceResponse;
 import com.adorsys.webank.dto.response.DeviceValidationResponse;
+import com.adorsys.webank.properties.JwtProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
@@ -45,10 +46,13 @@ class DeviceRegServiceTest {
    @Mock
    private KeyLoader keyLoader;
 
+   @Mock
+   private JwtProperties jwtProperties;
+
    @BeforeEach
    void setUp() {
        // Initialize the service with all required dependencies
-       deviceRegService = new DeviceRegServiceImpl(objectMapper, passwordEncoder, keyLoader);
+       deviceRegService = new DeviceRegServiceImpl(objectMapper, passwordEncoder, keyLoader, jwtProperties);
    }
 
    @Test
@@ -104,7 +108,7 @@ class DeviceRegServiceTest {
            when(passwordEncoder.matches(anyString(), eq(validNonce))).thenReturn(true);
 
            // Create the service with real dependencies
-           deviceRegService = new DeviceRegServiceImpl(objectMapper, passwordEncoder, keyLoader);
+           deviceRegService = new DeviceRegServiceImpl(objectMapper, passwordEncoder, keyLoader, jwtProperties);
 
            // Act
            DeviceValidationResponse response = deviceRegService.validateDeviceRegistration(request);
