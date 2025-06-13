@@ -19,7 +19,7 @@ public class ErrorResponse {
     public static ErrorResponse createErrorResponse(ErrorCode errorCode, String message) {
         return ErrorResponse.builder()
                 .code(errorCode.name())
-                .message(message != null ? message : errorCode.getDefaultMessage())
+                .message(message != null ? message : errorCode.getMessage())
                 .status(errorCode.getHttpStatus())
                 .timestamp(LocalDateTime.now())
                 .build();

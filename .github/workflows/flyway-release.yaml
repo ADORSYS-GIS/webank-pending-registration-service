@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: adorsys-gis/webank-prs
+  IMAGE_NAME: adorsys-gis/webank-prs-flyway
 
 jobs:
   build:

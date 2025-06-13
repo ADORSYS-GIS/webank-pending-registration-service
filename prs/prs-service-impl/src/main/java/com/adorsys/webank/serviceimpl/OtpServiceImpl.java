@@ -1,24 +1,5 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.error.ValidationException;
-import com.adorsys.webank.config.SecurityUtils;
-import com.adorsys.webank.domain.OtpEntity;
-import com.adorsys.webank.domain.OtpStatus;
-import com.adorsys.webank.model.OtpData;
-import com.adorsys.webank.repository.OtpRequestRepository;
-import com.adorsys.webank.service.OtpServiceApi;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.erdtman.jcs.JsonCanonicalizer;
-import org.slf4j.MDC;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -26,6 +7,29 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+
+import org.erdtman.jcs.JsonCanonicalizer;
+import org.slf4j.MDC;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.domain.OtpEntity;
+import com.adorsys.webank.domain.OtpStatus;
+import com.adorsys.webank.dto.response.OtpResponse;
+import com.adorsys.webank.dto.response.OtpValidationResponse;
+import com.adorsys.webank.model.OtpData;
+import com.adorsys.webank.repository.OtpRequestRepository;
+import com.adorsys.webank.service.OtpServiceApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +51,7 @@ public class OtpServiceImpl implements OtpServiceApi {
 
     @Override
     @Transactional
-    public String sendOtp(String phoneNumber) {
+    public OtpResponse sendOtp(String phoneNumber) {
         String correlationId = MDC.get("correlationId");
         log.info("Processing OTP send request for phone: {} [correlationId={}]", 
                 maskPhoneNumber(phoneNumber), correlationId);
@@ -78,6 +82,7 @@ public class OtpServiceImpl implements OtpServiceApi {
                     .phoneNumber(phoneNumber)
                     .publicKeyHash(publicKeyHash)
                     .status(OtpStatus.PENDING)
+                    .createdAt(LocalDateTime.now())
                     .build();
         } else {
             // 3. If record was updated, fetch it
@@ -104,7 +109,20 @@ public class OtpServiceImpl implements OtpServiceApi {
 
             log.info("OTP sent successfully to phone: {} [correlationId={}]", phoneNumber, correlationId);
 
-            return otpHash;
+            // Build response DTO
+            OtpResponse response = OtpResponse.builder()
+                    .otpHash(publicKeyHash)
+                    .phoneNumber(phoneNumber)
+                    .expiresAt(otpRequest.getCreatedAt().plusSeconds(300))
+                    .validitySeconds(300)
+                    .sent(true)
+                    .build();
+            response.setOtpHash(publicKeyHash);
+            response.setPhoneNumber(phoneNumber);
+            response.setExpiresAt(otpRequest.getCreatedAt().plusSeconds(300));
+            response.setValiditySeconds(300);
+            response.setSent(true);
+            return response;
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
             throw new ValidationException("Failed to compute OTP hash: " + e.getMessage());
@@ -123,7 +141,7 @@ public class OtpServiceImpl implements OtpServiceApi {
     }
 
     @Override
-    public String validateOtp(String phoneNumber, String otpInput) {
+    public OtpValidationResponse validateOtp(String phoneNumber, String otpInput) {
         String correlationId = MDC.get("correlationId");
         log.info("Validating OTP for phone: {} [correlationId={}]", 
                 maskPhoneNumber(phoneNumber), correlationId);
@@ -142,7 +160,42 @@ public class OtpServiceImpl implements OtpServiceApi {
         OtpData otpData = createOtpDataForValidation(phoneNumber, devicePub, otpInput);
 
         // 4. Verify OTP hash
-        return verifyOtpHash(otpData, otpEntity);
+        // Inline the DTO response logic here:
+        boolean valid;
+        String message;
+        String details = null;
+        try {
+            String otpJSON = objectMapper.writeValueAsString(otpData);
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
+
+            if (log.isDebugEnabled()) {
+                log.debug("OTP validation input: {}", canonicalJson);
+            }
+
+            if (passwordEncoder.matches(canonicalJson, otpEntity.getOtpHash())) {
+                otpEntity.setStatus(OtpStatus.COMPLETE);
+                otpRequestRepository.save(otpEntity);
+                valid = true;
+                message = "OTP validated successfully";
+            } else {
+                otpEntity.setStatus(OtpStatus.INCOMPLETE);
+                otpRequestRepository.save(otpEntity);
+                valid = false;
+                message = "Invalid OTP";
+            }
+        } catch (IOException e) {
+            log.error("Failed to serialize OTP validation data to JSON", e);
+            otpEntity.setStatus(OtpStatus.INCOMPLETE);
+            otpRequestRepository.save(otpEntity);
+            valid = false;
+            message = "Error processing OTP data";
+            details = e.getMessage();
+        }
+        OtpValidationResponse response = new OtpValidationResponse();
+        response.setValid(valid);
+        response.setMessage(message);
+        response.setDetails(details);
+        return response;
     }
 
     /**
@@ -176,34 +229,6 @@ public class OtpServiceImpl implements OtpServiceApi {
                 .build();
     }
 
-    /**
-     * Verify OTP hash and update entity status
-     */
-    private String verifyOtpHash(OtpData otpData, OtpEntity otpEntity) {
-        try {
-            String otpJSON = objectMapper.writeValueAsString(otpData);
-            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
-
-            if (log.isDebugEnabled()) {
-                log.debug("OTP validation input: {}", canonicalJson);
-            }
-
-            if (passwordEncoder.matches(canonicalJson, otpEntity.getOtpHash())) {
-                otpEntity.setStatus(OtpStatus.COMPLETE);
-                otpRequestRepository.save(otpEntity);
-                return "Otp Validated Successfully";
-            } else {
-                otpEntity.setStatus(OtpStatus.INCOMPLETE);
-                otpRequestRepository.save(otpEntity);
-                throw new ValidationException("Invalid OTP");
-            }
-        } catch (IOException e) {
-            log.error("Failed to serialize OTP validation data to JSON", e);
-            otpEntity.setStatus(OtpStatus.INCOMPLETE);
-            otpRequestRepository.save(otpEntity);
-            throw new ValidationException("Error processing OTP data");
-        }
-    }
 
     @Override
     public String computeHash(String input) {

@@ -8,7 +8,7 @@ public class BaseException extends RuntimeException {
     private final String message;
 
     public BaseException(ErrorCode errorCode) {
-        this(errorCode, errorCode.getDefaultMessage());
+        this(errorCode, errorCode.getMessage());
     }
 
     public BaseException(ErrorCode errorCode, String message) {

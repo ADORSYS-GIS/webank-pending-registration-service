@@ -1,10 +1,13 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.config.JwtUtils;
+
 import com.adorsys.webank.config.KeyLoader;
 import com.adorsys.webank.config.SecurityUtils;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
+import com.adorsys.webank.dto.response.DeviceResponse;
+import com.adorsys.webank.dto.response.DeviceValidationResponse;
 import com.adorsys.webank.model.ProofOfWorkData;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -50,17 +53,22 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private Long expirationTimeMs;
 
     @Override
-    public String initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
+    public DeviceResponse initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Initiating device registration [correlationId={}]", correlationId);
         
         String nonce = generateNonce();
         log.info("Device registration initiated successfully [correlationId={}]", correlationId);
-        return nonce;
+        DeviceResponse response = new DeviceResponse();
+        response.setStatus(DeviceResponse.InitStatus.INITIALIZED);
+        response.setTimestamp(LocalDateTime.now());
+        response.setMessage("Device registration initialized. Use the following nonce for validation.");
+        response.setNonce(nonce);
+        return response;
     }
 
     @Override
-    public String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException {
+    public DeviceValidationResponse validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException {
         String correlationId = MDC.get("correlationId");
         log.info("Validating device registration [correlationId={}]", correlationId);
         
@@ -68,7 +76,11 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         // Step 1: Validate the nonce timestamp
         String nonceValidationError = validateNonceTimestamp(initiationNonce);
         if (nonceValidationError != null) {
-            return nonceValidationError;
+            DeviceValidationResponse response = new DeviceValidationResponse();
+            response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
+            response.setTimestamp(LocalDateTime.now());
+            response.setMessage(nonceValidationError);
+            return response;
         }
 
         String powNonce = deviceValidateRequest.getPowNonce();
@@ -94,12 +106,20 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             log.debug("Calculated proof of work hash for validation [correlationId={}]", correlationId);
 
             if (powValidationError != null) {
-                return powValidationError;
+                DeviceValidationResponse response = new DeviceValidationResponse();
+                response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
+                response.setTimestamp(LocalDateTime.now());
+                response.setMessage(powValidationError);
+                return response;
             }
 
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize PoW JSON", e);
-            return "Error processing proof of work";
+            DeviceValidationResponse response = new DeviceValidationResponse();
+            response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
+            response.setTimestamp(LocalDateTime.now());
+            response.setMessage("Error processing proof of work");
+            return response;
         }
         
         log.debug("Canonicalizing device public key [correlationId={}]", correlationId);
@@ -107,7 +127,13 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String devicePublicKey = jc.getEncodedString();
         
         log.info("Device validation successful, generating certificate [correlationId={}]", correlationId);
-        return generateDeviceCertificate(devicePublicKey);
+        String certificate = generateDeviceCertificate(devicePublicKey);
+        DeviceValidationResponse response = new DeviceValidationResponse();
+        response.setStatus(DeviceValidationResponse.ValidationStatus.VALIDATED);
+        response.setTimestamp(LocalDateTime.now());
+        response.setCertificate(certificate);
+        response.setMessage("Device validated successfully.");
+        return response;
     }
     private String validateNonceTimestamp(String initiationNonce) {
         try {
@@ -151,6 +177,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
         // Flatten the timestamp to the nearest previous 15-minute interval
         int flattenedMinute = (timestamp.getMinute() / 15) * 15;
+
         LocalDateTime flattenedTimestamp = timestamp.withMinute(flattenedMinute).withSecond(0).withNano(0);
 
         String timestampString = flattenedTimestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);

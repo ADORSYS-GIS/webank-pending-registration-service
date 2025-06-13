@@ -50,6 +50,5 @@ public class KycCertServiceImpl implements KycCertServiceApi {
         } else {
             return null;
         }
-        
     }
 }

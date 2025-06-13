@@ -2,13 +2,17 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.EmailOtpRequest;
 import com.adorsys.webank.dto.EmailOtpValidationRequest;
+import com.adorsys.webank.dto.response.EmailResponse;
+import com.adorsys.webank.dto.response.EmailValidationResponse;
 import com.adorsys.webank.service.EmailOtpServiceApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import lombok.RequiredArgsConstructor;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -17,37 +21,33 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     private final EmailOtpServiceApi emailOtpService;
 
     @Override
-    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendEmailOtp(String authorizationHeader, EmailOtpRequest request) {
+    public ResponseEntity<EmailResponse> sendEmailOtp(String authorizationHeader, EmailOtpRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to send email OTP [correlationId={}]", correlationId);
         
         String maskedEmail = maskEmail(request.getEmail());
         log.debug("Processing email OTP request for email: {} [correlationId={}]", maskedEmail, correlationId);
         
-        String result = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
+        EmailResponse response = emailOtpService.sendEmailOtp(request.getAccountId(), request.getEmail());
         log.info("Email OTP request processed [correlationId={}]", correlationId);
-        
-        return result;
+        return ResponseEntity.ok(response);
     }
 
     @Override
-    @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String validateEmailOtp(String authorizationHeader, EmailOtpValidationRequest request) {
+    public ResponseEntity<EmailValidationResponse> validateEmailOtp(String authorizationHeader, EmailOtpValidationRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to validate email OTP [correlationId={}]", correlationId);
         
         String maskedEmail = maskEmail(request.getEmail());
         log.debug("Validating OTP for email: {} [correlationId={}]", maskedEmail, correlationId);
 
-        String result = emailOtpService.validateEmailOtp(
+        EmailValidationResponse response = emailOtpService.validateEmailOtp(
                 request.getEmail(),
                 request.getOtpInput(),
                 request.getAccountId()
         );
-        
         log.info("Email OTP validation processed [correlationId={}]", correlationId);
-        return result;
+        return ResponseEntity.ok(response);
     }
 
     /**

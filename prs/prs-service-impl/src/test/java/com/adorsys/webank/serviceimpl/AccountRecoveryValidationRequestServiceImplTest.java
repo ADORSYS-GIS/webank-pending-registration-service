@@ -61,8 +61,9 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Assert
         assertNotNull(response, "Response should not be null");
-        assertEquals("oldAccountId", response.getOldAccountId(), "Old account ID should match");
-        assertEquals(newKycCertificate, response.getNewKycCertificate(), "New KYC certificate should match");
+        String oldAccountId = "oldAccountId";
+        assertEquals(oldAccountId, response.getAccountId(), "Account ID should match");
+        assertEquals(newKycCertificate, response.getKycCertificate(), "KYC certificate should match");
         assertEquals("Account recovery successful", response.getMessage(), "Message should indicate success");
 
         verify(certGeneratorHelper, times(1)).generateCertificate(anyString());

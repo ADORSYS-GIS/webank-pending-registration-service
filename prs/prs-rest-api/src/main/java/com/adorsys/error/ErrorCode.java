@@ -28,21 +28,22 @@ public enum ErrorCode {
     DEVICE_VALIDATION_FAILED(400, "Device Validation Failed"),
     ACCOUNT_NOT_FOUND(404, "Account not found"),
     HASH_COMPUTATION_ERROR(500, "Error computing hash"),
-    OTP_SEND_ERROR(500, "Failed to send OTP");
+    OTP_SEND_ERROR(500, "Failed to send OTP"),
+    KYC_PROCESSING_ERROR(500, "Error processing KYC request");
 
     private final int httpStatus;
-    private final String defaultMessage;
+    private final String message;
 
-    ErrorCode(int httpStatus, String defaultMessage) {
+    ErrorCode(int httpStatus, String message) {
         this.httpStatus = httpStatus;
-        this.defaultMessage = defaultMessage;
+        this.message = message;
     }
 
     public int getHttpStatus() {
         return httpStatus;
     }
 
-    public String getDefaultMessage() {
-        return defaultMessage;
+    public String getMessage() {
+        return message;
     }
 } 
