@@ -19,11 +19,10 @@ import com.nimbusds.jose.jwk.JWK;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.erdtman.jcs.JsonCanonicalizer;
 import org.slf4j.MDC;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import org.erdtman.jcs.JsonCanonicalizer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -167,7 +166,7 @@ public class OtpServiceImpl implements OtpServiceApi {
         String details = null;
         try {
             String otpJSON = objectMapper.writeValueAsString(otpData);
-            String canonicalJson = new org.erdtman.jcs.JsonCanonicalizer(otpJSON).getEncodedString();
+            String canonicalJson = new JsonCanonicalizer(otpJSON).getEncodedString();
 
             if (log.isDebugEnabled()) {
                 log.debug("OTP validation input: {}", canonicalJson);

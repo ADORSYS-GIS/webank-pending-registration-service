@@ -61,7 +61,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         log.info("Device registration initiated successfully [correlationId={}]", correlationId);
         DeviceResponse response = new DeviceResponse();
         response.setStatus(DeviceResponse.InitStatus.INITIALIZED);
-        response.setTimestamp(java.time.LocalDateTime.now());
+        response.setTimestamp(LocalDateTime.now());
         response.setMessage("Device registration initialized. Use the following nonce for validation.");
         response.setNonce(nonce);
         return response;
@@ -78,7 +78,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         if (nonceValidationError != null) {
             DeviceValidationResponse response = new DeviceValidationResponse();
             response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
-            response.setTimestamp(java.time.LocalDateTime.now());
+            response.setTimestamp(LocalDateTime.now());
             response.setMessage(nonceValidationError);
             return response;
         }
@@ -108,7 +108,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             if (powValidationError != null) {
                 DeviceValidationResponse response = new DeviceValidationResponse();
                 response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
-                response.setTimestamp(java.time.LocalDateTime.now());
+                response.setTimestamp(LocalDateTime.now());
                 response.setMessage(powValidationError);
                 return response;
             }
@@ -117,7 +117,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             log.error("Failed to serialize PoW JSON", e);
             DeviceValidationResponse response = new DeviceValidationResponse();
             response.setStatus(DeviceValidationResponse.ValidationStatus.FAILED);
-            response.setTimestamp(java.time.LocalDateTime.now());
+            response.setTimestamp(LocalDateTime.now());
             response.setMessage("Error processing proof of work");
             return response;
         }
@@ -130,7 +130,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
         String certificate = generateDeviceCertificate(devicePublicKey);
         DeviceValidationResponse response = new DeviceValidationResponse();
         response.setStatus(DeviceValidationResponse.ValidationStatus.VALIDATED);
-        response.setTimestamp(java.time.LocalDateTime.now());
+        response.setTimestamp(LocalDateTime.now());
         response.setCertificate(certificate);
         response.setMessage("Device validated successfully.");
         return response;

@@ -1,4 +1,4 @@
-package com.adorsys.webank.exception;
+package com.adorsys.webank.exceptions;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
