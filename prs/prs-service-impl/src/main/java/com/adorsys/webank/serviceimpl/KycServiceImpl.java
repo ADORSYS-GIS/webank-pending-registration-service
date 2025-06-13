@@ -1,33 +1,38 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.response.KycDocumentResponse;
-import com.adorsys.webank.dto.response.KycInfoResponse;
-import com.adorsys.webank.dto.response.KycLocationResponse;
-import com.adorsys.webank.dto.response.KycEmailResponse;
-import com.adorsys.webank.dto.response.KycResponse;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.adorsys.error.AccountNotFoundException;
+import com.adorsys.error.KycProcessingException;
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.domain.UserDocumentsStatus;
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.KycProcessingException;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
+import com.adorsys.webank.dto.response.KycDocumentResponse;
+import com.adorsys.webank.dto.response.KycEmailResponse;
+import com.adorsys.webank.dto.response.KycInfoResponse;
+import com.adorsys.webank.dto.response.KycLocationResponse;
+import com.adorsys.webank.dto.response.KycResponse;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
 import com.adorsys.webank.service.KycServiceApi;
-import jakarta.persistence.EntityNotFoundException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -43,7 +48,7 @@ public class KycServiceImpl implements KycServiceApi {
         if (kycDocumentRequest == null) {
             log.warn("Invalid KYC Document Request received for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("Invalid KYC Document Request");
+            throw new ValidationException("Invalid KYC Document Request");
         }
 
         try {
@@ -104,7 +109,7 @@ public class KycServiceImpl implements KycServiceApi {
         if (kycInfoRequest == null) {
             log.warn("Invalid KYC Info Request received for accountId: {} [correlationId={}]", 
                     maskAccountId(accountId), correlationId);
-            throw new IllegalArgumentException("Invalid KYC Info Request");
+            throw new ValidationException("Invalid KYC Info Request");
         }
 
         try {
@@ -165,7 +170,7 @@ public class KycServiceImpl implements KycServiceApi {
         String correlationId = MDC.get("correlationId");
         if (kycLocationRequest == null || kycLocationRequest.getLocation() == null) {
             log.warn("Invalid KYC Location Request received [correlationId={}]", correlationId);
-            throw new IllegalArgumentException("Invalid KYC Location Request");
+            throw new ValidationException("Invalid KYC Location Request");
         }
 
         String accountId = kycLocationRequest.getAccountId();
@@ -174,7 +179,7 @@ public class KycServiceImpl implements KycServiceApi {
                 .orElseThrow(() -> {
                     log.warn("No KYC record found for accountId: {} [correlationId={}]", 
                             maskAccountId(accountId), correlationId);
-                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                    return new AccountNotFoundException("No KYC record found for the provided accountId.");
                 });
 
         try {
@@ -209,7 +214,7 @@ public class KycServiceImpl implements KycServiceApi {
         String correlationId = MDC.get("correlationId");
         if (kycEmailRequest == null || kycEmailRequest.getEmail() == null || kycEmailRequest.getEmail().isEmpty()) {
             log.warn("Invalid KYC Email Request received [correlationId={}]", correlationId);
-            throw new IllegalArgumentException("Invalid KYC Email Request");
+            throw new ValidationException("Invalid KYC Email Request");
         }
 
         String accountId = kycEmailRequest.getAccountId();
@@ -218,7 +223,7 @@ public class KycServiceImpl implements KycServiceApi {
                 .orElseThrow(() -> {
                     log.warn("No KYC record found for accountId: {} [correlationId={}]", 
                             maskAccountId(accountId), correlationId);
-                    return new EntityNotFoundException("No KYC record found for the provided accountId.");
+                    return new AccountNotFoundException("No KYC record found for the provided accountId.");
                 });
         try {
             log.info("Processing KYC Email update for accountId: {} [correlationId={}]", 

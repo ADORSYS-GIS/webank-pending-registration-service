@@ -1,16 +1,17 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
+import java.util.Optional;
+
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.KycRecoveryServiceApi;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.*;
-import org.springframework.transaction.annotation.*;
-import org.springframework.stereotype.Service;
-import org.slf4j.MDC;
-
-import java.util.*;
 
 @Service
 @Slf4j

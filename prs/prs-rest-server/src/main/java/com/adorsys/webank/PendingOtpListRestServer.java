@@ -1,15 +1,17 @@
 package com.adorsys.webank;
 
-import com.adorsys.webank.dto.PendingOtpDto;
-import com.adorsys.webank.service.PendingOtpServiceApi;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.adorsys.webank.dto.PendingOtpDto;
+import com.adorsys.webank.service.PendingOtpServiceApi;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor

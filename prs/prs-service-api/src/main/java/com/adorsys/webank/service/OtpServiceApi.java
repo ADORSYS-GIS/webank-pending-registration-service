@@ -1,5 +1,4 @@
 package com.adorsys.webank.service;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.stereotype.Service;
 import com.adorsys.webank.dto.response.OtpResponse;
 import com.adorsys.webank.dto.response.OtpValidationResponse;

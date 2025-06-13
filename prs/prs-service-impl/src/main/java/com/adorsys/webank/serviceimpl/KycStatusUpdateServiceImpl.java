@@ -1,17 +1,17 @@
 package com.adorsys.webank.serviceimpl;
 
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.service.KycStatusUpdateServiceApi;
+
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor

@@ -1,6 +1,6 @@
 package com.adorsys.webank.serviceimpl.helper;
 
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -32,7 +32,7 @@ public class MailHelper {
      *
      * @param toEmail The recipient's email address
      * @param otp The OTP to send
-     * @throws FailedToSendOTPException if there's an error sending the email
+     * @throws ValidationException if there's an error sending the email
      */
     public void sendOtpEmail(String toEmail, String otp) {
         String correlationId = MDC.get("correlationId");
@@ -53,7 +53,7 @@ public class MailHelper {
         } catch (MessagingException e) {
             log.error("Failed to send Email OTP to: {} [correlationId={}]", 
                     maskEmail(toEmail), correlationId, e);
-            throw new FailedToSendOTPException("Failed to send Webank email: " + e.getMessage());
+            throw new ValidationException("Failed to send Webank email: " + e.getMessage());
         }
     }
 

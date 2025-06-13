@@ -1,19 +1,34 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.config.*;
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.projection.*;
-import com.adorsys.webank.repository.*;
-import com.nimbusds.jose.jwk.*;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.*;
-import org.mockito.*;
-import org.mockito.junit.jupiter.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.util.*;
+import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.adorsys.webank.config.CertGeneratorHelper;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 
 @ExtendWith(MockitoExtension.class)
 class KycCertServiceImplTest {
@@ -27,52 +42,61 @@ class KycCertServiceImplTest {
     @InjectMocks
     private KycCertServiceImpl kycCertService;
 
-    private static final String TEST_ACCOUNT_ID = "testAccountId";
-    private static final String TEST_REJECTION_REASON = "Test rejection reason";
+    private ECKey deviceKey;
+    private static final String TEST_ACCOUNT_ID = "test-account-id";
 
     @BeforeEach
-    void setUp() {
-        reset(personalInfoRepository, certGeneratorHelper);
+    void setUp() throws NoSuchAlgorithmException, JOSEException {
+        deviceKey = new ECKeyGenerator(Curve.P_256).generate();
     }
 
     @Test
-    void getCert_whenAccountIsRejected_shouldReturnRejectionReason() {
+    void testGetCert_Success() throws Exception {
         // Arrange
-        PersonalInfoProjection rejectedProjection = mock(PersonalInfoProjection.class);
-        when(rejectedProjection.getStatus()).thenReturn(PersonalInfoStatus.REJECTED);
-        when(rejectedProjection.getRejectionReason()).thenReturn(TEST_REJECTION_REASON);
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getStatus()).thenReturn(PersonalInfoStatus.APPROVED);
 
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedProjection));
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
+        when(certGeneratorHelper.generateCertificate(anyString())).thenReturn("test-certificate");
 
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
+
+            // Act
+            String result = kycCertService.getCert(TEST_ACCOUNT_ID);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals("Your certificate is: test-certificate", result);
+            verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
+            verify(certGeneratorHelper).generateCertificate(anyString());
+        }
+    }
+
+    @Test
+    void testGetCert_NullAccountId() {
         // Act
-        String result = kycCertService.getCert(TEST_ACCOUNT_ID);
+        String result = kycCertService.getCert(null);
 
         // Assert
-        assertNotNull(result);
-        assertTrue(result.startsWith("REJECTED: "));
-        assertTrue(result.contains(TEST_REJECTION_REASON));
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId(null);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     @Test
-    void getCert_whenAccountIsRejectedWithoutReason_shouldReturnDefaultMessage() {
-        // Arrange
-        PersonalInfoProjection rejectedProjection = mock(PersonalInfoProjection.class);
-        when(rejectedProjection.getStatus()).thenReturn(PersonalInfoStatus.REJECTED);
-        when(rejectedProjection.getRejectionReason()).thenReturn("");
-
-        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(rejectedProjection));
-
+    void testGetCert_EmptyAccountId() {
         // Act
-        String result = kycCertService.getCert(TEST_ACCOUNT_ID);
+        String result = kycCertService.getCert("");
 
         // Assert
-        assertNotNull(result);
-        assertTrue(result.startsWith("REJECTED: "));
-        assertTrue(result.contains("Please check your documents"));
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId("");
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     @Test
-    void getCert_whenAccountNotFound_shouldReturnNull() {
+    void testGetCert_AccountNotFound() {
         // Arrange
         when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.empty());
 
@@ -80,29 +104,65 @@ class KycCertServiceImplTest {
         String result = kycCertService.getCert(TEST_ACCOUNT_ID);
 
         // Assert
-        assertNull(result);
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
     }
 
     @Test
-    void getCert_whenCertificateGenerationFails_shouldReturnNull() {
+    void testGetCert_StatusPending() {
         // Arrange
-        PersonalInfoProjection approvedProjection = mock(PersonalInfoProjection.class);
-        when(approvedProjection.getStatus()).thenReturn(PersonalInfoStatus.APPROVED);
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getStatus()).thenReturn(PersonalInfoStatus.PENDING);
 
-        ECKey mockDevicePub = mock(ECKey.class);
-        when(mockDevicePub.toJSONString()).thenReturn("{\"kty\":\"EC\"}");
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
 
-        try (MockedStatic<SecurityUtils> mockedStatic = mockStatic(SecurityUtils.class)) {
-            mockedStatic.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(mockDevicePub);
-            when(certGeneratorHelper.generateCertificate(anyString())).thenThrow(new RuntimeException("Simulated failure"));
-            when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(approvedProjection));
+        // Act
+        String result = kycCertService.getCert(TEST_ACCOUNT_ID);
+
+        // Assert
+        assertEquals(null, result);
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testGetCert_StatusRejected() {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getStatus()).thenReturn(PersonalInfoStatus.REJECTED);
+        when(personalInfo.getRejectionReason()).thenReturn("Invalid documents");
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
+
+        // Act
+        String result = kycCertService.getCert(TEST_ACCOUNT_ID);
+
+        // Assert
+        assertEquals("REJECTED: Invalid documents", result);
+        verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
+        verify(certGeneratorHelper, never()).generateCertificate(anyString());
+    }
+
+    @Test
+    void testGetCert_CertificateGenerationError() throws Exception {
+        // Arrange
+        PersonalInfoProjection personalInfo = mock(PersonalInfoProjection.class);
+        when(personalInfo.getStatus()).thenReturn(PersonalInfoStatus.APPROVED);
+
+        when(personalInfoRepository.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(Optional.of(personalInfo));
+        when(certGeneratorHelper.generateCertificate(anyString())).thenThrow(new RuntimeException("Certificate generation failed"));
+
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::extractDeviceJwkFromContext).thenReturn(deviceKey);
 
             // Act
             String result = kycCertService.getCert(TEST_ACCOUNT_ID);
 
             // Assert
-            assertNotNull(result);
             assertEquals("null", result);
+            verify(personalInfoRepository).findByAccountId(TEST_ACCOUNT_ID);
+            verify(certGeneratorHelper).generateCertificate(anyString());
         }
     }
 }

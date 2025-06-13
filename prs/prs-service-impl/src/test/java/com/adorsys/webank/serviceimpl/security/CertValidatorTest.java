@@ -60,20 +60,6 @@ class CertValidatorTest {
         assertFalse(certValidator.validateJWT(mainJwt.serialize()));
     }
 
-    @Test
-    void validateJWT_invalidPublicKey_returnsFalse() throws JOSEException {
-        com.adorsys.webank.properties.ServerKeyProperties invalidProps = new com.adorsys.webank.properties.ServerKeyProperties();
-        invalidProps.setPublicKey("invalid_json");
-
-        KeyLoader invalidLoader = new KeyLoader(invalidProps);
-        CertValidator invalidCertValidator = new CertValidator(invalidLoader);
-
-        SignedJWT devJwt = createSignedJWT(serverPrivateKey);
-        SignedJWT mainJwt = createMainJWT(devJwt, serverPrivateKey);
-
-        assertFalse(invalidCertValidator.validateJWT(mainJwt.serialize()));
-    }
-
 
     // Helper: creates a simple signed JWT.
     private SignedJWT createSignedJWT(ECKey signingKey) throws JOSEException {

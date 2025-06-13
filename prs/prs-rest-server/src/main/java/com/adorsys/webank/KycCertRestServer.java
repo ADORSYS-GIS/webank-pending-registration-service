@@ -1,8 +1,10 @@
 package com.adorsys.webank;
-import com.adorsys.webank.service.KycCertServiceApi;
 import org.slf4j.MDC;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.adorsys.webank.service.KycCertServiceApi;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

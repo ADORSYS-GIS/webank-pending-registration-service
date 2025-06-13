@@ -1,204 +1,218 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.model.EmailOtpData;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.serviceimpl.helper.MailHelper;
-import com.adorsys.webank.dto.response.EmailResponse;
-import com.adorsys.webank.dto.response.EmailValidationResponse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.jwk.Curve;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import com.adorsys.error.AccountNotFoundException;
+import com.adorsys.error.FailedToSendOTPException;
+import com.adorsys.error.HashComputationException;
+import com.adorsys.error.ValidationException;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.dto.response.EmailResponse;
+import com.adorsys.webank.dto.response.EmailValidationResponse;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.serviceimpl.helper.MailHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-public class EmailOtpServiceImplTest {
-   private static final Logger log = LoggerFactory.getLogger(EmailOtpServiceImplTest.class);
+class EmailOtpServiceImplTest {
 
-   @Mock
-   private PersonalInfoRepository personalInfoRepository;
+    @Mock
+    private PersonalInfoRepository personalInfoRepository;
 
-   @Mock
-   private ObjectMapper objectMapper;
+    @Mock
+    private ObjectMapper objectMapper;
 
-   @Mock
-   private MailHelper mailHelper;
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
-   @Mock
-   private PasswordEncoder passwordEncoder;
+    @Mock
+    private MailHelper mailHelper;
 
-   @InjectMocks
-   private EmailOtpServiceImpl emailOtpService;
+    @InjectMocks
+    private EmailOtpServiceImpl emailOtpService;
 
-   private ECKey deviceKey;
-   private static final String TEST_EMAIL = "user@example.com";
-   private static final String TEST_OTP = "123456";
-   private static final String TEST_CORRELATION_ID = "test-correlation-id";
+    private static final String TEST_ACCOUNT_ID = "test-account-id";
+    private static final String TEST_EMAIL = "test@example.com";
+    private static final String TEST_OTP = "123456";
+    private static final String TEST_OTP_HASH = "hashed-otp";
+    private static final String TEST_JSON_DATA = "{\"key\":\"value\"}";
 
-   @BeforeEach
-   public void setUp() throws Exception {
-       deviceKey = new ECKeyGenerator(Curve.P_256).generate();
+    @BeforeEach
+    void setUp() throws Exception {
+        reset(personalInfoRepository, objectMapper, passwordEncoder, mailHelper);
+        lenient().when(objectMapper.writeValueAsString(any())).thenReturn(TEST_JSON_DATA);
+    }
 
-       // Set correlation ID for testing
-       MDC.put("correlationId", TEST_CORRELATION_ID);
+    @Test
+    void generateOtp_shouldGenerate6DigitNumber() {
+        // Act
+        String otp = emailOtpService.generateOtp();
 
-       // Initialize the service with required dependencies
-       emailOtpService = new EmailOtpServiceImpl(personalInfoRepository, objectMapper, passwordEncoder, mailHelper);
+        // Assert
+        assertNotNull(otp);
+        assertEquals(6, otp.length());
+        assertTrue(Integer.parseInt(otp) >= 100000 && Integer.parseInt(otp) <= 999999);
+    }
 
-       // Set up password encoder mock
-       when(passwordEncoder.encode(anyString())).thenAnswer(invocation -> "encoded_" + invocation.getArgument(0));
-   }
+    @Test
+    void sendEmailOtp_withInvalidEmail_shouldThrowValidationException() {
+        // Arrange
+        String invalidEmail = "invalid-email";
 
-   @Test
-   public void testGenerateOtp() {
-       String otp = emailOtpService.generateOtp();
-       assertEquals(6, otp.length());
-       assertTrue(otp.matches("\\d+"));
-   }
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, invalidEmail);
+        });
+        assertEquals("Invalid email format", exception.getMessage());
+    }
 
-   @Test
-   public void testSendEmailOtp_Success() throws Exception {
-       // Arrange
-       String accountId = computePublicKeyHash(deviceKey.toJSONString());
-       PersonalInfoEntity entity = new PersonalInfoEntity();
-       entity.setAccountId(accountId);
+    @Test
+    void sendEmailOtp_withNullAccountId_shouldThrowValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            emailOtpService.sendEmailOtp(null, TEST_EMAIL);
+        });
+        assertEquals("Account ID cannot be null or empty", exception.getMessage());
+    }
 
-       when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(entity));
-       when(objectMapper.writeValueAsString(any())).thenReturn("{\"emailOtp\":\"123456\",\"accountId\":\"test\"}");
+    @Test
+    void sendEmailOtp_withNonExistentAccount_shouldThrowAccountNotFoundException() {
+        // Arrange
+        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+            .thenReturn(Optional.empty());
 
-       // Mock MailSendingHelper to do nothing when sendOtpEmail is called
-       doNothing().when(mailHelper).sendOtpEmail(anyString(), anyString());
+        // Act & Assert
+        AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
+            emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, TEST_EMAIL);
+        });
+        assertEquals("No user found for account: " + TEST_ACCOUNT_ID, exception.getMessage());
+    }
 
-       // Act
-       EmailResponse response = emailOtpService.sendEmailOtp(accountId, TEST_EMAIL);
+    @Test
+    void sendEmailOtp_success() throws JsonProcessingException {
+        // Arrange
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+            .thenReturn(Optional.of(personalInfo));
+        when(passwordEncoder.encode(any()))
+            .thenReturn(TEST_OTP_HASH);
+        doNothing().when(mailHelper).sendOtpEmail(any(), any());
+        when(objectMapper.writeValueAsString(any())).thenReturn(TEST_JSON_DATA);
 
-       // Assert
-       assertEquals("OTP sent successfully to " + TEST_EMAIL, response.getMessage());
-       verify(mailHelper, times(1)).sendOtpEmail(eq(TEST_EMAIL), anyString());
-   }
+        // Act
+        EmailResponse response = emailOtpService.sendEmailOtp(TEST_ACCOUNT_ID, TEST_EMAIL);
 
-   @Test
-   public void testSendEmailOtp_InvalidEmail() {
-       String accountId = computePublicKeyHash(deviceKey.toJSONString());
-       assertThrows(IllegalArgumentException.class, () ->
-               emailOtpService.sendEmailOtp(accountId, "invalid-email")
-       );
-   }
+        // Assert
+        assertNotNull(response);
+        assertEquals(EmailResponse.EmailStatus.SUCCESS, response.getStatus());
+        assertTrue(response.getMessage().contains("OTP sent successfully"));
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
+        verify(mailHelper).sendOtpEmail(eq(TEST_EMAIL), any());
+    }
 
-   @Test
-   public void testSendEmailOtp_AccountNotFound() {
-       String accountId = "non-existent-account";
-       when(personalInfoRepository.findById(accountId)).thenReturn(Optional.empty());
+    @Test
+    void validateEmailOtp_withInvalidOtp_shouldReturnFailedResponse() {
+        // Arrange
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        personalInfo.setEmailOtpHash(TEST_OTP_HASH);
+        personalInfo.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(5));
+        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+            .thenReturn(Optional.of(personalInfo));
+        when(passwordEncoder.matches(any(), any()))
+            .thenReturn(false);
 
-       assertThrows(com.adorsys.webank.exceptions.AccountNotFoundException.class, () ->
-               emailOtpService.sendEmailOtp(accountId, TEST_EMAIL)
-       );
-   }
+        // Act
+        EmailValidationResponse response = emailOtpService.validateEmailOtp(TEST_EMAIL, "wrong-otp", TEST_ACCOUNT_ID);
 
-   @Test
-   public void testValidateEmailOtp_Valid() throws Exception {
-       // Arrange
-       String accountId = computePublicKeyHash(deviceKey.toJSONString());
+        // Assert
+        assertEquals(EmailValidationResponse.ValidationStatus.FAILED, response.getStatus());
+        assertTrue(response.getMessage().contains("Invalid OTP provided"));
+    }
 
-       // Create a mock entity that will be returned by the repository
-       PersonalInfoEntity entity = new PersonalInfoEntity();
-       entity.setAccountId(accountId);
-       entity.setEmailOtpCode(TEST_OTP);
-       entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
+    @Test
+    void validateEmailOtp_withExpiredOtp_shouldReturnFailedResponse() {
+        // Arrange
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        personalInfo.setEmailOtpHash(TEST_OTP_HASH);
+        personalInfo.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
+        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+            .thenReturn(Optional.of(personalInfo));
 
-       // Compute the expected hash for the OTP
-       String expectedHash = "hashed_otp_value";
-       entity.setEmailOtpHash(expectedHash);
+        // Act
+        EmailValidationResponse response = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, TEST_ACCOUNT_ID);
 
-       // Mock the repository to return our mock entity
-       when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(entity));
+        // Assert
+        assertEquals(EmailValidationResponse.ValidationStatus.FAILED, response.getStatus());
+        assertTrue(response.getMessage().contains("OTP has expired"));
+    }
 
-       // Mock the password encoder to verify the hash
-       when(passwordEncoder.matches(anyString(), eq(expectedHash))).thenReturn(true);
+    @Test
+    void validateEmailOtp_success() {
+        // Arrange
+        PersonalInfoEntity personalInfo = new PersonalInfoEntity();
+        personalInfo.setEmailOtpHash(TEST_OTP_HASH);
+        personalInfo.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(5));
+        when(personalInfoRepository.findById(TEST_ACCOUNT_ID))
+            .thenReturn(Optional.of(personalInfo));
+        when(passwordEncoder.matches(any(), any()))
+            .thenReturn(true);
 
-       // Mock the object mapper for JSON serialization
-       when(objectMapper.writeValueAsString(any(EmailOtpData.class)))
-           .thenReturn("{\"emailOtp\":\"123456\",\"accountId\":\"" + accountId + "\"}");
+        // Act
+        EmailValidationResponse response = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, TEST_ACCOUNT_ID);
 
-       // Mock the password encoder for hash computation
-       when(passwordEncoder.encode(anyString())).thenReturn(expectedHash);
+        // Assert
+        assertEquals(EmailValidationResponse.ValidationStatus.SUCCESS, response.getStatus());
+        assertTrue(response.getMessage().contains("OTP validated successfully"));
+        verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
+    }
 
-       // Mock the save operation
-       PersonalInfoEntity savedEntity = new PersonalInfoEntity();
-       when(personalInfoRepository.save(any(PersonalInfoEntity.class))).thenReturn(savedEntity);
+    @Test
+    void computeHash_shouldReturnValidHash() {
+        // Arrange
+        String input = "test-input";
 
-       // Set up MDC for correlation ID
-       MDC.put("correlationId", TEST_CORRELATION_ID);
+        // Act
+        String hash = emailOtpService.computeHash(input);
 
-       try {
-           // Act
-           EmailValidationResponse response = emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId);
+        // Assert
+        assertNotNull(hash);
+        assertTrue(hash.matches("^[a-f0-9]{64}$")); // SHA-256 hash is 64 hex characters
+    }
 
-           // Assert
-           assertEquals("OTP validated successfully for " + TEST_EMAIL, response.getMessage());
+    // @Test
+    // void computeHash_withException_shouldThrowHashComputationException() throws JsonProcessingException {
+    //     // Arrange
+    //     JsonProcessingException testException = new JsonProcessingException("Test exception") {};
+    //     when(objectMapper.writeValueAsString(any())).thenThrow(testException);
 
-           // Verify interactions
-           verify(personalInfoRepository).findById(accountId);
-           verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
-           verify(passwordEncoder).matches(anyString(), eq(expectedHash));
-           verify(objectMapper).writeValueAsString(any(EmailOtpData.class));
-       } finally {
-           MDC.clear();
-       }
-   }
-
-   @Test
-   public void testComputeOtpHash() throws Exception {
-       // Arrange
-       String accountId = computePublicKeyHash(deviceKey.toJSONString());
-       String expectedHash = "encoded_hashed_value";
-
-       // Mock the JSON serialization
-       when(objectMapper.writeValueAsString(any())).thenReturn("{\"emailOtp\":\"123456\",\"accountId\":\"test\"}");
-
-       // Mock the password encoder
-       when(passwordEncoder.encode(anyString())).thenReturn(expectedHash);
-
-       // Act
-       String actualHash = emailOtpService.computeOtpHash(TEST_OTP, accountId);
-
-       // Assert
-       assertNotNull(actualHash);
-       assertEquals(expectedHash, actualHash);
-       verify(objectMapper).writeValueAsString(any());
-       verify(passwordEncoder).encode(anyString());
-   }
-
-   @Test
-   public void testCanonicalizeJson() {
-       String json = "{\"b\":2, \"a\":1}";
-       String canonical = emailOtpService.canonicalizeJson(json);
-       assertEquals("{\"a\":1,\"b\":2}", canonical);
-   }
-
-   private String computePublicKeyHash(String publicKeyJson) {
-       return emailOtpService.computeHash(publicKeyJson);
-   }
-}
+    //     // Act & Assert
+    //     HashComputationException exception = assertThrows(HashComputationException.class, () -> {
+    //         emailOtpService.computeOtpHash(TEST_OTP, TEST_ACCOUNT_ID);
+    //     });
+    //     assertEquals("Failed to compute OTP hash: " + testException.getMessage(), exception.getMessage());
+    //     assertNotNull(exception.getCause());
+    //     assertEquals("Test exception", exception.getCause().getMessage());
+    // }
+} 

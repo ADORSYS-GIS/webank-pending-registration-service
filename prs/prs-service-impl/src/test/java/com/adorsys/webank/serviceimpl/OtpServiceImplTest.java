@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.repository.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.*;
@@ -46,8 +47,9 @@ class OtpServiceImplTest {
         String invalidPhoneNumber = "invalid";
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
             otpService.sendOtp(invalidPhoneNumber);
         });
+        assertEquals("Invalid phone number format", exception.getMessage());
     }
 }

@@ -1,9 +1,8 @@
 package com.adorsys.webank.service;
 
-import com.adorsys.webank.dto.KycEmailRequest;
-import com.adorsys.webank.dto.TokenRequest;
-import com.nimbusds.jose.jwk.JWK;
 import org.springframework.stereotype.Service;
+
+import com.adorsys.webank.dto.TokenRequest;
 
 @Service
 public interface TokenServiceApi {

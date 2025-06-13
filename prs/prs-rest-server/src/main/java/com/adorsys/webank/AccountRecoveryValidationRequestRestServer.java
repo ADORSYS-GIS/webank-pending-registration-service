@@ -5,6 +5,7 @@ import com.adorsys.webank.dto.AccountRecoveryResponse;
 import com.adorsys.webank.config.JwtValidator;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
+import com.adorsys.error.JwtValidationException;
 import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,7 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
         } catch (Exception e) {
             log.error("Error validating recovery token [correlationId={}]: {}", 
                     correlationId, e.getMessage());
-            return ResponseEntity.ok(null);
+            throw new JwtValidationException("JWT validation failed: " + e.getMessage());
         }
 
         log.info("Processing account recovery [correlationId={}]", correlationId);
@@ -71,8 +72,7 @@ public class AccountRecoveryValidationRequestRestServer implements AccountRecove
 
     private String extractJwtFromHeader(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            log.warn("Invalid authorization header format");
-            throw new IllegalArgumentException("Authorization header must start with 'Bearer '");
+            throw new JwtValidationException("Authorization header must start with 'Bearer '");
         }
         return authorizationHeader.substring(7); // Remove "Bearer " prefix
     }

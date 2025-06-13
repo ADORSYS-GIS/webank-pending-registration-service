@@ -5,6 +5,7 @@ import org.springframework.security.core.*;
 import org.springframework.security.core.context.*;
 import org.springframework.security.oauth2.jwt.*;
 import com.nimbusds.jose.jwk.ECKey;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
 
 import java.util.*;
 
@@ -36,13 +37,12 @@ public class SecurityUtils {
      * Combines getting the current JWT from SecurityUtils and extracting the device JWK.
      *
      * @return The device public key as JSON string
-     * @throws IllegalArgumentException if no JWT found in context or extraction fails
+     * @throws SecurityConfigurationException if no JWT found in context or extraction fails
      */
     public static ECKey extractDeviceJwkFromContext() {
         return getCurrentUserJWT()
                 .map(JwtValidator::extractDeviceJwk)
-                .orElseThrow(() -> new IllegalArgumentException("No JWT found in security context"));
-
+                .orElseThrow(() -> new SecurityConfigurationException("No JWT found in security context", null));
     }
 
 }
