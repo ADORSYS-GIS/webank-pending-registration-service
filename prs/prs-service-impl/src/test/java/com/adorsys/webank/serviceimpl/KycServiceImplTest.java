@@ -1,14 +1,17 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.domain.PersonalInfoEntity;
-import com.adorsys.webank.domain.PersonalInfoStatus;
-import com.adorsys.webank.domain.UserDocumentsEntity;
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.exceptions.FailedToSendOTPException;
-import com.adorsys.webank.projection.PersonalInfoProjection;
-import com.adorsys.webank.repository.PersonalInfoRepository;
-import com.adorsys.webank.repository.UserDocumentsRepository;
-import jakarta.persistence.EntityNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,13 +19,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.domain.UserDocumentsEntity;
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.repository.UserDocumentsRepository;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import jakarta.persistence.EntityNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class KycServiceImplTest {
