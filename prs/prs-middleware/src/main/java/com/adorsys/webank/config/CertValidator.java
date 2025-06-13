@@ -56,8 +56,22 @@ public class CertValidator {
             log.info("Extracted accountJwt from header.");
             return accountJwt.toString();
         }
+        Object kycCertObj = signedJWT.getHeader().toJSONObject().get("kycCertJwt");
+        if (kycCertObj != null) {
+            String kycCert = kycCertObj.toString();
+            log.info("Extracted kycCertJwt: {}", kycCert);
+            return kycCert;
+        }
 
-        log.error("No devJwt or accountJwt found in JWT header.");
+        Object kycJwtObj = signedJWT.getHeader().toJSONObject().get("kycJwt");
+        if (kycJwtObj != null) {
+            String kycJwt = kycJwtObj.toString();
+            log.info("Extracted kycJwt: {}", kycJwt);
+            return kycJwt;
+        }
+
+
+        log.error("No valid certificate found in JWT header.");
         return null;
     }
 

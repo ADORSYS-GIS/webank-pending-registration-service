@@ -11,11 +11,6 @@ public final class JwtExtractor {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final Logger logger = LoggerFactory.getLogger(JwtExtractor.class);
 
-    // Private constructor to prevent instantiation
-    private JwtExtractor() {
-        throw new IllegalStateException("Utility class");
-    }
-
     public static String extractPayloadHash(String payload) {
         try {
             // Parse the payload string into a Map
