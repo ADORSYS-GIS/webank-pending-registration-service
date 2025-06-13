@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl.helper;
 
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
+import com.adorsys.webank.properties.MailProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -9,7 +10,6 @@ import org.slf4j.MDC;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Value;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -23,9 +23,7 @@ import jakarta.mail.internet.MimeMessage;
 @Slf4j
 public class MailHelper {
     private final JavaMailSender mailSender;
-    
-    @Value("${spring.mail.username}")
-    private String fromEmail;
+    private final MailProperties mailProperties;
 
     /**
      * Sends an OTP email to the specified recipient.
@@ -42,7 +40,7 @@ public class MailHelper {
 
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
-            helper.setFrom(fromEmail);
+            helper.setFrom(mailProperties.getUsername());
             helper.setTo(toEmail);
             helper.setSubject("Webank Verification Code");
             helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));

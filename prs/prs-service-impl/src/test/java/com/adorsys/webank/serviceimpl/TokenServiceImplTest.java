@@ -2,6 +2,7 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.config.*;
 import com.adorsys.webank.dto.*;
+import com.adorsys.webank.properties.JwtProperties;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.gen.*;
 import com.nimbusds.jwt.*;
@@ -15,12 +16,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import com.nimbusds.jose.JOSEException;
 
-
+/**
+ * Unit tests for {@link TokenServiceImpl}.
+ */
 public class TokenServiceImplTest {
     private static final Logger LOG = LoggerFactory.getLogger(TokenServiceImplTest.class);
 
     @Mock
     private KeyLoader keyLoader;
+
+    @Mock
+    private JwtProperties jwtProperties;
 
     @InjectMocks
     private TokenServiceImpl tokenService;
@@ -43,10 +49,8 @@ public class TokenServiceImplTest {
         when(keyLoader.loadPrivateKey()).thenReturn(privateKey);
         when(keyLoader.loadPublicKey()).thenReturn(publicKey);
 
-
-
-        ReflectionTestUtils.setField(tokenService, "issuer", "webank-test");
-        ReflectionTestUtils.setField(tokenService, "expirationTimeMs", 60000L); // 1 min
+        when(jwtProperties.getIssuer()).thenReturn("webank-test");
+        when(jwtProperties.getExpirationTimeMs()).thenReturn(60000L); // 1 min
 
 }
 
@@ -100,9 +104,3 @@ public class TokenServiceImplTest {
         verify(keyLoader, never()).loadPublicKey();
     }
 }
-
-
-
-
-
-

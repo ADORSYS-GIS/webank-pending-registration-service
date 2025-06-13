@@ -1,6 +1,7 @@
 package com.adorsys.webank.serviceimpl.security;
 
 import com.adorsys.webank.config.*;
+import com.adorsys.webank.properties.ServerKeysProperties;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
@@ -23,7 +24,7 @@ class CertValidatorTest {
         String serverPublicKeyJson = ecKey.toPublicJWK().toJSONString();
 
         // Create and configure ServerKeyProperties
-        com.adorsys.webank.properties.ServerKeyProperties keyProperties = new com.adorsys.webank.properties.ServerKeyProperties();
+        ServerKeysProperties keyProperties = new ServerKeysProperties();
         keyProperties.setPublicKey(serverPublicKeyJson);
         // You can also setPrivateKey if needed
 
@@ -62,7 +63,7 @@ class CertValidatorTest {
 
     @Test
     void validateJWT_invalidPublicKey_returnsFalse() throws JOSEException {
-        com.adorsys.webank.properties.ServerKeyProperties invalidProps = new com.adorsys.webank.properties.ServerKeyProperties();
+        ServerKeysProperties invalidProps = new ServerKeysProperties();
         invalidProps.setPublicKey("invalid_json");
 
         KeyLoader invalidLoader = new KeyLoader(invalidProps);
