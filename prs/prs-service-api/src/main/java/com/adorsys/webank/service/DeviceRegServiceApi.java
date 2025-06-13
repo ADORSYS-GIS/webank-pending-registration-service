@@ -4,11 +4,13 @@ import com.adorsys.webank.dto.DeviceRegInitRequest;
 import com.adorsys.webank.dto.DeviceValidateRequest;
 
 import java.io.IOException;
+import com.adorsys.webank.dto.response.DeviceResponse;
+import com.adorsys.webank.dto.response.DeviceValidationResponse;
 
 public interface DeviceRegServiceApi {
 
 
-    String initiateDeviceRegistration(DeviceRegInitRequest regInitRequest);
+    DeviceResponse initiateDeviceRegistration(DeviceRegInitRequest regInitRequest);
 
-    String validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException;
+    DeviceValidationResponse validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) throws IOException;
 }

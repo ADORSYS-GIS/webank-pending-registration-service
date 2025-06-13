@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.ResponseEntity;
+import com.adorsys.webank.dto.response.OtpResponse;
+import com.adorsys.webank.dto.response.OtpValidationResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -19,7 +22,7 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendOtp(String authorizationHeader, OtpRequest request) {
+    public ResponseEntity<OtpResponse> sendOtp(String authorizationHeader, OtpRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received OTP send request [correlationId={}]", correlationId);
         
@@ -28,9 +31,9 @@ public class OtpRestServer implements OtpRestApi {
         
         try {
             log.debug("Processing OTP send request [correlationId={}]", correlationId);
-            String result = otpService.sendOtp(request.getPhoneNumber());
+            OtpResponse result = otpService.sendOtp(request.getPhoneNumber());
             log.info("OTP send operation completed successfully [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } finally {
             // Remove any additional MDC values we added
             MDC.remove("phoneNumber");
@@ -39,7 +42,7 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String validateOtp(String authorizationHeader, OtpValidationRequest request) {
+    public ResponseEntity<OtpValidationResponse> validateOtp(String authorizationHeader, OtpValidationRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received OTP validation request [correlationId={}]", correlationId);
         
@@ -48,9 +51,9 @@ public class OtpRestServer implements OtpRestApi {
         
         try {
             log.debug("Processing OTP validation request [correlationId={}]", correlationId);
-            String result = otpService.validateOtp(request.getPhoneNumber(), request.getOtpInput());
+            OtpValidationResponse result = otpService.validateOtp(request.getPhoneNumber(), request.getOtpInput());
             log.info("OTP validation operation completed [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } finally {
             // Remove any additional MDC values we added
             MDC.remove("phoneNumber");

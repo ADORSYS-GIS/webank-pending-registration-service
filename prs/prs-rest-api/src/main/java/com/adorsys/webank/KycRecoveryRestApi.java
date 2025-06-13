@@ -1,5 +1,6 @@
 package com.adorsys.webank;
 
+import com.adorsys.webank.dto.KycRecoveryDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -20,8 +21,6 @@ public interface KycRecoveryRestApi {
             @ApiResponse(responseCode = "401", description = "Unauthorized access"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @PostMapping(value = "/{accountId}", consumes = "application/json", produces = "application/json")
-    String verifyKycRecoveryFields(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-                           @PathVariable("accountId") String accountId,
-                           @RequestBody KycInfoRequest kycInfoRequest);
+    @PostMapping(value = "/verify", consumes = "application/json", produces = "application/json")
+    String verifyKycRecoveryFields(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycRecoveryDto kycRecoveryDto);
 }
