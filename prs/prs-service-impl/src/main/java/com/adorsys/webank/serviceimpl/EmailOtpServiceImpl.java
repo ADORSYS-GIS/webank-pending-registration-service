@@ -1,6 +1,8 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
+import com.adorsys.webank.dto.response.EmailResponse;
+import com.adorsys.webank.dto.response.EmailValidationResponse;
 import com.adorsys.webank.exceptions.AccountNotFoundException;
 import com.adorsys.webank.exceptions.FailedToSendOTPException;
 import com.adorsys.webank.exceptions.HashComputationException;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
 @Slf4j
 public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
+
     private final PersonalInfoRepository personalInfoRepository;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
@@ -50,7 +53,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     @Override
     @Transactional
-    public String sendEmailOtp(String accountId, String email) {
+    public EmailResponse sendEmailOtp(String accountId, String email) {
         String correlationId = MDC.get("correlationId");
         log.info("Initiating Email OTP send process for account: {} [correlationId={}]",
                 mailHelper.maskAccountId(accountId), correlationId);
@@ -80,9 +83,13 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
                     mailHelper.maskAccountId(accountId), otpExpiration, correlationId);
 
             mailHelper.sendOtpEmail(email, otp);
-            log.info("Email OTP sent successfully to account: {} [correlationId={}]",
-                    mailHelper.maskAccountId(accountId), correlationId);
-            return "OTP sent successfully to " + email;
+            log.info("OTP email sent to: {} [correlationId={}]", mailHelper.maskEmail(email), correlationId);
+
+            return new EmailResponse(
+                EmailResponse.EmailStatus.SUCCESS,
+                LocalDateTime.now(),
+                "OTP sent successfully to " + email
+            );
         } catch (AccountNotFoundException e) {
             log.warn("Attempted to send OTP to a non-existent account: {} [correlationId={}]", mailHelper.maskAccountId(accountId), MDC.get("correlationId"));
             throw e;
@@ -95,21 +102,28 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
 
     @Override
     @Transactional
-    public String validateEmailOtp(String email, String otp, String accountId) {
+    public EmailValidationResponse validateEmailOtp(String email, String otpInput, String accountId) {
         String correlationId = MDC.get("correlationId");
         log.info("Validating Email OTP for account: {} [correlationId={}]", mailHelper.maskAccountId(accountId), correlationId);
 
         try {
             PersonalInfoEntity entity = getPersonalInfo(accountId);
-            validateOtp(otp, entity);
+            validateOtp(otpInput, entity);
             clearOtpFields(entity);
 
-            log.info("Email OTP verified successfully for account: {} [correlationId={}]", mailHelper.maskAccountId(accountId), correlationId);
-            return "Webank email verified successfully";
-
-        } catch (IllegalArgumentException e) {
-            log.error("Validation error for account: {}: {} [correlationId={}]", mailHelper.maskAccountId(accountId), e.getMessage(), correlationId);
-            throw e;
+            log.info("OTP validated successfully for account: {} [correlationId={}]", mailHelper.maskAccountId(accountId), correlationId);
+            return new EmailValidationResponse(
+                EmailValidationResponse.ValidationStatus.SUCCESS,
+                LocalDateTime.now(),
+                "OTP validated successfully for " + email
+            );
+        } catch (Exception e) {
+            log.error("OTP validation failed for account: {} [correlationId={}]", mailHelper.maskAccountId(accountId), correlationId, e);
+            return new EmailValidationResponse(
+                EmailValidationResponse.ValidationStatus.FAILED,
+                LocalDateTime.now(),
+                "OTP validation failed: " + e.getMessage()
+            );
         }
     }
 

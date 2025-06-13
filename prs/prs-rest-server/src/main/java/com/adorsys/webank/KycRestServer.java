@@ -3,10 +3,17 @@ package com.adorsys.webank;
 import com.adorsys.webank.dto.*;
 import com.adorsys.webank.service.*;
 import org.slf4j.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import com.adorsys.webank.dto.response.KycDocumentResponse;
+import com.adorsys.webank.dto.response.KycInfoResponse;
+import com.adorsys.webank.dto.response.KycLocationResponse;
+import com.adorsys.webank.dto.response.KycEmailResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -17,7 +24,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
+    public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC info request [correlationId={}]", correlationId);
         
@@ -26,9 +33,9 @@ public class KycRestServer implements KycRestApi {
         
         try {
             log.debug("Processing KYC info for account [correlationId={}]", correlationId);
-            String result = kycServiceApi.sendKycInfo(accountId, kycInfoRequest);
+            KycInfoResponse result = kycServiceApi.sendKycInfo(accountId, kycInfoRequest);
             log.info("KYC info processed successfully [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to process KYC info [correlationId={}]", correlationId, e);
             throw e;
@@ -39,7 +46,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
+    public ResponseEntity<KycLocationResponse> sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC location request [correlationId={}]", correlationId);
         
@@ -48,9 +55,9 @@ public class KycRestServer implements KycRestApi {
         
         try {
             log.debug("Processing KYC location for account [correlationId={}]", correlationId);
-            String result = kycServiceApi.sendKycLocation(kycLocationRequest);
+            KycLocationResponse result = kycServiceApi.sendKycLocation(kycLocationRequest);
             log.info("KYC location processed successfully [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to process KYC location [correlationId={}]", correlationId, e);
             throw e;
@@ -61,7 +68,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
+    public ResponseEntity<KycEmailResponse> sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC email request [correlationId={}]", correlationId);
         
@@ -73,9 +80,9 @@ public class KycRestServer implements KycRestApi {
         
         try {
             log.debug("Processing KYC email for account [correlationId={}]", correlationId);
-            String result = kycServiceApi.sendKycEmail(kycEmailRequest);
+            KycEmailResponse result = kycServiceApi.sendKycEmail(kycEmailRequest);
             log.info("KYC email processed successfully [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to process KYC email [correlationId={}]", correlationId, e);
             throw e;
@@ -87,7 +94,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
+    public ResponseEntity<KycDocumentResponse> sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC document request [correlationId={}]", correlationId);
         
@@ -96,9 +103,9 @@ public class KycRestServer implements KycRestApi {
         
         try {
             log.debug("Processing KYC document for account [correlationId={}]", correlationId);
-            String result = kycServiceApi.sendKycDocument(accountId, kycDocumentRequest);
+            KycDocumentResponse result = kycServiceApi.sendKycDocument(accountId, kycDocumentRequest);
             log.info("KYC document processed successfully [correlationId={}]", correlationId);
-            return result;
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to process KYC document [correlationId={}]", correlationId, e);
             throw e;

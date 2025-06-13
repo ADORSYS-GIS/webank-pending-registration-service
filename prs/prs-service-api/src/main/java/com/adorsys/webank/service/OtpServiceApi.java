@@ -1,13 +1,15 @@
 package com.adorsys.webank.service;
 import com.nimbusds.jose.jwk.JWK;
 import org.springframework.stereotype.Service;
+import com.adorsys.webank.dto.response.OtpResponse;
+import com.adorsys.webank.dto.response.OtpValidationResponse;
 
 @Service
 public interface OtpServiceApi {
     String generateOtp();
-    String sendOtp(String phoneNumber ) ;
+    OtpResponse sendOtp(String phoneNumber ) ;
     String computeHash(String input);
-    String validateOtp(String phoneNumber,  String otpInput ) ;
+    OtpValidationResponse validateOtp(String phoneNumber,  String otpInput ) ;
 }
 
 
