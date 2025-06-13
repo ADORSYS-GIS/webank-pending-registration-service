@@ -38,4 +38,5 @@ target
 
 # Ignore all environment files
 .env*
+*.log
 

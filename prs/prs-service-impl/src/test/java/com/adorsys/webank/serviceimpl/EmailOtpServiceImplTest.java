@@ -2,7 +2,6 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.model.EmailOtpData;
-import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.serviceimpl.helper.MailHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,10 +79,10 @@ public class EmailOtpServiceImplTest {
     public void testSendEmailOtp_Success() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
-        when(projection.getAccountId()).thenReturn(accountId);
+        PersonalInfoEntity entity = new PersonalInfoEntity();
+        entity.setAccountId(accountId);
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
+        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(entity));
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"emailOtp\":\"123456\",\"accountId\":\"test\"}");
         
         // Mock MailSendingHelper to do nothing when sendOtpEmail is called
@@ -106,22 +105,32 @@ public class EmailOtpServiceImplTest {
     }
 
     @Test
+    public void testSendEmailOtp_AccountNotFound() {
+        String accountId = "non-existent-account";
+        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.empty());
+
+        assertThrows(com.adorsys.webank.exceptions.AccountNotFoundException.class, () ->
+                emailOtpService.sendEmailOtp(accountId, TEST_EMAIL)
+        );
+    }
+
+    @Test
     public void testValidateEmailOtp_Valid() throws Exception {
         // Arrange
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
         
-        // Create a mock projection that will be returned by the repository
-        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
-        when(projection.getAccountId()).thenReturn(accountId);
-        when(projection.getEmailOtpCode()).thenReturn(TEST_OTP);
-        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().plusMinutes(1));
+        // Create a mock entity that will be returned by the repository
+        PersonalInfoEntity entity = new PersonalInfoEntity();
+        entity.setAccountId(accountId);
+        entity.setEmailOtpCode(TEST_OTP);
+        entity.setOtpExpirationDateTime(LocalDateTime.now().plusMinutes(1));
         
         // Compute the expected hash for the OTP
         String expectedHash = "hashed_otp_value";
-        when(projection.getEmailOtpHash()).thenReturn(expectedHash);
+        entity.setEmailOtpHash(expectedHash);
         
-        // Mock the repository to return our mock projection
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
+        // Mock the repository to return our mock entity
+        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(entity));
         
         // Mock the password encoder to verify the hash
         when(passwordEncoder.matches(anyString(), eq(expectedHash))).thenReturn(true);
@@ -148,7 +157,7 @@ public class EmailOtpServiceImplTest {
             assertEquals("Webank email verified successfully", result);
             
             // Verify interactions
-            verify(personalInfoRepository).findByAccountId(accountId);
+            verify(personalInfoRepository).findById(accountId);
             verify(personalInfoRepository).save(any(PersonalInfoEntity.class));
             verify(passwordEncoder).matches(anyString(), eq(expectedHash));
             verify(objectMapper).writeValueAsString(any(EmailOtpData.class));
@@ -160,11 +169,11 @@ public class EmailOtpServiceImplTest {
     @Test
     public void testValidateEmailOtp_Expired() {
         String accountId = computePublicKeyHash(deviceKey.toJSONString());
-        PersonalInfoProjection projection = mock(PersonalInfoProjection.class);
-        when(projection.getAccountId()).thenReturn(accountId);
-        when(projection.getOtpExpirationDateTime()).thenReturn(LocalDateTime.now().minusMinutes(1));
+        PersonalInfoEntity entity = new PersonalInfoEntity();
+        entity.setAccountId(accountId);
+        entity.setOtpExpirationDateTime(LocalDateTime.now().minusMinutes(1));
 
-        when(personalInfoRepository.findByAccountId(accountId)).thenReturn(Optional.of(projection));
+        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(entity));
 
         assertThrows(IllegalArgumentException.class, () ->
                 emailOtpService.validateEmailOtp(TEST_EMAIL, TEST_OTP, accountId)
