@@ -121,3 +121,4 @@ If you encounter issues with the native build:
 2. Verify GraalVM is installed and selected: `sdk current java`
 3. Check the reflection configuration in `reflect-config.json`
 4. Review the native-image.properties file for initialization settings
+5. Run the `NativeReflectionHintScanner` class to get the reflection hints them add them to `@RegisterReflectionForBinding` annotation in the `NativeReflectionHintsConfig`
