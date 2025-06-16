@@ -1,17 +1,19 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.config.*;
-import com.adorsys.webank.domain.*;
-import com.adorsys.webank.repository.*;
-import com.adorsys.webank.service.*;
-import com.adorsys.webank.projection.*;
-import com.nimbusds.jose.jwk.*;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import com.adorsys.webank.config.CertGeneratorHelper;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.projection.PersonalInfoProjection;
+import com.adorsys.webank.repository.PersonalInfoRepository;
+import com.adorsys.webank.service.KycCertServiceApi;
+import com.nimbusds.jose.jwk.ECKey;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
-
-import java.util.*;
 
 @Service
 @Slf4j

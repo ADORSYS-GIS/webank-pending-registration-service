@@ -13,6 +13,8 @@ import com.nimbusds.jwt.proc.BadJWTException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import com.adorsys.webank.exceptions.JwtPayloadParseException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -65,7 +67,7 @@ public class JwtValidator {
         Object jwkObject = jwsObject.getHeader().toJSONObject().get("jwk");
         if (jwkObject == null) {
             logger.error("Missing 'jwk' in JWT header");
-            throw new BadJOSEException("Missing 'jwk' in JWT header.");
+            throw new SecurityConfigurationException("Missing 'jwk' in JWT header", null);
         }
 
         String jwkString = new ObjectMapper().writeValueAsString(jwkObject);
@@ -74,7 +76,7 @@ public class JwtValidator {
         JWK jwk = JWK.parse(jwkString);
         if (!(jwk instanceof ECKey)) {
             logger.error("Invalid key type, expected ECKey but found {}", jwk.getKeyType());
-            throw new BadJOSEException("Invalid key type, expected ECKey.");
+            throw new SecurityConfigurationException("Invalid key type, expected ECKey", null);
         }
 
         logger.info("Successfully validated JWK");
@@ -87,7 +89,7 @@ public class JwtValidator {
         var verifier = ecKey.toECPublicKey();
         if (!jwsObject.verify(new ECDSAVerifier(verifier))) {
             logger.error("Invalid signature detected");
-            throw new BadJWTException("Invalid signature.");
+            throw new SecurityConfigurationException("Invalid signature", null);
         }
         logger.info("Signature verification successful");
     }
@@ -103,7 +105,7 @@ public class JwtValidator {
 
         if (!payloadHash.equals(expectedHash)) {
             logger.error("Payload hash validation failed");
-            throw new BadJWTException("Invalid payload hash.");
+            throw new SecurityConfigurationException("Invalid payload hash", null);
         }
         logger.info("Payload hash validation successful");
     }
@@ -128,7 +130,7 @@ public class JwtValidator {
             logger.info("Successfully parsed JWT token:{}", signedJWT);
             return signedJWT.getHeader().toJSONObject().get(claimKey).toString();
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Error extracting claim: " + claimKey, e);
+            throw new JwtPayloadParseException("Error extracting claim: " + claimKey, e);
         }
     }
 
@@ -145,15 +147,13 @@ public class JwtValidator {
             SignedJWT signedJWT = SignedJWT.parse(jwtToken);
             Object jwkObject = signedJWT.getHeader().toJSONObject().get("jwk");
             if (jwkObject == null) {
-                throw new IllegalArgumentException("Missing 'jwk' in JWT header");
+                throw new SecurityConfigurationException("Missing 'jwk' in JWT header", null);
             }
 
             String jwkJson = new ObjectMapper().writeValueAsString(jwkObject);
             return ECKey.parse(jwkJson);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to extract or parse device JWK from JWT", e);
+            throw new SecurityConfigurationException("Failed to extract or parse device JWK from JWT", e);
         }
     }
-
-
 }
