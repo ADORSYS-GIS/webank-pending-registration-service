@@ -1,20 +1,26 @@
 package com.adorsys.webank;
 
-import com.adorsys.webank.dto.*;
-import com.adorsys.webank.service.*;
-import org.slf4j.*;
-import org.springframework.http.HttpStatus;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.adorsys.webank.dto.KycDocumentRequest;
+import com.adorsys.webank.dto.KycEmailRequest;
+import com.adorsys.webank.dto.KycInfoRequest;
+import com.adorsys.webank.dto.KycLocationRequest;
+import com.adorsys.webank.dto.UserInfoResponse;
 import com.adorsys.webank.dto.response.KycDocumentResponse;
+import com.adorsys.webank.dto.response.KycEmailResponse;
 import com.adorsys.webank.dto.response.KycInfoResponse;
 import com.adorsys.webank.dto.response.KycLocationResponse;
-import com.adorsys.webank.dto.response.KycEmailResponse;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
-import lombok.RequiredArgsConstructor;
+import com.adorsys.webank.service.KycServiceApi;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor

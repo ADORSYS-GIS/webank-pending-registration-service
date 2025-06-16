@@ -1,16 +1,18 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.webank.dto.AccountRecoveryResponse;
+import java.text.ParseException;
+
+import org.springframework.stereotype.Service;
+
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.config.CertGeneratorHelper;
+import com.adorsys.webank.dto.AccountRecoveryResponse;
 import com.adorsys.webank.service.AccountRecoveryValidationRequestServiceApi;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-import java.text.ParseException;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -20,27 +22,41 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
 
     @Override
     public AccountRecoveryResponse processRecovery(JWK publicKey, String newAccountId, String recoveryJwt) {
+        validateInput(newAccountId, recoveryJwt);
+        
         try {
-            // Parse the recovery JWT
-            SignedJWT signedJWT = SignedJWT.parse(recoveryJwt);
+            SignedJWT signedJWT = parseRecoveryJwt(recoveryJwt);
             String oldAccountId = getOldAccountId(newAccountId, signedJWT);
-
-            // Generate a new KYC certificate
-            String newKycCertificate = certGeneratorHelper.generateCertificate(publicKey.toJSONString());
-
-            // Return a successful response
-            return new AccountRecoveryResponse(oldAccountId, newKycCertificate, "Account recovery successful");
-
+            String newKycCertificate = generateNewKycCertificate(publicKey);
+            return createSuccessResponse(oldAccountId, newKycCertificate);
         } catch (ParseException e) {
-            // Handle invalid JWT format
-            return new AccountRecoveryResponse(null, null, "Invalid RecoveryJWT format");
+            throw new ValidationException("Invalid RecoveryJWT format");
         } catch (IllegalArgumentException e) {
-            // Handle specific business logic errors (e.g., token expired, account ID mismatch)
-            return new AccountRecoveryResponse(null, null, e.getMessage());
+            throw new ValidationException(e.getMessage());
         } catch (Exception e) {
-            // Handle unexpected errors
-            return new AccountRecoveryResponse(null, null, "An unexpected error occurred: " + e.getMessage());
+            throw new ValidationException("An unexpected error occurred: " + e.getMessage());
         }
+    }
+
+    private void validateInput(String newAccountId, String recoveryJwt) {
+        if (newAccountId == null || newAccountId.isEmpty()) {
+            throw new ValidationException("New account ID is required");
+        }
+        if (recoveryJwt == null || recoveryJwt.isEmpty()) {
+            throw new ValidationException("Recovery JWT is required");
+        }
+    }
+
+    private SignedJWT parseRecoveryJwt(String recoveryJwt) throws ParseException {
+        return SignedJWT.parse(recoveryJwt);
+    }
+
+    private String generateNewKycCertificate(JWK publicKey) {
+        return certGeneratorHelper.generateCertificate(publicKey.toJSONString());
+    }
+
+    private AccountRecoveryResponse createSuccessResponse(String oldAccountId, String newKycCertificate) {
+        return new AccountRecoveryResponse(oldAccountId, newKycCertificate, "Account recovery successful");
     }
 
     private static String getOldAccountId(String newAccountId, SignedJWT signedJWT) throws ParseException {
@@ -49,7 +65,7 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
         // Extract and validate the ClaimingAccountID
         String claimingAccountId = claimsSet.getStringClaim("newAccountId");
         if (!newAccountId.equals(claimingAccountId)) {
-            throw new IllegalArgumentException("Claiming account ID mismatch");
+            throw new ValidationException("Claiming account ID mismatch");
         }
 
         // Restore the old account (assuming a method to find the account by ID)

@@ -8,6 +8,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,6 +63,7 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthe
                 }
             } catch (Exception e) {
                 log.error("Error validating certificate", e);
+                throw new SecurityConfigurationException("Failed to validate certificate: " + e.getMessage(), e);
             }
         } else {
             log.debug("No accountJwt found in headers. Available headers: {}", headers.keySet());

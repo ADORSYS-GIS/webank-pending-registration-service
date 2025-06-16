@@ -1,5 +1,7 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.error.AccountNotFoundException;
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.dto.*;
@@ -7,7 +9,6 @@ import com.adorsys.webank.dto.response.*;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -73,9 +74,10 @@ class KycServiceImplTest {
    @Test
    void sendKycDocument_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       ValidationException exception = assertThrows(ValidationException.class, () -> {
            kycService.sendKycDocument(TEST_ACCOUNT_ID, null);
        });
+       assertEquals("Invalid KYC Document Request", exception.getMessage());
    }
 
    @Test
@@ -101,9 +103,10 @@ class KycServiceImplTest {
    @Test
    void sendKycInfo_NullRequest_ThrowsException() {
        // When & Then
-       assertThrows(IllegalArgumentException.class, () -> {
+       ValidationException exception = assertThrows(ValidationException.class, () -> {
            kycService.sendKycInfo(TEST_ACCOUNT_ID, null);
        });
+       assertEquals("Invalid KYC Info Request", exception.getMessage());
    }
 
    @Test
@@ -140,9 +143,10 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(EntityNotFoundException.class, () -> {
+       AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
            kycService.sendKycLocation(request);
        });
+       assertEquals("No KYC record found for the provided accountId.", exception.getMessage());
    }
 
    @Test
@@ -179,9 +183,10 @@ class KycServiceImplTest {
            .thenReturn(Optional.empty());
 
        // When & Then
-       assertThrows(EntityNotFoundException.class, () -> {
+       AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
            kycService.sendKycEmail(request);
        });
+       assertEquals("No KYC record found for the provided accountId.", exception.getMessage());
    }
 
    @Test
