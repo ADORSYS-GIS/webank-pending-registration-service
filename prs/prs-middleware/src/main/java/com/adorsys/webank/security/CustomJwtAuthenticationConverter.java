@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
+import com.adorsys.webank.exceptions.SecurityConfigurationException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +75,7 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthe
             if (headers.containsKey("devJwt")) {
                 authorities.add(new SimpleGrantedAuthority(Role.DEVICE_CERT.getRoleName()));
                 log.info("Granted {}", Role.DEVICE_CERT);
+
             }
         } catch (Exception e) {
             log.error("Error validating certificate", e);
