@@ -1,20 +1,23 @@
 package com.adorsys.webank.serviceimpl;
-import com.adorsys.webank.config.*;
-import com.adorsys.webank.dto.*;
+
+import com.adorsys.webank.config.JwtUtils;
+import com.adorsys.webank.config.KeyLoader;
+import com.adorsys.webank.dto.TokenRequest;
 import com.adorsys.webank.properties.JwtProperties;
-import com.adorsys.webank.service.*;
-import com.nimbusds.jose.*;
+import com.adorsys.webank.service.TokenServiceApi;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.*;
-import com.nimbusds.jwt.*;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.*;
-import org.springframework.stereotype.*;
-import org.springframework.transaction.annotation.*;
 import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Date;
 
 @Service
 @Slf4j

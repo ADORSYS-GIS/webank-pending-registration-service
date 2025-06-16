@@ -1,13 +1,5 @@
 package com.adorsys.webank.serviceimpl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.adorsys.error.AccountNotFoundException;
 import com.adorsys.error.KycProcessingException;
 import com.adorsys.error.ValidationException;
@@ -15,24 +7,22 @@ import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
 import com.adorsys.webank.domain.UserDocumentsEntity;
 import com.adorsys.webank.domain.UserDocumentsStatus;
-import com.adorsys.webank.dto.KycDocumentRequest;
-import com.adorsys.webank.dto.KycEmailRequest;
-import com.adorsys.webank.dto.KycInfoRequest;
-import com.adorsys.webank.dto.KycLocationRequest;
-import com.adorsys.webank.dto.UserInfoResponse;
-import com.adorsys.webank.dto.response.KycDocumentResponse;
-import com.adorsys.webank.dto.response.KycEmailResponse;
-import com.adorsys.webank.dto.response.KycInfoResponse;
-import com.adorsys.webank.dto.response.KycLocationResponse;
-import com.adorsys.webank.dto.response.KycResponse;
+import com.adorsys.webank.dto.*;
+import com.adorsys.webank.dto.response.*;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.projection.UserDocumentsProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.repository.UserDocumentsRepository;
 import com.adorsys.webank.service.KycServiceApi;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
