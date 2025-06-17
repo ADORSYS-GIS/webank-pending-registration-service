@@ -1,5 +1,6 @@
 package com.adorsys.webank.config;
 
+import com.adorsys.webank.properties.ServerKeysProperties;
 import com.nimbusds.jose.jwk.*;
 import lombok.*;
 import lombok.extern.slf4j.*;
@@ -13,7 +14,7 @@ import java.text.*;
 @RequiredArgsConstructor
 public class KeyLoader {
 
-    private final com.adorsys.webank.properties.ServerKeyProperties keyProperties;
+    private final ServerKeysProperties keyProperties;
 
 
     public ECKey loadPrivateKey() throws ParseException {

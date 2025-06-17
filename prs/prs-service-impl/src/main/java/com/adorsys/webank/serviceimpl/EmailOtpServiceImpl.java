@@ -1,9 +1,9 @@
 package com.adorsys.webank.serviceimpl;
 
-import com.adorsys.error.ValidationException;
 import com.adorsys.error.AccountNotFoundException;
 import com.adorsys.error.FailedToSendOTPException;
 import com.adorsys.error.HashComputationException;
+import com.adorsys.error.ValidationException;
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.dto.response.EmailResponse;
 import com.adorsys.webank.dto.response.EmailValidationResponse;

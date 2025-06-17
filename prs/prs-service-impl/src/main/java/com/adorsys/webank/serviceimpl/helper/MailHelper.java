@@ -1,18 +1,15 @@
 package com.adorsys.webank.serviceimpl.helper;
 
-import com.adorsys.error.ValidationException;
+import com.adorsys.error.FailedToSendOTPException;
+import com.adorsys.webank.properties.MailProperties;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Value;
-
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 
 /**
  * Helper class for sending emails.
@@ -23,16 +20,14 @@ import jakarta.mail.internet.MimeMessage;
 @Slf4j
 public class MailHelper {
     private final JavaMailSender mailSender;
-    
-    @Value("${spring.mail.username}")
-    private String fromEmail;
+    private final MailProperties mailProperties;
 
     /**
      * Sends an OTP email to the specified recipient.
      *
      * @param toEmail The recipient's email address
      * @param otp The OTP to send
-     * @throws ValidationException if there's an error sending the email
+     * @throws FailedToSendOTPException if there's an error sending the email
      */
     public void sendOtpEmail(String toEmail, String otp) {
         String correlationId = MDC.get("correlationId");
@@ -42,7 +37,7 @@ public class MailHelper {
 
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
-            helper.setFrom(fromEmail);
+            helper.setFrom(mailProperties.getUsername());
             helper.setTo(toEmail);
             helper.setSubject("Webank Verification Code");
             helper.setText(String.format("Your Webank OTP is: %s (valid for 5 minutes)", otp));
@@ -53,7 +48,7 @@ public class MailHelper {
         } catch (MessagingException e) {
             log.error("Failed to send Email OTP to: {} [correlationId={}]", 
                     maskEmail(toEmail), correlationId, e);
-            throw new ValidationException("Failed to send Webank email: " + e.getMessage());
+            throw new FailedToSendOTPException("Failed to send Webank email: " + e.getMessage());
         }
     }
 
