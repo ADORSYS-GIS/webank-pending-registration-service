@@ -1,15 +1,9 @@
 package com.adorsys.webank.serviceimpl;
-import java.util.Date;
-
-import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.adorsys.webank.config.JwtUtils;
 import com.adorsys.webank.config.KeyLoader;
 import com.adorsys.webank.dto.TokenRequest;
+import com.adorsys.webank.properties.JwtProperties;
 import com.adorsys.webank.service.TokenServiceApi;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
@@ -17,21 +11,21 @@ import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TokenServiceImpl implements TokenServiceApi {
 
-    @Autowired
-    private KeyLoader keyLoader;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
+    private final KeyLoader keyLoader;
+    private final JwtProperties jwtProperties;
 
     @Override
     @Transactional
@@ -73,12 +67,12 @@ public class TokenServiceImpl implements TokenServiceApi {
 
             // Create JWT Claims
             long issuedAt = System.currentTimeMillis() / 1000; // Convert to seconds
-            long expirationTime = issuedAt + (expirationTimeMs / 1000); // Convert milliseconds to seconds
+            long expirationTime = issuedAt + (jwtProperties.getExpirationTimeMs() / 1000); // Convert milliseconds to seconds
 
             log.debug("Creating JWT claims with issuer: {}, expiration: {} seconds [correlationId={}]", 
-                    issuer, expirationTimeMs/1000, correlationId);
+                    jwtProperties.getIssuer(), jwtProperties.getExpirationTimeMs()/1000, correlationId);
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer(issuer)
+                    .issuer(jwtProperties.getIssuer())
                     .subject("RecoveryToken")
                     .claim("oldAccountId", oldAccountId)
                     .claim("newAccountId", newAccountId)
@@ -93,7 +87,7 @@ public class TokenServiceImpl implements TokenServiceApi {
 
             String signedToken = signedJWT.serialize();
             log.info("Recovery token generated successfully with expiration in {} seconds [correlationId={}]", 
-                    expirationTimeMs/1000, correlationId);
+                    jwtProperties.getExpirationTimeMs()/1000, correlationId);
             
             if (log.isTraceEnabled()) {
                 log.trace("Token: {} [correlationId={}]", signedToken, correlationId);
