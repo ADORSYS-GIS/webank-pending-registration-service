@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
 import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,14 +19,11 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
+@RequiredArgsConstructor
 @Component
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthenticationToken> {
 
     private final CertValidator certValidator;
-
-    public CustomJwtAuthenticationConverter(CertValidator certValidator) {
-        this.certValidator = certValidator;
-    }
 
     @Override
     public JwtAuthenticationToken convert(Jwt jwt) {
