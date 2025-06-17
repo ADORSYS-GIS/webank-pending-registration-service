@@ -96,11 +96,10 @@ management:
   endpoint:
     prometheus:
       # Enable the Prometheus endpoint.
-      enabled: true
-  metrics:
-    export:
-      prometheus:
-        # Enable exporting metrics to Prometheus.
+      access: unrestricted
+  prometheus:
+    metrics:
+      export:
         enabled: true
 
 # Logging configuration.
