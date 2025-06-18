@@ -3,7 +3,9 @@ import lombok.Getter;
 
 @Getter
 public enum Role {
-    ACCOUNT_CERTIFIED("ROLE_ACCOUNT_CERTIFIED");
+    ACCOUNT_CERTIFIED("ROLE_ACCOUNT_CERTIFIED"),
+    KYC_CERT("ROLE_KYC_CERT"),
+    DEVICE_CERT("ROLE_DEVICE_CERT");
 
     private final String roleName;
 

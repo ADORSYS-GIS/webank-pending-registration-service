@@ -1,7 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.config.JwtUtils;
-
 import com.adorsys.webank.config.KeyLoader;
 import com.adorsys.webank.config.SecurityUtils;
 import com.adorsys.webank.dto.DeviceRegInitRequest;
@@ -9,6 +8,7 @@ import com.adorsys.webank.dto.DeviceValidateRequest;
 import com.adorsys.webank.dto.response.DeviceResponse;
 import com.adorsys.webank.dto.response.DeviceValidationResponse;
 import com.adorsys.webank.model.ProofOfWorkData;
+import com.adorsys.webank.properties.JwtProperties;
 import com.adorsys.webank.service.DeviceRegServiceApi;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.erdtman.jcs.JsonCanonicalizer;
 import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -36,7 +35,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Date;
 
-
+/**
+ * Implementation of the DeviceRegServiceApi interface.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -45,12 +46,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
     private final KeyLoader keyLoader;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    @Value("${jwt.expiration-time-ms}")
-    private Long expirationTimeMs;
+    private final JwtProperties jwtProperties;
 
     @Override
     public DeviceResponse initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
@@ -221,12 +217,12 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
 
             // Create JWT Payload
             long issuedAt = System.currentTimeMillis() / 60000; // Convert to seconds
-            long expirationTime = issuedAt + (expirationTimeMs / 1000);
+            long expirationTime = issuedAt + (jwtProperties.getExpirationTimeMs() / 1000);
             
             log.debug("Creating JWT claims with issuer: {}, expiration: {} seconds", 
-                     issuer, expirationTimeMs/1000);
+                     jwtProperties.getIssuer(), jwtProperties.getExpirationTimeMs()/1000);
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                    .issuer("https://webank.com")  // Fixed issuer format
+                    .issuer(jwtProperties.getIssuer())  // Fixed issuer format
                     .audience(deviceJwk.getKeyID()) // Use device public key ID as audience
                     .claim("cnf", Collections.singletonMap("jwk", deviceJwk.toJSONObject())) // Fix JSON structure
                     .issueTime(new Date(issuedAt * 1000))
@@ -239,7 +235,7 @@ public class DeviceRegServiceImpl implements DeviceRegServiceApi {
             signedJWT.sign(signer);
 
             String certificate = signedJWT.serialize();
-            log.info("Device certificate generated successfully, expires in {} seconds", expirationTimeMs/1000);
+            log.info("Device certificate generated successfully, expires in {} seconds", jwtProperties.getExpirationTimeMs()/1000);
             
             if (log.isTraceEnabled()) {
                 log.trace("Certificate: {}", certificate);

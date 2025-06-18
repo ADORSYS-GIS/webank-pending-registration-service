@@ -1,5 +1,7 @@
 package com.adorsys.webank.security;
 
+import com.adorsys.webank.config.CertValidator;
+import com.adorsys.webank.domain.Role;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
@@ -9,24 +11,19 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
 import com.adorsys.webank.exceptions.SecurityConfigurationException;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
+@RequiredArgsConstructor
 @Component
-
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthenticationToken> {
 
-    private final com.adorsys.webank.config.CertValidator certValidator;
-
-    @Autowired
-    public CustomJwtAuthenticationConverter(com.adorsys.webank.config.CertValidator certValidator) {
-        this.certValidator = certValidator;
-    }
+    private final CertValidator certValidator;
 
     @Override
     public JwtAuthenticationToken convert(Jwt jwt) {
@@ -47,26 +44,39 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, JwtAuthe
         log.info("Extracting authorities from JWT headers");
         log.debug("Processing headers: {}", headers);
 
-        Object accountJwt = headers.get("accountJwt");
-        if (accountJwt != null) {
-            log.debug("Found accountJwt in header of type: {}", accountJwt.getClass().getName());
-            log.debug("AccountJwt value: {}", accountJwt);
-
-            // Validate certificate before granting role
-            try {
-                boolean certValid = certValidator.validateJWT(jwt.getTokenValue());
-                if (certValid) {
-                    authorities.add(new SimpleGrantedAuthority(com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED.getRoleName()));
-                    log.info("Certificate validated successfully, granting {}", com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED);
-                } else {
-                    log.warn("Certificate validation failed, not granting {}", com.adorsys.webank.domain.Role.ACCOUNT_CERTIFIED);
-                }
-            } catch (Exception e) {
-                log.error("Error validating certificate", e);
-                throw new SecurityConfigurationException("Failed to validate certificate: " + e.getMessage(), e);
+        try {
+            boolean certValid = certValidator.validateJWT(jwt.getTokenValue());
+            if (!certValid) {
+                log.warn("Certificate validation failed, no roles granted.");
+                return authorities;
             }
-        } else {
-            log.debug("No accountJwt found in headers. Available headers: {}", headers.keySet());
+
+            // Check for accountJwt
+            if (headers.containsKey("accountJwt")) {
+                authorities.add(new SimpleGrantedAuthority(Role.ACCOUNT_CERTIFIED.getRoleName()));
+                log.info("Granted {}", Role.ACCOUNT_CERTIFIED);
+            }
+
+            // Check for kycCertJwt
+            if (headers.containsKey("kycCertJwt")) {
+                authorities.add(new SimpleGrantedAuthority(Role.KYC_CERT.getRoleName()));
+                log.info("Granted {}", Role.KYC_CERT);
+            }
+
+            // Check for kycJwt
+            if (headers.containsKey("kycJwt")) {
+                authorities.add(new SimpleGrantedAuthority(Role.KYC_CERT.getRoleName()));
+                log.info("Granted {}", Role.KYC_CERT);
+            }
+
+            // Check for devJwt
+            if (headers.containsKey("devJwt")) {
+                authorities.add(new SimpleGrantedAuthority(Role.DEVICE_CERT.getRoleName()));
+                log.info("Granted {}", Role.DEVICE_CERT);
+
+            }
+        } catch (Exception e) {
+            log.error("Error validating certificate", e);
         }
 
         JwtGrantedAuthoritiesConverter defaultConverter = new JwtGrantedAuthoritiesConverter();
