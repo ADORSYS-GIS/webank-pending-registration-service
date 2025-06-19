@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -46,22 +47,24 @@ class KycRestServerTest {
 
     @Test
     @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
-    void sendKycinfo_ReturnsOk() {
+    void sendKycinfo_ReturnsOk() throws Exception {
         KycInfoResponse response = new KycInfoResponse();
         response.setMessage("KYC Info submitted successfully");
         when(kycServiceApi.sendKycInfo(any(), any())).thenReturn(response);
 
-        String json = "{\"accountId\":\"acc123\",\"idNumber\":\"id123\",\"expiryDate\":\"2025-12-31\"}";
+        KycInfoRequest request = new KycInfoRequest();
+        request.setAccountId("acc123");
+        request.setIdNumber("id123");
+        request.setExpiryDate("2025-12-31");
 
-        try {
-            mockMvc.perform(post("/api/prs/kyc/info")
-                    .header("Authorization", "Bearer testtoken")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
-        } catch (Exception e) {
-            throw new AssertionError("Test failed due to unexpected exception", e);
-        }
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json = objectMapper.writeValueAsString(request);
+
+        mockMvc.perform(post("/api/prs/kyc/info")
+                .header("Authorization", "Bearer testtoken")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
     }
 } 
