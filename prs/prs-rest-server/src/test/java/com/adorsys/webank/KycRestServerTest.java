@@ -46,22 +46,18 @@ class KycRestServerTest {
 
     @Test
     @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
-    void sendKycinfo_ReturnsOk() {
+    void sendKycinfo_ReturnsOk() throws Exception {
         KycInfoResponse response = new KycInfoResponse();
         response.setMessage("KYC Info submitted successfully");
         when(kycServiceApi.sendKycInfo(any(), any())).thenReturn(response);
 
         String json = "{\"accountId\":\"acc123\",\"idNumber\":\"id123\",\"expiryDate\":\"2025-12-31\"}";
 
-        try {
-            mockMvc.perform(post("/api/prs/kyc/info")
-                    .header("Authorization", "Bearer testtoken")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        mockMvc.perform(post("/api/prs/kyc/info")
+                .header("Authorization", "Bearer testtoken")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
     }
 } 
