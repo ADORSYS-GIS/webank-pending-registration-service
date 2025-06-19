@@ -1,11 +1,14 @@
 package com.adorsys.webank.config;
 
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.jwk.*;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.jwk.JWK;
 
-import java.nio.charset.*;
-import java.security.*;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 public class JwtUtils {
     

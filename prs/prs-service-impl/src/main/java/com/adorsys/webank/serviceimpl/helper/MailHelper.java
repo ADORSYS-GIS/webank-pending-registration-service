@@ -1,7 +1,7 @@
 package com.adorsys.webank.serviceimpl.helper;
 
 import com.adorsys.error.FailedToSendOTPException;
-import com.adorsys.webank.properties.MailProperties;
+import com.adorsys.webank.config.properties.MailProperties;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
