@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 @Import(NoMethodSecurityConfig.class)
-@TestPropertySource(properties = {"jwt.expiration-time-ms=3600000", "management.health.mail.enabled=false"})
+@TestPropertySource(properties = {"jwt.expiration-time-ms=3600000", "management.health.mail.enabled=false", "spring.mail.username=test@example.com"})
 class KycRestServerTest {
     @Autowired
     private MockMvc mockMvc;
