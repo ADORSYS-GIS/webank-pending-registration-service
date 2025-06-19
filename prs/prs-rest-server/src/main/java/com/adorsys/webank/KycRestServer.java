@@ -21,6 +21,7 @@ import com.adorsys.webank.dto.response.KycLocationResponse;
 import com.adorsys.webank.service.KycServiceApi;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 
 @RestController
 @RequiredArgsConstructor
@@ -30,7 +31,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
+    public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, @Valid KycInfoRequest kycInfoRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC info request [correlationId={}]", correlationId);
         
