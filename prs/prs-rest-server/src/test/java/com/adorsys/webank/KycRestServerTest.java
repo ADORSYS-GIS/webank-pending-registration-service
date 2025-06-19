@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -62,7 +63,8 @@ class KycRestServerTest {
         try {
             json = objectMapper.writeValueAsString(request);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            fail("JSON serialization failed", e);
+            return;
         }
 
         try {
@@ -73,7 +75,96 @@ class KycRestServerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
         } catch (Exception e) {
-            throw new AssertionError("Test failed due to unexpected exception", e);
+            fail("Test failed due to unexpected exception", e);
+        }
+    }
+
+    // Negative case: missing required field (idNumber)
+    @Test
+    @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
+    void sendKycinfo_MissingIdNumber_ReturnsBadRequest() {
+        KycInfoRequest request = new KycInfoRequest();
+        request.setAccountId("acc123");
+        request.setExpiryDate("2025-12-31");
+        // idNumber is missing
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(request);
+        } catch (Exception e) {
+            fail("JSON serialization failed", e);
+            return;
+        }
+
+        try {
+            mockMvc.perform(post("/api/prs/kyc/info")
+                    .header("Authorization", "Bearer testtoken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isBadRequest());
+        } catch (Exception e) {
+            fail("Test failed due to unexpected exception", e);
+        }
+    }
+
+    // Negative case: invalid expiryDate format
+    @Test
+    @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
+    void sendKycinfo_InvalidExpiryDateFormat_ReturnsBadRequest() {
+        KycInfoRequest request = new KycInfoRequest();
+        request.setAccountId("acc123");
+        request.setIdNumber("id12345");
+        request.setExpiryDate("31-12-2025"); // Invalid format
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(request);
+        } catch (Exception e) {
+            fail("JSON serialization failed", e);
+            return;
+        }
+
+        try {
+            mockMvc.perform(post("/api/prs/kyc/info")
+                    .header("Authorization", "Bearer testtoken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isBadRequest());
+        } catch (Exception e) {
+            fail("Test failed due to unexpected exception", e);
+        }
+    }
+
+    // Negative case: service throws exception (simulate internal server error)
+    @Test
+    @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
+    void sendKycinfo_ServiceThrowsException_ReturnsServerError() {
+        when(kycServiceApi.sendKycInfo(any(), any())).thenThrow(new RuntimeException("Simulated service error"));
+
+        KycInfoRequest request = new KycInfoRequest();
+        request.setAccountId("acc123");
+        request.setIdNumber("id12345");
+        request.setExpiryDate("2025-12-31");
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(request);
+        } catch (Exception e) {
+            fail("JSON serialization failed", e);
+            return;
+        }
+
+        try {
+            mockMvc.perform(post("/api/prs/kyc/info")
+                    .header("Authorization", "Bearer testtoken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isInternalServerError());
+        } catch (Exception e) {
+            fail("Test failed due to unexpected exception", e);
         }
     }
 } 
