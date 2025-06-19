@@ -47,7 +47,7 @@ class KycRestServerTest {
 
     @Test
     @WithMockUser(username = "testuser", roles = {"ACCOUNT_CERTIFIED"})
-    void sendKycinfo_ReturnsOk() throws Exception {
+    void sendKycinfo_ReturnsOk() {
         KycInfoResponse response = new KycInfoResponse();
         response.setMessage("KYC Info submitted successfully");
         when(kycServiceApi.sendKycInfo(any(), any())).thenReturn(response);
@@ -58,13 +58,22 @@ class KycRestServerTest {
         request.setExpiryDate("2025-12-31");
 
         ObjectMapper objectMapper = new ObjectMapper();
-        String json = objectMapper.writeValueAsString(request);
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(request);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-        mockMvc.perform(post("/api/prs/kyc/info")
-                .header("Authorization", "Bearer testtoken")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
+        try {
+            mockMvc.perform(post("/api/prs/kyc/info")
+                    .header("Authorization", "Bearer testtoken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("KYC Info submitted successfully"));
+        } catch (Exception e) {
+            throw new AssertionError("Test failed due to unexpected exception", e);
+        }
     }
 } 
