@@ -204,7 +204,7 @@ public class EmailOtpServiceImpl implements EmailOtpServiceApi {
         try {
             EmailOtpData otpData = EmailOtpData.create(emailOtp, accountId);
             String input = objectMapper.writeValueAsString(otpData);
-            log.trace("Hash input: {}", input);
+        log.trace("Hash input: {}", input);
             return passwordEncoder.encode(canonicalizeJson(input));
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize OTP hash data", e);
