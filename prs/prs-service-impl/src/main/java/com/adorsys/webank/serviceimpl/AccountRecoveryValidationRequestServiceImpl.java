@@ -9,6 +9,11 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import  com.nimbusds.jose.jwk.ECKey;
+import com.adorsys.webank.config.SecurityUtils;
+import com.adorsys.webank.config.JwtValidator;
+import  java.util.Optional;
+import org.apache.coyote.BadRequestException;
 
 import java.text.ParseException;
 
@@ -19,10 +24,19 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
     private final CertGeneratorHelper certGeneratorHelper;
 
     @Override
-    public AccountRecoveryResponse processRecovery(JWK publicKey, String newAccountId, String recoveryJwt) {
+    public AccountRecoveryResponse processRecovery(String newAccountId) {
+
+        ECKey publicKey = SecurityUtils.extractDeviceJwkFromContext();
+        String jwtToken =extractJwtToken();
+        String recoveryJwt = JwtValidator.extractClaim(jwtToken, "recoveryJwt");
+
         validateInput(newAccountId, recoveryJwt);
         
         try {
+
+            if (recoveryJwt == null || recoveryJwt.isEmpty()) {
+                throw new BadRequestException("Invalid request. Missing recoveryJwt.");
+            }
             SignedJWT signedJWT = parseRecoveryJwt(recoveryJwt);
             String oldAccountId = getOldAccountId(newAccountId, signedJWT);
             String newKycCertificate = generateNewKycCertificate(publicKey);
@@ -68,5 +82,13 @@ public class AccountRecoveryValidationRequestServiceImpl implements AccountRecov
 
         // Restore the old account (assuming a method to find the account by ID)
         return claimsSet.getStringClaim("oldAccountId");
+    }
+
+    private String extractJwtToken() {
+        Optional<String> jwtOpt = SecurityUtils.getCurrentUserJWT();
+        if (jwtOpt.isEmpty()) {
+            throw new IllegalStateException("No JWT token found in security context");
+        }
+        return jwtOpt.get();
     }
 }

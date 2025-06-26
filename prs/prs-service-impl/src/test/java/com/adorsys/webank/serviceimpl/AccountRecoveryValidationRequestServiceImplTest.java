@@ -57,7 +57,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
         when(certGeneratorHelper.generateCertificate(anyString())).thenReturn(newKycCertificate);
 
         // Act
-        AccountRecoveryResponse response = accountRecoveryService.processRecovery(publicKey, newAccountId, recoveryJwt);
+        AccountRecoveryResponse response = accountRecoveryService.processRecovery(newAccountId);
 
         // Assert
         assertNotNull(response, "Response should not be null");
@@ -73,7 +73,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     void testProcessRecovery_NullNewAccountId() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, null, recoveryJwt)
+            accountRecoveryService.processRecovery(null)
         );
         assertEquals("New account ID is required", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -83,7 +83,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     void testProcessRecovery_EmptyNewAccountId() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, "", recoveryJwt)
+            accountRecoveryService.processRecovery("")
         );
         assertEquals("New account ID is required", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -93,7 +93,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     void testProcessRecovery_NullRecoveryJwt() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, newAccountId, null)
+            accountRecoveryService.processRecovery(newAccountId)
         );
         assertEquals("Recovery JWT is required", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -103,7 +103,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
     void testProcessRecovery_EmptyRecoveryJwt() {
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, newAccountId, "")
+            accountRecoveryService.processRecovery(newAccountId)
         );
         assertEquals("Recovery JWT is required", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -116,7 +116,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, newAccountId, invalidRecoveryJwt)
+            accountRecoveryService.processRecovery(newAccountId)
         );
         assertEquals("Invalid RecoveryJWT format", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -129,7 +129,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, newAccountId, mismatchedRecoveryJwt)
+            accountRecoveryService.processRecovery( newAccountId)
         );
         assertEquals("An unexpected error occurred: Claiming account ID mismatch", exception.getMessage());
         verify(certGeneratorHelper, never()).generateCertificate(anyString());
@@ -142,7 +142,7 @@ class AccountRecoveryValidationRequestServiceImplTest {
 
         // Act & Assert
         ValidationException exception = assertThrows(ValidationException.class, () ->
-            accountRecoveryService.processRecovery(publicKey, newAccountId, recoveryJwt)
+            accountRecoveryService.processRecovery(newAccountId)
         );
         assertTrue(exception.getMessage().contains("An unexpected error occurred"));
         verify(certGeneratorHelper, times(1)).generateCertificate(anyString());
