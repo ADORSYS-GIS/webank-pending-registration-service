@@ -78,8 +78,6 @@ public interface KycRestApi {
     })
     @PostMapping(value = "/documents", consumes = "application/json", produces = "application/json")
     ResponseEntity<KycDocumentResponse> sendKycDocument(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycDocumentRequest kycDocumentRequest
     );
 
@@ -125,8 +123,6 @@ public interface KycRestApi {
     })
     @PostMapping(value = "/info", consumes = "application/json", produces = "application/json")
     ResponseEntity<KycInfoResponse> sendKycinfo(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycInfoRequest kycInfoRequest
     );
 
@@ -172,8 +168,6 @@ public interface KycRestApi {
     })
     @PostMapping(value = "/location", consumes = "application/json", produces = "application/json")
     ResponseEntity<KycLocationResponse> sendKyclocation(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycLocationRequest kycLocationRequest
     );
 
@@ -219,8 +213,6 @@ public interface KycRestApi {
     })
     @PostMapping(value = "/email", consumes = "application/json", produces = "application/json")
     ResponseEntity<KycEmailResponse> sendKycEmail(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody KycEmailRequest kycEmailRequest
     );
 
@@ -261,8 +253,6 @@ public interface KycRestApi {
     })
     @GetMapping(value = "/pending", produces = "application/json")
     List<UserInfoResponse> getPendingKycRecords(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader
     );
 
     @Operation(
@@ -310,8 +300,6 @@ public interface KycRestApi {
     })
     @GetMapping(value = "/findById/{DocumentUniqueId}", produces = "application/json")
     List<UserInfoResponse> findByDocumentUniqueId(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
         @Parameter(description = "Unique document identifier", required = true, example = "DOC12345678")
         @PathVariable("DocumentUniqueId") String DocumentUniqueId
     );

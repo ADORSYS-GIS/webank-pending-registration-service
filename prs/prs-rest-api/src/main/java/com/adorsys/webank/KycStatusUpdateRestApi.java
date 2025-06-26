@@ -23,5 +23,5 @@ public interface KycStatusUpdateRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @PostMapping(value = "/status/update", consumes = "application/json", produces = "application/json")
-    String updateKycStatus(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycStatusUpdateDto kycStatusUpdateDto);
+    String updateKycStatus(@RequestBody KycStatusUpdateDto kycStatusUpdateDto);
 }

@@ -25,5 +25,5 @@ public interface TokenRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @PostMapping(value = "/token", produces = "application/json")
-    String requestRecoveryToken(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody TokenRequest tokenRequest);
+    String requestRecoveryToken(@RequestBody TokenRequest tokenRequest);
 }
