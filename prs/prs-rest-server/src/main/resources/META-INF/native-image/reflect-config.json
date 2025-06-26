@@ -142,5 +142,10 @@
     "allPublicMethods": true,
     "allDeclaredFields": true,
     "allPublicFields": true
-  }
+  },
+  { "name": "org.flywaydb.core.Flyway","allDeclaredConstructors": true,  "allDeclaredMethods": true },
+  { "name": "org.flywaydb.core.api.configuration.FluentConfiguration", "allDeclaredConstructors": true, "allDeclaredMethods": true } ,
+  { "name": "org.flywaydb.core.api.configuration.FluentConfiguration", "allDeclaredConstructors": true, "allDeclaredMethods": true } ,
+  { "name": "org.flywaydb.database.postgresql.TransactionalModel", "allDeclaredConstructors": true, "allDeclaredMethods": true }
+
 ]

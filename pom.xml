@@ -111,8 +111,14 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
+			<version>11.9.1</version>
 		</dependency>
-<!-- database dependencies -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+			<version>11.9.1</version>
+			<scope>runtime</scope>
+		</dependency>
 
 <!-- Logging dependencies -->
 		<dependency>
