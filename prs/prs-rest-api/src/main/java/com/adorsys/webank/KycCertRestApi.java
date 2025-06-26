@@ -23,6 +23,6 @@ public interface KycCertRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @GetMapping(value = "/cert/{accountId}", produces = "application/json")
-    String getCert(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+    String getCert(
                    @PathVariable("accountId") String accountId) ;
 }

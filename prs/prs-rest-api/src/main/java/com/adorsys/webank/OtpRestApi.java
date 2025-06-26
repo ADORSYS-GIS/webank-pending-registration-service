@@ -78,7 +78,7 @@ public interface OtpRestApi {
         )
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
-    ResponseEntity<OtpResponse> sendOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpRequest request);
+    ResponseEntity<OtpResponse> sendOtp(@RequestBody OtpRequest request);
 
     @Operation(
         summary = "Validate OTP",
@@ -138,5 +138,5 @@ public interface OtpRestApi {
         )
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
-    ResponseEntity<OtpValidationResponse> validateOtp(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody OtpValidationRequest request);
+    ResponseEntity<OtpValidationResponse> validateOtp( @RequestBody OtpValidationRequest request);
 }

@@ -23,5 +23,5 @@ public interface PendingOtpListRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @GetMapping(value = "/pending", produces = "application/json")
-    List<PendingOtpDto> getPendingOtps(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader);
+    List<PendingOtpDto> getPendingOtps();
 }

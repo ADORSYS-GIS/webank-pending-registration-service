@@ -71,8 +71,6 @@ public interface EmailOtpRestApi {
     })
     @PostMapping(value = "/send", consumes = "application/json", produces = "application/json")
     ResponseEntity<EmailResponse> sendEmailOtp(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody EmailOtpRequest request
     );
 
@@ -124,8 +122,6 @@ public interface EmailOtpRestApi {
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
     ResponseEntity<EmailValidationResponse> validateEmailOtp(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody EmailOtpValidationRequest request
     );
 }

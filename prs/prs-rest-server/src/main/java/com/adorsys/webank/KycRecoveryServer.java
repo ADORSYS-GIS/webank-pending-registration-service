@@ -18,7 +18,7 @@ public class KycRecoveryServer implements KycRecoveryRestApi {
     
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String verifyKycRecoveryFields(String authorizationHeader, KycRecoveryDto kycRecoveryDto) {
+    public String verifyKycRecoveryFields(KycRecoveryDto kycRecoveryDto) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC recovery fields verification request [correlationId={}]", correlationId);
         

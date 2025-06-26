@@ -18,7 +18,7 @@ public class KycStatusUpdateRestServer implements KycStatusUpdateRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String updateKycStatus(String authorizationHeader, KycStatusUpdateDto kycStatusUpdateDto) {
+    public String updateKycStatus(KycStatusUpdateDto kycStatusUpdateDto) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC status update request for status: {} [correlationId={}]", kycStatusUpdateDto.getStatus(), correlationId);
         
