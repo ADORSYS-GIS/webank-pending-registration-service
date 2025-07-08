@@ -24,7 +24,7 @@ public class DeviceRegRestServer implements DeviceRegRestApi {
     private final DeviceRegServiceApi deviceRegServiceApi;
 
     @Override
-    public ResponseEntity<DeviceResponse> initiateDeviceRegistration(String authorizationHeader, DeviceRegInitRequest regInitRequest) {
+    public ResponseEntity<DeviceResponse> initiateDeviceRegistration(DeviceRegInitRequest regInitRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received device registration initiation request [correlationId={}]", correlationId);
         
@@ -45,7 +45,7 @@ public class DeviceRegRestServer implements DeviceRegRestApi {
     }
 
     @Override
-    public ResponseEntity<DeviceValidationResponse> validateDeviceRegistration(String authorizationHeader, DeviceValidateRequest deviceValidateRequest) {
+    public ResponseEntity<DeviceValidationResponse> validateDeviceRegistration(DeviceValidateRequest deviceValidateRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received device registration validation request [correlationId={}]", correlationId);
         

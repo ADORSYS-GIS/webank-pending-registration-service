@@ -22,5 +22,5 @@ public interface KycRecoveryRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @PostMapping(value = "/verify", consumes = "application/json", produces = "application/json")
-    String verifyKycRecoveryFields(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, @RequestBody KycRecoveryDto kycRecoveryDto);
+    String verifyKycRecoveryFields(@RequestBody KycRecoveryDto kycRecoveryDto);
 }

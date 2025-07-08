@@ -30,7 +30,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<KycInfoResponse> sendKycinfo(String authorizationHeader, KycInfoRequest kycInfoRequest) {
+    public ResponseEntity<KycInfoResponse> sendKycinfo( KycInfoRequest kycInfoRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC info request [correlationId={}]", correlationId);
         
@@ -52,7 +52,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<KycLocationResponse> sendKyclocation(String authorizationHeader, KycLocationRequest kycLocationRequest) {
+    public ResponseEntity<KycLocationResponse> sendKyclocation(KycLocationRequest kycLocationRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC location request [correlationId={}]", correlationId);
         
@@ -74,7 +74,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<KycEmailResponse> sendKycEmail(String authorizationHeader, KycEmailRequest kycEmailRequest) {
+    public ResponseEntity<KycEmailResponse> sendKycEmail(KycEmailRequest kycEmailRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC email request [correlationId={}]", correlationId);
         
@@ -100,7 +100,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<KycDocumentResponse> sendKycDocument(String authorizationHeader, KycDocumentRequest kycDocumentRequest) {
+    public ResponseEntity<KycDocumentResponse> sendKycDocument(KycDocumentRequest kycDocumentRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC document request [correlationId={}]", correlationId);
         
@@ -122,7 +122,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public List<UserInfoResponse> getPendingKycRecords(String authorizationHeader) {
+    public List<UserInfoResponse> getPendingKycRecords() {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to get pending KYC records [correlationId={}]", correlationId);
         
@@ -140,7 +140,7 @@ public class KycRestServer implements KycRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public List<UserInfoResponse> findByDocumentUniqueId(String authorizationHeader, String documentUniqueId) {
+    public List<UserInfoResponse> findByDocumentUniqueId(String documentUniqueId) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to find KYC by document ID [correlationId={}]", correlationId);
         

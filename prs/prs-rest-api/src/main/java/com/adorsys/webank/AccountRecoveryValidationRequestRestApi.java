@@ -72,8 +72,6 @@ public interface AccountRecoveryValidationRequestRestApi {
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
     ResponseEntity<AccountRecoveryResponse> validateRecoveryToken(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
         @Parameter(description = "Account recovery validation request", required = true)
         @RequestBody AccountRecovery accountRecovery
     );

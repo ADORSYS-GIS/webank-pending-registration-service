@@ -22,7 +22,7 @@ public class PendingOtpListRestServer implements PendingOtpListRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public List<PendingOtpDto> getPendingOtps(String authorizationHeader) {
+    public List<PendingOtpDto> getPendingOtps() {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to fetch pending OTPs [correlationId={}]", correlationId);
         

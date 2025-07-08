@@ -17,7 +17,7 @@ public class KycCertRestServer implements KycCertRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String getCert(String authorizationHeader, String accountId) {
+    public String getCert( String accountId) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to get KYC certificate for account: {} [correlationId={}]", 
                 maskAccountId(accountId), correlationId);

@@ -18,7 +18,7 @@ public class TokenRestServer implements TokenRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String requestRecoveryToken(String authorizationHeader, TokenRequest tokenRequest) {
+    public String requestRecoveryToken(TokenRequest tokenRequest) {
         String correlationId = MDC.get("correlationId");
         log.info("Received recovery token request [correlationId={}]", correlationId);
         

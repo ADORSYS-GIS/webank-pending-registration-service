@@ -22,7 +22,7 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<OtpResponse> sendOtp(String authorizationHeader, OtpRequest request) {
+    public ResponseEntity<OtpResponse> sendOtp(OtpRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received OTP send request [correlationId={}]", correlationId);
         
@@ -42,7 +42,7 @@ public class OtpRestServer implements OtpRestApi {
 
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public ResponseEntity<OtpValidationResponse> validateOtp(String authorizationHeader, OtpValidationRequest request) {
+    public ResponseEntity<OtpValidationResponse> validateOtp(OtpValidationRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received OTP validation request [correlationId={}]", correlationId);
         

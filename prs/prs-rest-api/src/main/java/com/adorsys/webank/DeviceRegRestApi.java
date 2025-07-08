@@ -62,8 +62,6 @@ public interface DeviceRegRestApi {
     })
     @PostMapping(value = "/init", consumes = "application/json", produces = "application/json")
     ResponseEntity<DeviceResponse> initiateDeviceRegistration(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody DeviceRegInitRequest request
     );
 
@@ -111,8 +109,6 @@ public interface DeviceRegRestApi {
     })
     @PostMapping(value = "/validate", consumes = "application/json", produces = "application/json")
     ResponseEntity<DeviceValidationResponse> validateDeviceRegistration(
-        @Parameter(description = "JWT Bearer token", required = true, example = "Bearer eyJhbGciOiJIUzI1NiIs...")
-        @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader, 
         @RequestBody DeviceValidateRequest request
     );
 }

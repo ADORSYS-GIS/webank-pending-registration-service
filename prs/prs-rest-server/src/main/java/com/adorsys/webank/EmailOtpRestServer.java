@@ -21,7 +21,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     private final EmailOtpServiceApi emailOtpService;
 
     @Override
-    public ResponseEntity<EmailResponse> sendEmailOtp(String authorizationHeader, EmailOtpRequest request) {
+    public ResponseEntity<EmailResponse> sendEmailOtp(EmailOtpRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to send email OTP [correlationId={}]", correlationId);
         
@@ -34,7 +34,7 @@ public class EmailOtpRestServer implements EmailOtpRestApi {
     }
 
     @Override
-    public ResponseEntity<EmailValidationResponse> validateEmailOtp(String authorizationHeader, EmailOtpValidationRequest request) {
+    public ResponseEntity<EmailValidationResponse> validateEmailOtp(EmailOtpValidationRequest request) {
         String correlationId = MDC.get("correlationId");
         log.info("Received request to validate email OTP [correlationId={}]", correlationId);
         
