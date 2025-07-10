@@ -1,15 +1,22 @@
 package com.adorsys.webank.service;
 
+import com.adorsys.webank.dto.response.KycStatusUpdateResponse;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service interface for updating KYC status
+ */
 @Service
 public interface KycStatusUpdateServiceApi {
     /**
-     * Updates the OTP status for the specified phone number.
+     * Updates the KYC status for the specified account.
      *
-     * @param accountId The phone number for which to update the OTP status.
-     * @param newStatus   The new status to set (e.g., OTP_SENT, OTP_VALIDATED, OTP_FAILED).
-     * @return A confirmation message.
+     * @param accountId The account ID for which to update the KYC status
+     * @param newStatus The new status to set (e.g., APPROVED, REJECTED, PENDING)
+     * @param idNumber The document ID number for verification
+     * @param expiryDate The document expiry date for verification
+     * @param rejectionReason Reason for rejection if status is REJECTED
+     * @return KycStatusUpdateResponse containing the result of the operation
      */
-    String updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason);
+    KycStatusUpdateResponse updateKycStatus(String accountId, String newStatus, String idNumber, String expiryDate, String rejectionReason);
 }

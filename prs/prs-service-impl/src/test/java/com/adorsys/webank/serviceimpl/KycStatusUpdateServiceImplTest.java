@@ -2,8 +2,8 @@ package com.adorsys.webank.serviceimpl;
 
 import com.adorsys.webank.domain.PersonalInfoEntity;
 import com.adorsys.webank.domain.PersonalInfoStatus;
+import com.adorsys.webank.dto.response.KycStatusUpdateResponse;
 import com.adorsys.webank.repository.PersonalInfoRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,62 +26,75 @@ class KycStatusUpdateServiceImplTest {
     private KycStatusUpdateServiceImpl kycStatusUpdateServiceImpl;
 
     private PersonalInfoEntity dummyEntity;
-    private static final String accountId = "dummy-account-id";
-    private static final String idNumber = "dummy-id-number";
-    private static final String expiryDate = "2025-12-31";
+    private static final String ACCOUNT_ID = "dummy-account-id";
+    private static final String ID_NUMBER = "dummy-id-number";
+    private static final String EXPIRY_DATE = "2025-12-31";
 
 
     @BeforeEach
     void setUp() {
         dummyEntity = new PersonalInfoEntity();
-        dummyEntity.setAccountId(accountId);
+        dummyEntity.setAccountId(ACCOUNT_ID);
         dummyEntity.setStatus(PersonalInfoStatus.PENDING);
-        dummyEntity.setDocumentUniqueId(idNumber);
-        dummyEntity.setExpirationDate(expiryDate);
+        dummyEntity.setDocumentUniqueId(ID_NUMBER);
+        dummyEntity.setExpirationDate(EXPIRY_DATE);
         MDC.put("correlationId", "test-correlation-id");
     }
 
     @Test
     void testUpdateKycStatus_Success_Approved() {
         // Given
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, "APPROVED", idNumber, expiryDate, null);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, "APPROVED", ID_NUMBER, EXPIRY_DATE, null);
 
         // Then
-        assertEquals("KYC status updated successfully to APPROVED", response);
+        assertTrue(response.isSuccess());
+        assertEquals("APPROVED", response.getStatus());
+        assertTrue(response.getMessage().contains("successfully"));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
         assertEquals(PersonalInfoStatus.APPROVED, dummyEntity.getStatus());
         assertNull(dummyEntity.getRejectionReason());
-        verify(personalInfoRepository).save(dummyEntity);
+        verify(personalInfoRepository, times(1)).save(dummyEntity);
     }
 
     @Test
     void testUpdateKycStatus_Success_Rejected() {
         // Given
-        String rejectionReason = "Document is blurry";
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        String rejectionReason = "Document quality is poor";
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, "REJECTED", idNumber, expiryDate, rejectionReason);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, "REJECTED", ID_NUMBER, EXPIRY_DATE, rejectionReason);
 
         // Then
-        assertEquals("KYC status updated successfully to REJECTED", response);
+        assertTrue(response.isSuccess());
+        assertEquals("REJECTED", response.getStatus());
+        assertTrue(response.getMessage().contains("REJECTED"));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
+        assertEquals(ID_NUMBER, response.getDocumentId());
         assertEquals(PersonalInfoStatus.REJECTED, dummyEntity.getStatus());
         assertEquals(rejectionReason, dummyEntity.getRejectionReason());
-        verify(personalInfoRepository).save(dummyEntity);
+        verify(personalInfoRepository, times(1)).save(dummyEntity);
     }
 
     @Test
     void testUpdateKycStatus_Rejected_MissingReason() {
         // Given
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, "REJECTED", idNumber, expiryDate, null);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, "REJECTED", ID_NUMBER, EXPIRY_DATE, null);
 
         // Then
-        assertEquals("Failed: Rejection reason is required when status is REJECTED", response);
+        assertFalse(response.isSuccess());
+        assertTrue(response.getMessage().contains("Rejection reason is required"));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
+        assertEquals(ID_NUMBER, response.getDocumentId());
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 
@@ -89,13 +102,17 @@ class KycStatusUpdateServiceImplTest {
     void testUpdateKycStatus_InvalidStatus() {
         // Given
         String invalidStatus = "notAValidStatus";
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, invalidStatus, idNumber, expiryDate, null);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, invalidStatus, ID_NUMBER, EXPIRY_DATE, null);
 
         // Then
-        assertEquals("Failed: Invalid KYC status value '" + invalidStatus + "'", response);
+        assertFalse(response.isSuccess());
+        assertTrue(response.getMessage().contains("Invalid KYC status provided: " + invalidStatus));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
+        assertEquals(ID_NUMBER, response.getDocumentId());
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 
@@ -105,9 +122,15 @@ class KycStatusUpdateServiceImplTest {
         String nonExistingAccountId = "non-existing-account-id";
         when(personalInfoRepository.findById(nonExistingAccountId)).thenReturn(Optional.empty());
 
-        // When / Then
-        assertThrows(EntityNotFoundException.class, () ->
-                kycStatusUpdateServiceImpl.updateKycStatus(nonExistingAccountId, "APPROVED", idNumber, expiryDate, null));
+        // When
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                nonExistingAccountId, "APPROVED", ID_NUMBER, EXPIRY_DATE, null);
+
+        // Then
+        assertFalse(response.isSuccess());
+        assertTrue(response.getMessage().contains("An error occurred while processing your request: No KYC record found for accountId: " + nonExistingAccountId.substring(0, 2) + "****" + nonExistingAccountId.substring(nonExistingAccountId.length() - 2)));
+        assertEquals(nonExistingAccountId, response.getAccountId());
+        assertEquals(ID_NUMBER, response.getDocumentId());
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 
@@ -115,13 +138,17 @@ class KycStatusUpdateServiceImplTest {
     void testUpdateKycStatus_DocumentIdMismatch() {
         // Given
         String wrongIdNumber = "wrong-id-number";
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, "APPROVED", wrongIdNumber, expiryDate, null);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, "APPROVED", wrongIdNumber, EXPIRY_DATE, null);
 
         // Then
-        assertEquals("Failed: Document ID mismatch", response);
+        assertFalse(response.isSuccess());
+        assertTrue(response.getMessage().contains("Document verification failed: ID number does not match records"));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
+        assertEquals(wrongIdNumber, response.getDocumentId());
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 
@@ -129,13 +156,17 @@ class KycStatusUpdateServiceImplTest {
     void testUpdateKycStatus_ExpiryDateMismatch() {
         // Given
         String wrongExpiryDate = "2024-12-31";
-        when(personalInfoRepository.findById(accountId)).thenReturn(Optional.of(dummyEntity));
+        when(personalInfoRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(dummyEntity));
 
         // When
-        String response = kycStatusUpdateServiceImpl.updateKycStatus(accountId, "APPROVED", idNumber, wrongExpiryDate, null);
+        KycStatusUpdateResponse response = kycStatusUpdateServiceImpl.updateKycStatus(
+                ACCOUNT_ID, "APPROVED", ID_NUMBER, wrongExpiryDate, null);
 
         // Then
-        assertEquals("Failed: Document expiry date mismatch", response);
+        assertFalse(response.isSuccess());
+        assertTrue(response.getMessage().contains("Document verification failed: Expiry date does not match records"));
+        assertEquals(ACCOUNT_ID, response.getAccountId());
+        assertEquals(ID_NUMBER, response.getDocumentId());
         verify(personalInfoRepository, never()).save(any(PersonalInfoEntity.class));
     }
 }
