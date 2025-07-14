@@ -36,15 +36,4 @@ public class TokenRestServer implements TokenRestApi {
                     .build();
             return ResponseEntity.ok(response);
     }
-    
-    /**
-     * Masks an account ID for logging purposes
-     * Shows only first 2 and last 2 characters
-     */
-    private String maskAccountId(String accountId) {
-        if (accountId == null || accountId.length() < 5) {
-            return "********";
-        }
-        return accountId.substring(0, 2) + "****" + accountId.substring(accountId.length() - 2);
-    }
 }
