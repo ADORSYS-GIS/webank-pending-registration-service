@@ -2,11 +2,13 @@ package com.adorsys.webank;
 
 import com.adorsys.webank.dto.KycInfoRequest;
 import com.adorsys.webank.dto.TokenRequest;
+import com.adorsys.webank.dto.response.TokenResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,5 +27,5 @@ public interface TokenRestApi {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @PostMapping(value = "/token", produces = "application/json")
-    String requestRecoveryToken(@RequestBody TokenRequest tokenRequest);
+    ResponseEntity<TokenResponse> requestRecoveryToken(@RequestBody TokenRequest tokenRequest);
 }
