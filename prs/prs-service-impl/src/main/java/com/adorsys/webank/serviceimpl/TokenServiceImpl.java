@@ -3,6 +3,7 @@ package com.adorsys.webank.serviceimpl;
 import com.adorsys.webank.config.JwtUtils;
 import com.adorsys.webank.config.KeyLoader;
 import com.adorsys.webank.dto.TokenRequest;
+import com.adorsys.webank.dto.response.TokenResponse;
 import com.adorsys.webank.properties.JwtProperties;
 import com.adorsys.webank.service.TokenServiceApi;
 import com.nimbusds.jose.JWSHeader;
@@ -29,7 +30,7 @@ public class TokenServiceImpl implements TokenServiceApi {
 
     @Override
     @Transactional
-    public String requestRecoveryToken(TokenRequest tokenRequest) {
+    public TokenResponse requestRecoveryToken(TokenRequest tokenRequest) {
         String correlationId = MDC.get("correlationId");
         if (tokenRequest == null) {
             log.warn("Received null token request [correlationId={}]", correlationId);
@@ -46,10 +47,18 @@ public class TokenServiceImpl implements TokenServiceApi {
         try {
             String token = generateToken(oldAccountId, newAccountId);
             log.info("Recovery token generated successfully [correlationId={}]", correlationId);
-            return token;
+            return TokenResponse.builder()
+                    .status("SUCCESS")
+                    .message("Recovery token generated successfully")
+                    .token(token)
+                    .build();
         } catch (Exception e) {
             log.error("Failed to generate recovery token [correlationId={}]", correlationId, e);
-            return null;
+            return TokenResponse.builder()
+                    .status("FAILED")
+                    .message("Recovery token could not be generated: " + e.getMessage())
+                    .token(null)
+                    .build();
         }
     }
 

@@ -1,6 +1,8 @@
 package com.adorsys.webank;
 
 import com.adorsys.webank.dto.KycRecoveryDto;
+import com.adorsys.webank.dto.response.KycRecoveryResponse;
+import org.springframework.http.ResponseEntity;
 import com.adorsys.webank.service.KycRecoveryServiceApi;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -15,26 +17,30 @@ public class KycRecoveryServer implements KycRecoveryRestApi {
 
     private static final Logger log = LoggerFactory.getLogger(KycRecoveryServer.class);
     private final KycRecoveryServiceApi kycRecoveryServiceApi;
-    
+
     @Override
     @PreAuthorize("hasRole('ROLE_ACCOUNT_CERTIFIED') and isAuthenticated()")
-    public String verifyKycRecoveryFields(KycRecoveryDto kycRecoveryDto) {
+    public ResponseEntity<KycRecoveryResponse> verifyKycRecoveryFields(KycRecoveryDto kycRecoveryDto) {
         String correlationId = MDC.get("correlationId");
         log.info("Received KYC recovery fields verification request [correlationId={}]", correlationId);
-        
-        log.debug("Verifying KYC recovery fields for account ID: {} [correlationId={}]", 
+
+        log.debug("Verifying KYC recovery fields for account ID: {} [correlationId={}]",
                 maskAccountId(kycRecoveryDto.getAccountId()), correlationId);;
-        
-        String result = kycRecoveryServiceApi.verifyKycRecoveryFields(
+
+        KycRecoveryResponse result = kycRecoveryServiceApi.verifyKycRecoveryFields(
                 kycRecoveryDto.getAccountId(),
                 kycRecoveryDto.getIdNumber(),
                 kycRecoveryDto.getExpiryDate()
         );
-        
+
         log.info("KYC recovery fields verification completed [correlationId={}]", correlationId);
-        return result;
+        KycRecoveryResponse response = KycRecoveryResponse.builder()
+                .status(result.getStatus())
+                .message(result.getMessage())
+                .build();
+        return ResponseEntity.ok(response);
     }
-    
+
     /**
      * Masks an account ID for logging purposes
      */

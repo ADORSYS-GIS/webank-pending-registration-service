@@ -58,7 +58,7 @@ public class TokenServiceImplTest {
     public void testGenerateRecoveryTokenSuccess() {
         TokenRequest request = new TokenRequest("newAcc456", "oldAcc123");
 
-        String token = tokenService.requestRecoveryToken(request);
+        String token = tokenService.requestRecoveryToken(request).getToken();
 
         assertNotNull(token, "Token should not be null");
 
@@ -84,7 +84,7 @@ public class TokenServiceImplTest {
         TokenRequest request = new TokenRequest("acc1", "acc2");
 
         // Act & Assert
-        String result = tokenService.requestRecoveryToken(request);
+        String result = tokenService.requestRecoveryToken(request).getToken();
         assertNull(result, "Token should be null when private key loading fails");
         verify(keyLoader).loadPrivateKey();
     }
@@ -96,7 +96,7 @@ public class TokenServiceImplTest {
         TokenRequest request = new TokenRequest("acc1", "acc2");
 
         // Act
-        String result = tokenService.requestRecoveryToken(request);
+        String result = tokenService.requestRecoveryToken(request).getToken();
 
         // Assert
         assertNull(result, "Token should be null when private key loading fails");

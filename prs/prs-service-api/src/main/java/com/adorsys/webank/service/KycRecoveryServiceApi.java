@@ -1,4 +1,5 @@
 package com.adorsys.webank.service;
+import com.adorsys.webank.dto.response.KycRecoveryResponse;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,5 +12,5 @@ public interface KycRecoveryServiceApi {
      * @param expiryDate The expiration date of the document.
      * @return A string indicating the result of the verification process.
      */
-    String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate);
+    KycRecoveryResponse verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate);
 }

@@ -1,5 +1,6 @@
 package com.adorsys.webank.serviceimpl;
 
+import com.adorsys.webank.dto.response.KycRecoveryResponse;
 import com.adorsys.webank.projection.PersonalInfoProjection;
 import com.adorsys.webank.repository.PersonalInfoRepository;
 import com.adorsys.webank.service.KycRecoveryServiceApi;
@@ -20,44 +21,56 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
 
     @Override
     @Transactional
-    public String verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
+    public KycRecoveryResponse verifyKycRecoveryFields(String accountId, String idNumber, String expiryDate) {
         String correlationId = MDC.get("correlationId");
-        log.info("Verifying KYC recovery fields for account: {} [correlationId={}]", 
+        log.info("Verifying KYC recovery fields for account: {} [correlationId={}]",
                 maskAccountId(accountId), correlationId);
-        log.debug("Verifying with ID: {}, expiry date: {} [correlationId={}]", 
+        log.debug("Verifying with ID: {}, expiry date: {} [correlationId={}]",
                 maskIdNumber(idNumber), expiryDate, correlationId);
-        
+
         Optional<PersonalInfoProjection> personalInfoOpt = inforepository.findByAccountId(accountId);
 
         if (personalInfoOpt.isEmpty()) {
-            log.warn("No record found for account: {} [correlationId={}]", 
+            log.warn("No record found for account: {} [correlationId={}]",
                     maskAccountId(accountId), correlationId);
-            return "Failed: No record found for accountId " + accountId;
+            return KycRecoveryResponse.builder()
+                    .status("FAILED")
+                    .message("Failed: No record found for accountId " + accountId)
+                    .build();
         }
 
         PersonalInfoProjection personalInfo = personalInfoOpt.get();
-        log.debug("Found personal info record for account: {} [correlationId={}]", 
+        log.debug("Found personal info record for account: {} [correlationId={}]",
                 maskAccountId(accountId), correlationId);
 
         // Validate document details
         if (!personalInfo.getDocumentUniqueId().equals(idNumber)) {
-            log.warn("Document ID mismatch for account: {} [correlationId={}]", 
+            log.warn("Document ID mismatch for account: {} [correlationId={}]",
                     maskAccountId(accountId), correlationId);
-            return "Failed: Document ID mismatch";
+            return KycRecoveryResponse.builder()
+                    .status("FAILED")
+                    .message("Failed: Document ID mismatch")
+                    .build();
         }
 
         if (!personalInfo.getExpirationDate().equals(expiryDate)) {
-            log.warn("Document expiry date mismatch for account: {} [correlationId={}]", 
+            log.warn("Document expiry date mismatch for account: {} [correlationId={}]",
                     maskAccountId(accountId), correlationId);
-            return "Failed: Document expiry date mismatch";
+            return KycRecoveryResponse.builder()
+                    .status("FAILED")
+                    .message("Failed: Document expiry date mismatch")
+                    .build();
         }
 
         // If all validations pass
-        log.info("Document verification successful for account: {} [correlationId={}]", 
+        log.info("Document verification successful for account: {} [correlationId={}]",
                 maskAccountId(accountId), correlationId);
-        return "Document verification successful";
+        return KycRecoveryResponse.builder()
+                .status("SUCCESS")
+                .message("Document verification successful")
+                .build();
     }
-    
+
     /**
      * Masks an account ID for logging purposes
      * Shows only first 2 and last 2 characters
@@ -68,7 +81,7 @@ public class KycRecoveryServiceImpl implements KycRecoveryServiceApi {
         }
         return accountId.substring(0, 2) + "****" + accountId.substring(accountId.length() - 2);
     }
-    
+
     /**
      * Masks an ID number for logging purposes
      * Shows only first 2 and last 2 characters
