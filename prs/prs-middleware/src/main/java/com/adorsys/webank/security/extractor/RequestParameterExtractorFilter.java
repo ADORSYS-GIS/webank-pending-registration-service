@@ -37,7 +37,8 @@ public class RequestParameterExtractorFilter extends OncePerRequestFilter {
             "/swagger-ui.html",
             "/v3/api-docs",
             "/swagger-ui/",
-            "/api/prs/actuator"
+            "/api/prs/actuator",
+            "/api/actuator"
     );
 
     /**
